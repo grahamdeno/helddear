@@ -107,6 +107,22 @@ struct SettingsView: View {
                         showLifetime = true
                     }
                 }
+                if purchases.isTestBuild {
+                    VStack(alignment: .leading, spacing: Brand.space2) {
+                        Eyebrow(text: "TestFlight only")
+                        Toggle(isOn: Binding(get: { purchases.hasLifetime },
+                                             set: { on in Task { await purchases.setTestOverride(on) } })) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Lifetime for testing").textStyle(.bodyStrong)
+                                Text("Turns the paid features on without buying. Not in the App Store version. A sandbox purchase also works and is free.")
+                                    .textStyle(.caption, color: Brand.inkMuted)
+                            }
+                        }
+                        .tint(Brand.action)
+                        .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    }
+                }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "People")
                     OptionRow(title: "Add from contacts", caption: "Share more people with Held Dear") { addingFromContacts = true }

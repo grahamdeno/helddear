@@ -14,6 +14,8 @@ final class Purchases: ObservableObject {
     @Published private(set) var product: Product?
     @Published private(set) var isWorking = false
     @Published var message: String?
+    /// True in TestFlight and Xcode builds (Apple's sandbox), never in the App Store version.
+    @Published private(set) var isTestBuild = false
 
     private var updates: Task<Void, Never>?
 
@@ -31,6 +33,9 @@ final class Purchases: ObservableObject {
     var priceText: String { product?.displayPrice ?? "$9.99" }
 
     func refresh() async {
+        if let result = try? await AppTransaction.shared, case .verified(let t) = result {
+            isTestBuild = t.environment != .production
+        }
         if product == nil {
             product = try? await Product.products(for: [Self.lifetimeID]).first
         }
@@ -38,7 +43,16 @@ final class Purchases: ObservableObject {
         for await result in Transaction.currentEntitlements {
             if case .verified(let t) = result, t.productID == Self.lifetimeID, t.revocationDate == nil { owned = true }
         }
+        if isTestBuild && UserDefaults.standard.bool(forKey: "testLifetimeOverride") { owned = true }
         setLifetime(owned)
+    }
+
+    /// TestFlight only: turn Lifetime on or off without buying, to test the paid features.
+    /// Ignored in the App Store version because `isTestBuild` is false there.
+    func setTestOverride(_ on: Bool) async {
+        guard isTestBuild else { return }
+        UserDefaults.standard.set(on, forKey: "testLifetimeOverride")
+        await refresh()
     }
 
     func buy() async {
