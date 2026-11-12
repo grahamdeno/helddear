@@ -40,6 +40,12 @@ enum Brand {
         })
     }
 
+    /// The big countdown number (hero and widgets only). Tabular digits so it doesn't jitter.
+    static func countdownFont(_ size: CGFloat) -> Font {
+        let base = TypeStyle.hasNunito ? Font.custom("Nunito", size: size, relativeTo: .largeTitle) : Font.system(size: size, design: .rounded)
+        return base.weight(.heavy).monospacedDigit()
+    }
+
     // MARK: Spacing and radius
     static let space1: CGFloat = 4
     static let space2: CGFloat = 8

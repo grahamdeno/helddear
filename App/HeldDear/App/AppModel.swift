@@ -26,6 +26,8 @@ enum Route: Identifiable, Equatable {
     case addBirthday(String)
     case addWish(UUID?)
     case rings
+    case settings
+    case lifetime
 
     var id: String {
         switch self {
@@ -35,6 +37,8 @@ enum Route: Identifiable, Equatable {
         case .addBirthday: "add-birthday"
         case .addWish(let id): "add-wish-\(id?.uuidString ?? "")"
         case .rings: "rings"
+        case .settings: "settings"
+        case .lifetime: "lifetime"
         }
     }
 }
@@ -68,6 +72,7 @@ final class AppModel: ObservableObject {
         }
         CallService.shared.onConnected = { [weak self] in self?.callConnected() }
         AppModel.current = self
+        _ = Purchases.shared
         NotificationCenter.default.addObserver(forName: .CNContactStoreDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.onboarded else { return }
@@ -122,7 +127,7 @@ final class AppModel: ObservableObject {
         let person = m.person
         let plan = m.plan
         return MomentState(id: m.id, personName: person?.name ?? "Someone", ring: m.occasion?.effectiveRing ?? .outer,
-                           dueDate: m.dueDate, status: m.status, planKind: plan?.kind, planDone: plan?.isDone ?? false,
+                           dueDate: m.dueDate, status: m.status, planKind: plan?.kind, planTitle: plan?.title, planDone: plan?.isDone ?? false,
                            greetingDone: m.greetingSent,
                            anyActDone: m.anyActDone, openWishCount: person?.openWishes.count ?? 0,
                            hasPhone: phone(for: person) != nil, turning: m.turning, headsUpAt: m.headsUpAt)
@@ -311,13 +316,15 @@ final class AppModel: ObservableObject {
     }
 
     /// The day-of message or call. Completes a matching plan, otherwise records a greeting.
-    func completeGreeting(_ m: Moment, kind: ActKind, how: ConfirmedBy, photoFile: String? = nil) {
+    func completeGreeting(_ m: Moment, kind: ActKind, how: ConfirmedBy, photoFile: String? = nil, cardFile: String? = nil) {
         if let plan = m.plan, !plan.isDone, plan.kind == kind {
             plan.photoFile = photoFile
+            plan.cardFile = cardFile
             plan.complete(how)
         } else {
             let act = Act(role: .greeting, kind: kind)
             act.photoFile = photoFile
+            act.cardFile = cardFile
             act.complete(how)
             context.insert(act)
             act.moment = m
@@ -340,6 +347,7 @@ final class AppModel: ObservableObject {
         let entry = LedgerEntry(year: m.year, type: m.occasion?.type ?? .birthday, what: MomentEngine.whatWasDone(m),
                                 photoFile: photo, line: line?.trimmingCharacters(in: .whitespaces).nilIfEmpty,
                                 personName: person.name, momentID: m.id)
+        entry.cardFile = m.acts.compactMap(\.cardFile).first
         context.insert(entry)
         entry.person = person
         commit()
@@ -403,6 +411,7 @@ final class AppModel: ObservableObject {
     }
 
     func openURL(_ url: URL) {
+        if url.scheme == "helddear", url.host() == "lifetime" { route = .lifetime; return }
         guard url.scheme == "helddear", url.host() == "moment",
               let idString = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "id" })?.value,
               let id = UUID(uuidString: idString) else { return }
@@ -417,8 +426,18 @@ final class AppModel: ObservableObject {
         let next = MomentEngine.visibleMoments(context, now: now).filter { $0.dueDate >= Calendar.current.startOfDay(for: now) }.prefix(3).compactMap { m -> WidgetSnapshot.Entry? in
             guard let p = m.person else { return nil }
             let detail = m.turning.map { "turning \($0)" }
+            var soon: String?
+            let days = OccasionDates.daysBetween(now, m.dueDate)
+            if days <= 3 {
+                let weekday = m.dueDate.formatted(.dateTime.weekday(.wide))
+                switch NextAct.make(state(for: m), now: now) {
+                case .orderBy: soon = "Order today"
+                case .mailBy: soon = "Mail the card today"
+                default: soon = days == 0 ? "Message ready today" : "Message ready \(weekday)"
+                }
+            }
             return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.occasion?.type.label ?? "Birthday",
-                                        dueDate: m.dueDate, detail: detail)
+                                        dueDate: m.dueDate, detail: detail, soonLine: soon)
         }
         AppGroup.write(WidgetSnapshot(next: Array(next), writtenAt: now), to: AppGroup.widgetURL)
         WidgetCenter.shared.reloadAllTimelines()

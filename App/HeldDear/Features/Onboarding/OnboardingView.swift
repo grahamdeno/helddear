@@ -3,7 +3,7 @@ import SwiftUI
 /// Setup, once, under two minutes: A1 find birthdays, A2 choose the inner ring, A3 notifications.
 struct OnboardingView: View {
     @EnvironmentObject var model: AppModel
-    enum Step { case find, noneFound, denied, choose, notify }
+    enum Step { case find, noneFound, denied, choose, getAhead, notify }
     @State private var step: Step = .find
     @State private var addFirstAfterSetup = false
 
@@ -19,7 +19,8 @@ struct OnboardingView: View {
                 SetupMessage(title: "Add people one at a time instead",
                              detail: "You can let Held Dear see your contacts later in Settings.",
                              button: "Add a birthday") { addFirstAfterSetup = true; go(.notify) }
-            case .choose: ChooseInnerRingView { go(.notify) }
+            case .choose: ChooseInnerRingView { go(model.allPeople().contains { $0.ring == .inner } ? .getAhead : .notify) }
+            case .getAhead: GetAheadView { go(.notify) }
             case .notify: NotificationsSetupView(onDone: finish)
             }
         }

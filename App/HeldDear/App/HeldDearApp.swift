@@ -91,6 +91,10 @@ struct RouteView: View {
             AddWishView(preselected: personID.flatMap { model.person($0) })
         case .rings:
             NavigationStack { RingsView().toolbar { CloseToolbar { model.route = nil } } }
+        case .lifetime:
+            LifetimeView()
+        case .settings:
+            NavigationStack { SettingsView().toolbar { CloseToolbar { model.route = nil } } }
         }
     }
 }

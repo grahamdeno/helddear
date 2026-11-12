@@ -20,6 +20,8 @@ final class Person {
     /// The app's own ordered photo set for this person (file names in PhotoStore).
     var photoFiles: [String]
     var createdAt: Date
+    /// Many adults don't want their age on a card; off unless turned on for this person.
+    var showAgeOnCard: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \Wish.person) var wishes: [Wish] = []
     @Relationship(deleteRule: .cascade, inverse: \Occasion.person) var occasions: [Occasion] = []
@@ -169,6 +171,8 @@ final class Act {
     var fromNote: String?
     var dinnerDate: Date?
     var photoFile: String?
+    /// The rendered card image that was sent, for the yearly record and the look-back.
+    var cardFile: String?
     var completedAt: Date?
     var confirmedRaw: String?
     var createdAt: Date
@@ -200,6 +204,7 @@ final class LedgerEntry {
     var occasionTypeRaw: String
     var what: String
     var photoFile: String?
+    var cardFile: String?
     var line: String?
     var momentID: UUID?
     /// Copied in so the entry still reads right if the occasion is deleted.

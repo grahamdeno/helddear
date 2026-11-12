@@ -183,3 +183,43 @@ extension DomainTests {
         XCTAssertEqual(OccasionDates.nextDate(month: 11, day: 10, onOrAfter: day(2026, 11, 11, 15), calendar: cal), day(2027, 11, 10))
     }
 }
+
+extension DomainTests {
+    func testNextActFollowsState() {
+        let now = day(2026, 11, 12, 8)
+        let due = day(2026, 12, 9)
+        XCTAssertEqual(NextAct.make(state(due: due), now: now, calendar: cal), .pick)
+        XCTAssertEqual(NextAct.make(state(due: day(2027, 4, 1)), now: now, calendar: cal), .saveWish)
+        XCTAssertEqual(NextAct.make(state(due: due, status: .planning, plan: .gift), now: now, calendar: cal), .orderBy(day(2026, 12, 4)))
+        XCTAssertEqual(NextAct.make(state(due: due, status: .planning, plan: .card), now: now, calendar: cal), .mailBy(day(2026, 12, 4)))
+        XCTAssertEqual(NextAct.make(state(due: due, status: .done, plan: .gift, planDone: true), now: now, calendar: cal), .allSet)
+        XCTAssertEqual(NextAct.make(state(due: day(2026, 11, 12)), now: now, calendar: cal), .dayOfMessage)
+        XCTAssertEqual(NextAct.make(state(due: day(2026, 11, 12), status: .planning, plan: .call), now: now, calendar: cal), .dayOfCall)
+        XCTAssertEqual(NextAct.make(state(due: day(2026, 11, 11), status: .missed), now: now, calendar: cal), .lateNote)
+        XCTAssertEqual(NextAct.pick.title(name: "Mom"), "Pick what to do")
+        XCTAssertEqual(NextAct.dayOfMessage.title(name: "Mom"), "Send Mom a message")
+    }
+
+    func testHeroPrefersMissedThenSoonest() {
+        let now = day(2026, 11, 12, 8)
+        let soon = state("Dan", due: day(2026, 11, 20))
+        let later = state("Mom", due: day(2026, 12, 9))
+        XCTAssertEqual(HeroPicker.pick([later, soon], now: now, calendar: cal)?.personName, "Dan")
+        let missed = state("Kris", due: day(2026, 11, 11), status: .missed)
+        XCTAssertEqual(HeroPicker.pick([later, soon, missed], now: now, calendar: cal)?.personName, "Kris")
+        let settled = state("Leo", due: day(2026, 11, 10), status: .letGo)
+        XCTAssertEqual(HeroPicker.pick([settled, later], now: now, calendar: cal)?.personName, "Mom")
+    }
+}
+
+extension DomainTests {
+    func testScheduleForInnerRing() {
+        let stops = AlertPlanner.schedule(for: state(due: day(2026, 12, 9), status: .planning, plan: .card), calendar: cal)
+        XCTAssertTrue(stops.contains { $0.label == "Mail by, for the card" && $0.date == day(2026, 12, 4, 9) })
+        XCTAssertTrue(stops.contains { $0.label == "A message ready" && $0.date == day(2026, 12, 9, 9) })
+        let upcoming = AlertPlanner.schedule(for: state(due: day(2026, 12, 9)), calendar: cal)
+        XCTAssertEqual(upcoming.map(\.label), ["A question about wishes", "A heads-up and a plan", "A message ready"])
+        let outer = AlertPlanner.schedule(for: state(ring: .outer, due: day(2026, 12, 9)), calendar: cal)
+        XCTAssertEqual(outer.map(\.label), ["A message ready"])
+    }
+}

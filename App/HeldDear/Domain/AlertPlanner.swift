@@ -9,6 +9,7 @@ struct MomentState: Equatable {
     var dueDate: Date
     var status: MomentStatus
     var planKind: ActKind?
+    var planTitle: String? = nil
     var planDone: Bool
     var greetingDone: Bool
     var anyActDone: Bool
@@ -208,5 +209,32 @@ enum AlertPlanner {
         return byMonth.compactMap { month, ms in
             ms.count >= seasonThreshold ? Season(monthStart: month, momentIDs: ms.sorted { $0.dueDate < $1.dueDate }.map(\.id)) : nil
         }.sorted { $0.monthStart < $1.monthStart }
+    }
+}
+
+/// One stop on a person's "What Held Dear will do" timeline.
+struct ScheduleStop: Equatable {
+    var date: Date
+    var label: String
+    var showsTime: Bool
+}
+
+extension AlertPlanner {
+    /// The coming stops for one Moment, from the same rules that schedule the alerts.
+    static func schedule(for m: MomentState, calendar: Calendar = .current) -> [ScheduleStop] {
+        let farPast = OccasionDates.adding(days: -400, to: m.dueDate, calendar: calendar)
+        let alerts = plan(moments: [m], seasons: [], now: farPast, calendar: calendar).alerts
+        return alerts.compactMap { a -> ScheduleStop? in
+            switch a.kind {
+            case .wishPrompt: return ScheduleStop(date: a.fireDate, label: "A question about wishes", showsTime: false)
+            case .headsUp, .grouped:
+                return ScheduleStop(date: a.fireDate, label: m.ring == .inner ? "A heads-up and a plan" : "A heads-up", showsTime: false)
+            case .cutoff:
+                return ScheduleStop(date: a.fireDate, label: m.planKind == .card ? "Mail by, for the card" : "Order by, for the gift", showsTime: false)
+            case .dayOf:
+                return ScheduleStop(date: a.fireDate, label: m.planKind == .call && !m.planDone ? "A call, one tap away" : "A message ready", showsTime: true)
+            default: return nil
+            }
+        }
     }
 }
