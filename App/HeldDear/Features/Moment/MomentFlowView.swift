@@ -32,6 +32,7 @@ struct MomentFlowView: View {
             case .auto, .choose: ChooseStep(moment: moment, go: go)
             case .wishPrompt: WishPromptStep(moment: moment, close: close)
             case .nextStep: NextStepView(moment: moment, go: go, close: close)
+            case .mailCard: MailCardFlow(moment: moment, go: go, close: close)
             case .dayOf: DayOfStep(moment: moment, go: go, close: close)
             case .photo: PhotoStep(moment: moment, go: go, close: close)
             case .confirmCall: ConfirmCallStep(moment: moment, go: go, close: close)
@@ -117,6 +118,16 @@ struct ChooseStep: View {
                         OptionRow(title: wish.text, caption: wish.savedLine) { pick(.gift, wish: wish) }
                     }
                 }
+            }
+            if OccasionDates.daysBetween(Date(), moment.dueDate) >= 6 {
+                OptionRow(title: "Mail a real card",
+                          caption: "Written in pen, stamped and mailed for you · $6.99",
+                          action: { go(.mailCard) },
+                          leading: {
+                              Image(systemName: "envelope.fill").font(.system(size: 18, weight: .semibold, design: .rounded))
+                                  .foregroundStyle(Brand.action).frame(width: 32)
+                          },
+                          trailing: { ChevronDisc() })
             }
             VStack(alignment: .leading, spacing: Brand.space2) {
                 Eyebrow(text: wishes.isEmpty ? "Pick one" : "Or")
