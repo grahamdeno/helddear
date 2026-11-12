@@ -1,0 +1,185 @@
+import XCTest
+@testable import HeldDear
+
+final class DomainTests: XCTestCase {
+    var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }()
+
+    func day(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 0) -> Date {
+        cal.date(from: DateComponents(year: y, month: m, day: d, hour: h))!
+    }
+
+    // MARK: Dates
+
+    func testFeb29ObservedOnFeb28InNonLeapYears() {
+        XCTAssertEqual(OccasionDates.date(month: 2, day: 29, year: 2027, calendar: cal), day(2027, 2, 28))
+        XCTAssertEqual(OccasionDates.date(month: 2, day: 29, year: 2028, calendar: cal), day(2028, 2, 29))
+    }
+
+    func testOccurrencesCoverTwelveMonthsAndRecentPast() {
+        let now = day(2026, 11, 11, 10)
+        let next = OccasionDates.occurrences(month: 3, day: 3, from: now, calendar: cal)
+        XCTAssertEqual(next.map(\.year), [2027])
+        let justPassed = OccasionDates.occurrences(month: 11, day: 9, from: now, calendar: cal)
+        XCTAssertEqual(justPassed.map(\.year), [2026], "2 days ago stays in the window for F1")
+        let longPassed = OccasionDates.occurrences(month: 11, day: 1, from: now, calendar: cal)
+        XCTAssertEqual(longPassed.map(\.year), [2027])
+    }
+
+    func testCountdownWording() {
+        let now = day(2026, 11, 11, 15)
+        XCTAssertEqual(OccasionDates.countdown(to: day(2026, 11, 11), from: now, calendar: cal), "Today")
+        XCTAssertEqual(OccasionDates.countdown(to: day(2026, 11, 20), from: now, calendar: cal), "in 9 days")
+        XCTAssertEqual(OccasionDates.countdown(to: day(2026, 11, 10), from: now, calendar: cal), "Yesterday")
+        XCTAssertEqual(OccasionDates.countdown(to: day(2027, 1, 14), from: now, calendar: cal), "in 2 months")
+    }
+
+    func testNextMorning() {
+        XCTAssertEqual(OccasionDates.nextMorning(after: day(2026, 11, 11, 8), calendar: cal), day(2026, 11, 11, 9))
+        XCTAssertEqual(OccasionDates.nextMorning(after: day(2026, 11, 11, 10), calendar: cal), day(2026, 11, 12, 9))
+    }
+
+    // MARK: Parsers
+
+    func testBirthdayParser() {
+        XCTAssertEqual(BirthdayParser.parse("Mike, March 3"), ParsedBirthday(name: "Mike", month: 3, day: 3, year: nil))
+        XCTAssertEqual(BirthdayParser.parse("March 3 Mike"), ParsedBirthday(name: "Mike", month: 3, day: 3, year: nil))
+        XCTAssertEqual(BirthdayParser.parse("Mike 3/3"), ParsedBirthday(name: "Mike", month: 3, day: 3, year: nil))
+        XCTAssertEqual(BirthdayParser.parse("Aunt Jo's birthday is Dec 2nd, 1956"),
+                       ParsedBirthday(name: "Aunt Jo", month: 12, day: 2, year: 1956))
+        XCTAssertEqual(BirthdayParser.parse("Nora 7 May"), ParsedBirthday(name: "Nora", month: 5, day: 7, year: nil))
+        XCTAssertNil(BirthdayParser.parse("Mike"))
+        XCTAssertNil(BirthdayParser.parse("March 3"))
+        XCTAssertNil(BirthdayParser.parse("Mike, February 31"))
+    }
+
+    func testWishParser() {
+        let names = ["Nora", "Mom", "Nora Lee"]
+        let a = WishParser.parse("Nora wants blue skates", names: names)
+        XCTAssertEqual(a.index, 0); XCTAssertEqual(a.text, "blue skates")
+        let b = WishParser.parse("Nora Lee would like a tent", names: names)
+        XCTAssertEqual(b.index, 2); XCTAssertEqual(b.text, "a tent")
+        let c = WishParser.parse("Mom: gardening gloves", names: names)
+        XCTAssertEqual(c.index, 1); XCTAssertEqual(c.text, "gardening gloves")
+        let d = WishParser.parse("Someone wants socks", names: names)
+        XCTAssertNil(d.index); XCTAssertEqual(d.text, "Someone wants socks")
+        XCTAssertNil(WishParser.parse("Momentum shoes", names: names).index)
+    }
+
+    // MARK: Alerts
+
+    func state(_ name: String = "Mom", ring: Ring = .inner, due: Date, status: MomentStatus = .upcoming,
+               wishes: Int = 0, plan: ActKind? = nil, planDone: Bool = false, phone: Bool = true,
+               headsUpAt: Date? = nil) -> MomentState {
+        MomentState(id: UUID(), personName: name, ring: ring, dueDate: due, status: status, planKind: plan,
+                    planDone: planDone, greetingDone: false, anyActDone: planDone, openWishCount: wishes,
+                    hasPhone: phone, turning: nil, headsUpAt: headsUpAt)
+    }
+
+    func testInnerRingGetsFullSequence() {
+        let now = day(2026, 9, 1, 12)
+        let m = state(due: day(2026, 12, 2))
+        let result = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal)
+        let kinds = result.alerts.map(\.kind)
+        XCTAssertEqual(kinds, [.wishPrompt, .headsUp, .nudge, .nudge, .dayOf, .missed])
+        XCTAssertEqual(result.alerts[1].fireDate, day(2026, 11, 11, 9))
+        XCTAssertEqual(result.alerts[1].body, "Mom's birthday is in 3 weeks.")
+        XCTAssertEqual(result.alerts[4].fireDate, day(2026, 12, 2, 9))
+        XCTAssertEqual(result.headsUpUpdates[m.id], day(2026, 11, 11, 9))
+    }
+
+    func testWishPromptSkippedWhenWishesSaved() {
+        let now = day(2026, 9, 1, 12)
+        let m = state(due: day(2026, 12, 2), wishes: 2)
+        let alerts = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal).alerts
+        XCTAssertFalse(alerts.contains { $0.kind == .wishPrompt })
+        XCTAssertEqual(alerts.first { $0.kind == .headsUp }?.body, "Mom's birthday is in 3 weeks. You saved 2 ideas.")
+    }
+
+    func testAddedCloserThanLeadTimeFiresNextMorning() {
+        let now = day(2026, 11, 20, 14)
+        let m = state(due: day(2026, 12, 2))
+        let result = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal)
+        XCTAssertEqual(result.alerts.first { $0.kind == .headsUp }?.fireDate, day(2026, 11, 21, 9))
+    }
+
+    func testHeadsUpNotRepeatedOnceDelivered() {
+        let now = day(2026, 11, 20, 14)
+        let m = state(due: day(2026, 12, 2), headsUpAt: day(2026, 11, 11, 9))
+        let result = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal)
+        XCTAssertFalse(result.alerts.contains { $0.kind == .headsUp })
+        XCTAssertNil(result.headsUpUpdates[m.id])
+        XCTAssertFalse(result.alerts.contains { $0.kind == .nudge }, "both nudges are past")
+    }
+
+    func testOuterRingOnlyDayOfAndMissed() {
+        let now = day(2026, 11, 1, 12)
+        let m = state("Kris", ring: .outer, due: day(2026, 11, 30))
+        let kinds = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal).alerts.map(\.kind)
+        XCTAssertEqual(kinds, [.dayOf, .missed])
+    }
+
+    func testCutoffReminderForUnfinishedGift() {
+        let now = day(2026, 11, 15, 12)
+        let m = state(due: day(2026, 12, 2), status: .planning, plan: .gift)
+        let alerts = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal).alerts
+        XCTAssertEqual(alerts.first { $0.kind == .cutoff }?.fireDate, day(2026, 11, 27, 9))
+    }
+
+    func testDayOfCategoryAndText() {
+        var m = state(due: day(2026, 12, 2), status: .planning, plan: .gift, planDone: true)
+        m.turning = 70
+        XCTAssertEqual(AlertPlanner.dayOfText(m), "It's Mom's birthday. Turning 70 today. Your gift is on its way.")
+        XCTAssertEqual(AlertPlanner.dayOfCategory(m), NotificationCategory.dayOfMessage)
+        let call = state(due: day(2026, 12, 2), status: .planning, plan: .call)
+        XCTAssertEqual(AlertPlanner.dayOfCategory(call), NotificationCategory.dayOfCall)
+        let noPhone = state(due: day(2026, 12, 2), phone: false)
+        XCTAssertEqual(AlertPlanner.dayOfCategory(noPhone), NotificationCategory.dayOfOpen)
+    }
+
+    func testNoMissedAlertWhenSomethingWasDone() {
+        let now = day(2026, 11, 15, 12)
+        let m = state(due: day(2026, 12, 2), status: .done, plan: .gift, planDone: true)
+        XCTAssertTrue(AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal).alerts.isEmpty)
+    }
+
+    func testSameDayHeadsUpsAreGrouped() {
+        let now = day(2026, 11, 1, 12)
+        let a = state("Mom", due: day(2026, 12, 2))
+        let b = state("Dan", due: day(2026, 12, 2))
+        let alerts = AlertPlanner.plan(moments: [a, b], seasons: [], now: now, calendar: cal).alerts
+        let grouped = alerts.filter { $0.kind == .grouped }
+        XCTAssertEqual(grouped.count, 1)
+        XCTAssertEqual(grouped.first?.body, "2 birthdays coming up: Dan and Mom.")
+        XCTAssertFalse(alerts.contains { $0.kind == .headsUp })
+    }
+
+    func testSeasonsNeedThreeInnerOrMiddle() {
+        let now = day(2026, 10, 1, 12)
+        let ms = [state("Mom", due: day(2026, 12, 2)), state("Dan", ring: .middle, due: day(2026, 12, 9)),
+                  state("Leo", ring: .middle, due: day(2026, 12, 18)), state("Kris", ring: .outer, due: day(2026, 12, 30)),
+                  state("Jess", due: day(2027, 1, 4))]
+        let seasons = AlertPlanner.seasons(from: ms, now: now, calendar: cal)
+        XCTAssertEqual(seasons.count, 1)
+        XCTAssertEqual(seasons[0].monthStart, day(2026, 12, 1))
+        let alerts = AlertPlanner.plan(moments: [], seasons: seasons, now: now, calendar: cal).alerts
+        XCTAssertEqual(alerts.first?.fireDate, day(2026, 11, 10, 9))
+        XCTAssertEqual(alerts.first?.body, "December is a big month. 3 of your people have birthdays in it.")
+    }
+
+    func testAlertCapIsRespected() {
+        let now = day(2026, 1, 1, 12)
+        let many = (0..<40).map { i in state("P\(i)", due: OccasionDates.adding(days: 70 + i, to: day(2026, 1, 1), calendar: cal)) }
+        XCTAssertEqual(AlertPlanner.plan(moments: many, seasons: [], now: now, calendar: cal).alerts.count, AlertPlanner.maxAlerts)
+    }
+}
+
+extension DomainTests {
+    func testNextDate() {
+        XCTAssertEqual(OccasionDates.nextDate(month: 11, day: 11, onOrAfter: day(2026, 11, 11, 15), calendar: cal), day(2026, 11, 11))
+        XCTAssertEqual(OccasionDates.nextDate(month: 11, day: 10, onOrAfter: day(2026, 11, 11, 15), calendar: cal), day(2027, 11, 10))
+    }
+}

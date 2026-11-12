@@ -1,0 +1,128 @@
+name: testflight
+# Archives Held Dear and uploads it to TestFlight (internal testing only).
+# Runs on push to the `testflight` branch, or by hand. Pushing to `testflight` IS distribution:
+# only after Graham says ship.
+# Needs repo secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (the same App Store Connect API key as his other apps)
+# and the App Store Connect record "Held Dear: Your People" (Apple ID 6833744147, bundle com.grahamdeno.helddear).
+# The App Group group.com.grahamdeno.helddear must be enabled on the app, share and widget App IDs.
+# Never submits for review. Graham presses Submit for Review himself.
+on:
+  push:
+    branches: [testflight]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Archive, sign and check entitlements, but do not upload to TestFlight"
+        type: boolean
+        default: false
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Privacy guard
+        run: python3 -I scripts/privacy_guard.py check
+
+      - name: Select the newest Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Tools
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Write API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_P8" ]; then echo "::error::ASC_KEY_P8 secret is missing"; exit 1; fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey.p8"
+
+      - name: Archive
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project HeldDear.xcodeproj -scheme HeldDear \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/HeldDear.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER" \
+            CURRENT_PROJECT_VERSION=$((1000 + ${{ github.run_number }})) \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee "$RUNNER_TEMP/archive.log" | tail -n 40 \
+            || { grep -E "error:|Error|No profiles|No Accounts|certificate|provisioning" "$RUNNER_TEMP/archive.log" | sort -u | head -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
+
+      - name: Sign the archive ad hoc with each target's entitlements
+        run: |
+          APP="$RUNNER_TEMP/HeldDear.xcarchive/Products/Applications/HeldDear.app"
+          find "$APP" -depth \( -name "*.framework" -o -name "*.dylib" \) -print -exec codesign --force --sign - {} \;
+          for EXT in HeldDearShare HeldDearWidgets; do
+            codesign --force --sign - --entitlements "Config/$EXT.entitlements" --generate-entitlement-der "$APP/PlugIns/$EXT.appex"
+            codesign -d --entitlements - "$APP/PlugIns/$EXT.appex" 2>&1 | grep -q "group.com.grahamdeno.helddear" || { echo "::error::$EXT has no App Group entitlement"; exit 1; }
+          done
+          codesign --force --sign - --entitlements Config/HeldDear.entitlements --generate-entitlement-der "$APP"
+          codesign -d --entitlements - "$APP" 2>&1 | grep -q "group.com.grahamdeno.helddear" || { echo "::error::app has no App Group entitlement"; exit 1; }
+
+      - name: Check usage descriptions and extensions in the archived app
+        run: |
+          APP="$RUNNER_TEMP/HeldDear.xcarchive/Products/Applications/HeldDear.app"
+          for key in NSContactsUsageDescription NSCalendarsWriteOnlyAccessUsageDescription NSSpeechRecognitionUsageDescription NSMicrophoneUsageDescription UIAppFonts BGTaskSchedulerPermittedIdentifiers; do
+            /usr/libexec/PlistBuddy -c "Print :$key" "$APP/Info.plist" >/dev/null || { echo "::error::$key missing from Info.plist"; exit 1; }
+          done
+          for EXT in HeldDearShare HeldDearWidgets; do
+            [ -d "$APP/PlugIns/$EXT.appex" ] || { echo "::error::$EXT is not embedded"; exit 1; }
+          done
+          echo "::notice::Usage descriptions present; share and widget extensions embedded"
+
+      - name: Export and upload
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/export.plist" <<'P'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>7MHDTK68M2</string>
+            <key>destination</key><string>__DEST__</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          P
+          DEST=upload; [ "${{ inputs.dry_run }}" = "true" ] && DEST=export
+          sed -i '' "s/__DEST__/$DEST/" "$RUNNER_TEMP/export.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HeldDear.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee "$RUNNER_TEMP/export.log" | tail -n 40 \
+            || { grep -E -i "error:|failed|certificate|provisioning|capabilit|entitlement" "$RUNNER_TEMP/export.log" | sort -u | head -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
+          if [ "$DEST" = "export" ]; then
+            echo "::notice::Dry run: exported and signed. Nothing uploaded."
+          else
+            echo "::notice::Uploaded build $((1000 + ${{ github.run_number }})) to App Store Connect"
+          fi
+
+      - name: Remove key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"

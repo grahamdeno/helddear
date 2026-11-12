@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged with the generated Info.plist. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>Nunito-Variable.ttf</string>
+	</array>
+	<!-- helddear://moment?id=… opens a Moment from the widget. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.grahamdeno.helddear</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>helddear</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Lets iOS place a call from the app (tel:) and know it was this app's call. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>sms</string>
+	</array>
+	<!-- Background refresh keeps the next few weeks of alerts scheduled if the app isn't opened. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.grahamdeno.helddear.refresh</string>
+	</array>
+</dict>
+</plist>
