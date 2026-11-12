@@ -11,7 +11,6 @@ struct AddFromContactsModifier: ViewModifier {
     @EnvironmentObject var model: AppModel
     @Binding var isPresented: Bool
     @State private var showAccessPicker = false
-    @State private var showContactPicker = false
     @State private var result: String?
 
     func body(content: Content) -> some View {
@@ -24,13 +23,6 @@ struct AddFromContactsModifier: ViewModifier {
             .contactAccessPicker(isPresented: $showAccessPicker) { _ in
                 finishSync()
             }
-            .sheet(isPresented: $showContactPicker) {
-                ContactPicker { contact in
-                    showContactPicker = false
-                    pickedWithFullAccess(contact)
-                }
-                .ignoresSafeArea()
-            }
             .alert(result ?? "", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) {
                 Button("OK", role: .cancel) {}
             }
@@ -41,7 +33,7 @@ struct AddFromContactsModifier: ViewModifier {
         case .limited:
             showAccessPicker = true
         case .full:
-            showContactPicker = true
+            ContactPickerPresenter.shared.present { contact in pickedWithFullAccess(contact) }
         case .notDetermined:
             Task {
                 let access = await ContactsService.shared.requestAccess()

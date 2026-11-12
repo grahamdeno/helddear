@@ -1,6 +1,7 @@
 import ContactsUI
 import PhotosUI
 import SwiftUI
+import UIKit
 
 /// Person: name, ring, photo set, open wishes, occasions, ledger by year. A browse screen: tap any item to change it.
 struct PersonView: View {
@@ -63,8 +64,10 @@ struct PersonView: View {
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showRing) { RingSheet(person: person).presentationDetents([.medium]) }
-        .sheet(isPresented: $linking) {
-            ContactPicker { contact in
+        .onChange(of: linking) { _, open in
+            guard open else { return }
+            linking = false
+            ContactPickerPresenter.shared.present { contact in
                 person.contactID = contact.identifier
                 if contact.isKeyAvailable(CNContactGivenNameKey) && contact.isKeyAvailable(CNContactFamilyNameKey) {
                     let full = [contact.givenName, contact.familyName].filter { !$0.isEmpty }.joined(separator: " ")
@@ -72,7 +75,6 @@ struct PersonView: View {
                 }
                 model.commit()
             }
-            .ignoresSafeArea()
         }
         .sheet(isPresented: $editingDate) { BirthdayEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
@@ -385,21 +387,41 @@ struct BirthdayEditor: View {
 }
 
 /// The system contact picker. Picking needs no Contacts permission.
-struct ContactPicker: UIViewControllerRepresentable {
-    var onPick: (CNContact) -> Void
+/// It must be presented directly by UIKit: wrapped in a SwiftUI sheet it shows a blank screen
+/// (build 1003 bug, Nov 12). The picker dismisses itself when a contact is chosen or on Cancel.
+@MainActor
+final class ContactPickerPresenter: NSObject, CNContactPickerDelegate {
+    static let shared = ContactPickerPresenter()
+    private var onPick: ((CNContact) -> Void)?
 
-    func makeUIViewController(context: Context) -> CNContactPickerViewController {
-        let vc = CNContactPickerViewController()
-        vc.delegate = context.coordinator
-        return vc
+    func present(onPick: @escaping (CNContact) -> Void) {
+        guard let top = Self.topViewController() else { return }
+        self.onPick = onPick
+        let picker = CNContactPickerViewController()
+        picker.delegate = self
+        top.present(picker, animated: true)
     }
 
-    func updateUIViewController(_ vc: CNContactPickerViewController, context: Context) {}
-    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+    nonisolated func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
+        Task { @MainActor in
+            let callback = self.onPick
+            self.onPick = nil
+            // Let the picker finish dismissing before the app changes screens.
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            callback?(contact)
+        }
+    }
 
-    final class Coordinator: NSObject, CNContactPickerDelegate {
-        let onPick: (CNContact) -> Void
-        init(onPick: @escaping (CNContact) -> Void) { self.onPick = onPick }
-        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) { onPick(contact) }
+    nonisolated func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+        Task { @MainActor in self.onPick = nil }
+    }
+
+    static func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
+        var top = window?.rootViewController
+        while let next = top?.presentedViewController, !next.isBeingDismissed { top = next }
+        return top
     }
 }
