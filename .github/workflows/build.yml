@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Mail server tests
+        run: cd server && node --test
+
       - name: Privacy guard
         # Held Dear keeps data on the phone: no network, contacts read only, calendar write only.
         run: |

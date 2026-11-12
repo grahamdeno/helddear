@@ -89,6 +89,20 @@ final class ContactsService {
         return CNPostalAddressFormatter.string(from: postal, style: .mailingAddress)
     }
 
+    /// The contact's first mailing address, structured for a mailed card.
+    func mailAddress(contactID: String?) -> MailAddress? {
+        guard canRead, let id = contactID,
+              let c = try? store.unifiedContact(withIdentifier: id, keysToFetch: [
+                CNContactPostalAddressesKey, CNContactGivenNameKey, CNContactFamilyNameKey] as [CNKeyDescriptor]),
+              let postal = c.postalAddresses.first?.value
+        else { return nil }
+        let lines = postal.street.split(separator: "\n").map(String.init)
+        return MailAddress(firstName: c.givenName, lastName: c.familyName,
+                           address1: lines.first ?? "", address2: lines.dropFirst().joined(separator: " "),
+                           city: postal.city, state: String(postal.state.uppercased().prefix(2)),
+                           zip: postal.postalCode)
+    }
+
     func thumbnail(contactID: String?) -> UIImage? {
         guard canRead, let id = contactID else { return nil }
         if let cached = thumbnailCache[id] { return cached }

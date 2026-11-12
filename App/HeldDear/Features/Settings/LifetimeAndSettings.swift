@@ -148,7 +148,7 @@ struct SettingsView: View {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
                     }
                 }
-                Text("Everything you add stays on this iPhone. Held Dear has no account. Purchases go through Apple; nothing else leaves your phone.")
+                Text("Everything you add stays on this iPhone. Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
                     .textStyle(.caption, color: Brand.inkMuted)
                 Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
                     .textStyle(.caption, color: Brand.inkMuted)

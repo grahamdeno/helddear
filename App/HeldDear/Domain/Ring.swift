@@ -59,6 +59,6 @@ enum ActKind: String, Codable {
     var hasCutoff: Bool { self == .gift || self == .card }
 }
 
-enum ConfirmedBy: String, Codable { case user, messageSent, callConnected, callConfirmed, calendar }
+enum ConfirmedBy: String, Codable { case user, messageSent, callConnected, callConfirmed, calendar, mailed }
 
 enum WishStatus: String, Codable { case open, used, dismissed }

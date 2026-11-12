@@ -12,6 +12,7 @@ enum MomentStep: Equatable {
     case wishPrompt      // B3
     case choose          // C2
     case nextStep        // C3
+    case mailCard        // Mail a real card (Handwrytten)
     case dayOf           // D1 opened in the app: call or message
     case photo           // D2
     case confirmCall     // E1, "Did you reach Mom?"
@@ -302,6 +303,17 @@ final class AppModel: ObservableObject {
         context.insert(act)
         act.moment = m
         m.status = .planning
+        commit()
+    }
+
+    /// A Handwrytten card was paid for and placed: the plan is a card, and it's done.
+    func mailedCard(_ m: Moment, cardName: String) {
+        for act in m.acts where act.role == .plan && !act.isDone { context.delete(act) }
+        let act = Act(role: .plan, kind: .card, title: "A handwritten card, mailed (\(cardName))")
+        context.insert(act)
+        act.moment = m
+        act.complete(.mailed)
+        m.status = .done
         commit()
     }
 

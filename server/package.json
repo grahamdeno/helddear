@@ -1,0 +1,8 @@
+{
+  "name": "helddear-mail",
+  "private": true,
+  "type": "module",
+  "description": "Held Dear mailed cards: lists Handwrytten birthday cards and places an order only after Stripe confirms the Apple Pay payment. No dependencies.",
+  "engines": { "node": "22.x" },
+  "scripts": { "test": "node --test" }
+}

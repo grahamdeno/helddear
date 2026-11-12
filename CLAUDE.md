@@ -20,7 +20,10 @@ SKU helddear001. iOS 26, iPhone only.
 ## Product rules that the code must keep
 - One decision or one tap per flow screen. Home and Person are browse screens.
 - Data stays on the phone. No network, analytics or third-party SDKs. Contacts read only, calendar write only.
-  `scripts/privacy_guard.py` enforces this in CI.
+  One exception (Nov 12, 2026): mailed cards. Only `Services/MailedCards.swift` talks to Held Dear's server
+  (`server/`, Vercel project helddear-mail) at checkout. The server holds the Handwrytten and Stripe keys and
+  places an order only after Stripe confirms the Apple Pay payment. `scripts/privacy_guard.py` enforces this in CI.
+- Mailed cards are paid with Apple Pay through Stripe, never in-app purchase (App Review 3.1.3(e)).
 - No guilt: no streaks, red badges, or "you forgot". A missed birthday gets a way back.
 - Plum (`Brand.action`) is the only color for things you tap. Coral never holds text. Nunito is bundled.
 - No pronouns for people: the app doesn't know them. Use the name ("Call Mom").
