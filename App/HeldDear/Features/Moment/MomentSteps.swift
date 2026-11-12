@@ -253,14 +253,32 @@ struct PhotoStep: View {
     @State private var sharing = false
     @State private var failed = false
     @State private var confirmShared = false
+    @State private var phase: Phase = .photo
+    @State private var design: CardDesign = .hearth
+    @State private var words = ""
+    @State private var cardImage: UIImage?
+    @State private var showLifetime = false
+    @ObservedObject private var purchases = Purchases.shared
+
+    enum Phase { case photo, card, words }
 
     private var name: String { moment.person?.name ?? "" }
     private var selectedChoice: PhotoChoice? { choices.first { $0.id == selected } }
 
     var body: some View {
         Group {
-            if confirmShared { sharedConfirm } else { picker }
+            if confirmShared {
+                sharedConfirm
+            } else {
+                switch phase {
+                case .photo: picker
+                case .card: cardPicker
+                case .words: wordsStep
+                }
+            }
         }
+        .animation(.easeOut(duration: 0.22), value: phase)
+        .sheet(isPresented: $showLifetime) { LifetimeView() }
         .onAppear(perform: load)
         .onChange(of: pickerItem) { _, item in addPicked(item) }
         .fullScreenCover(isPresented: $composing) { composer.ignoresSafeArea() }
@@ -274,8 +292,8 @@ struct PhotoStep: View {
 
     private var picker: some View {
         FlowScreen(onClose: close) {
-            Question(title: choices.isEmpty ? "Send \(name) a message" : "Pick a photo for \(name)",
-                     subtitle: "Your message opens next. Add your own words or send it as is.", style: .title)
+            Question(title: choices.isEmpty ? "A photo for \(name)'s card?" : "Pick a photo for \(name)",
+                     subtitle: choices.isEmpty ? "Add one, or go on and the card uses \(name)'s initials." : "It goes on the card. Your message opens after.", style: .title)
             if failed {
                 Text("That didn't go through.").textStyle(.bodyStrong, color: Brand.error)
             }
@@ -303,7 +321,69 @@ struct PhotoStep: View {
                 }
             }
         } footer: {
-            PrimaryButton(title: failed ? "Try again" : (selectedChoice == nil ? "Write the message" : "Use this photo")) { send() }
+            PrimaryButton(title: failed ? "Try again" : (selectedChoice == nil ? "Next" : "Use this photo")) {
+                if failed { send() } else { phase = .card }
+            }
+        }
+    }
+
+    private var cardContent: CardContent {
+        CardContent(name: name, photo: selectedChoice?.image,
+                    words: purchases.hasLifetime && !words.isEmpty && words != "Happy birthday, \(name)!" ? words : nil,
+                    age: moment.person?.showAgeOnCard == true ? moment.turning : nil,
+                    date: moment.dueDate)
+    }
+
+    /// "Which card?": real previews with this person's photo and name. One decision.
+    private var cardPicker: some View {
+        let locked = !design.isFree && !purchases.hasLifetime
+        return FlowScreen(onClose: { phase = .photo }) {
+            Question(title: "Which card?", subtitle: "Swipe to see them all.", style: .title)
+            TabView(selection: $design) {
+                ForEach(CardDesign.allCases) { d in
+                    ZStack(alignment: .topLeading) {
+                        CardView(design: d, content: cardContent)
+                            .scaleEffect(0.58)
+                            .frame(width: CardView.size.width * 0.58, height: CardView.size.height * 0.58)
+                            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous).stroke(Brand.line, lineWidth: 1))
+                        if !d.isFree && !purchases.hasLifetime { Tag(text: "Lifetime").padding(10) }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(d.name) card\(d.isFree || purchases.hasLifetime ? "" : ", part of Lifetime")")
+                    .tag(d)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+            .frame(height: CardView.size.height * 0.58 + 44)
+            Text(design.name).textStyle(.bodyStrong).frame(maxWidth: .infinity)
+        } footer: {
+            if locked {
+                PrimaryButton(title: "See Lifetime") { showLifetime = true }
+            } else {
+                PrimaryButton(title: "Use this card") {
+                    if purchases.hasLifetime { words = "Happy birthday, \(name)!"; phase = .words } else { send() }
+                }
+            }
+        }
+    }
+
+    /// Lifetime only: "Your words on the card?"
+    private var wordsStep: some View {
+        FlowScreen(onClose: { phase = .card }) {
+            Question(title: "Your words on the card?", subtitle: "Up to 40 characters.", style: .title)
+            LineField(label: "On the card", text: $words, onSubmit: send)
+                .onChange(of: words) { _, w in if w.count > 40 { words = String(w.prefix(40)) } }
+            CardView(design: design, content: cardContent)
+                .scaleEffect(0.4)
+                .frame(width: CardView.size.width * 0.4, height: CardView.size.height * 0.4)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
+        } footer: {
+            PrimaryButton(title: "Send", action: send)
         }
     }
 
@@ -320,14 +400,14 @@ struct PhotoStep: View {
     private var greetingText: String { "Happy birthday, \(name)!" }
 
     private var shareItems: [Any] {
-        var items: [Any] = [greetingText]
-        if let image = selectedChoice?.image { items.append(image) }
+        var items: [Any] = []
+        if let image = cardImage ?? selectedChoice?.image { items.append(image) } else { items.append(greetingText) }
         return items
     }
 
     @ViewBuilder private var composer: some View {
-        MessageComposer(recipients: [model.phone(for: moment.person)].compactMap { $0 }, body: greetingText,
-                        image: selectedChoice?.image) { result in
+        MessageComposer(recipients: [model.phone(for: moment.person)].compactMap { $0 }, body: cardImage == nil ? greetingText : "",
+                        image: cardImage ?? selectedChoice?.image) { result in
             composing = false
             switch result {
             case .sent: complete(how: .messageSent)
@@ -339,13 +419,15 @@ struct PhotoStep: View {
 
     private func send() {
         failed = false
+        cardImage = CardRenderer.image(design: design, content: cardContent)
         if MessageComposer.canSend { composing = true } else { sharing = true }
     }
 
     private func complete(how: ConfirmedBy = .user) {
         var file = selectedChoice?.file
         if file == nil, let image = selectedChoice?.image { file = PhotoStore.save(image) }
-        model.completeGreeting(moment, kind: .message, how: how, photoFile: file)
+        let cardFile = cardImage.flatMap { PhotoStore.save($0, maxSide: 2100) }
+        model.completeGreeting(moment, kind: .message, how: how, photoFile: file, cardFile: cardFile)
         go(.record)
     }
 
@@ -378,11 +460,42 @@ struct RecordStep: View {
     let moment: Moment
     var close: () -> Void
     @State private var line = ""
+    @State private var offering = false
+    @State private var showLifetime = false
 
     var body: some View {
+        if offering { offer } else { record }
+    }
+
+    /// Once, after the first yearly line: a calm next-step card, never a blocker.
+    private var offer: some View {
         let name = moment.person?.name ?? ""
-        let photo = PhotoStore.load(moment.acts.compactMap(\.photoFile).first)
-        FlowScreen(onClose: close) {
+        return FlowScreen(onClose: close) {
+            CirclesMark(size: 72).padding(.top, 60)
+            Question(title: "Make next year's card even more \(name)'s",
+                     subtitle: "Held Dear Lifetime adds every card design, your own words, a Lock Screen countdown and a yearly keepsake. One payment of \(Purchases.shared.priceText).")
+        } footer: {
+            PrimaryButton(title: "See Lifetime") { showLifetime = true }
+            TextLink(title: "Not now", action: close)
+        }
+        .sheet(isPresented: $showLifetime, onDismiss: close) { LifetimeView() }
+    }
+
+    private func finish() {
+        let defaults = UserDefaults.standard
+        let firstLine = model.allPeople().reduce(0) { $0 + $1.ledger.count } == 1
+        if firstLine && !Purchases.shared.hasLifetime && !defaults.bool(forKey: "offeredAfterFirstLine") {
+            defaults.set(true, forKey: "offeredAfterFirstLine")
+            offering = true
+        } else {
+            close()
+        }
+    }
+
+    private var record: some View {
+        let name = moment.person?.name ?? ""
+        let photo = PhotoStore.load(moment.acts.compactMap(\.cardFile).first ?? moment.acts.compactMap(\.photoFile).first)
+        return FlowScreen(onClose: close) {
             Question(tag: "Done", title: "One line for this year?", subtitle: "It goes in \(name)'s yearly record.")
             Card {
                 Eyebrow(text: eyebrow)
@@ -394,7 +507,7 @@ struct RecordStep: View {
             PrimaryButton(title: "Save", action: save)
             TextLink(title: "Skip") {
                 model.record(moment, line: nil)
-                close()
+                finish()
             }
         }
     }
@@ -407,6 +520,6 @@ struct RecordStep: View {
 
     private func save() {
         model.record(moment, line: line)
-        close()
+        finish()
     }
 }

@@ -4,6 +4,7 @@ import SwiftUI
 struct RingsView: View {
     @EnvironmentObject var model: AppModel
     @State private var sheetPerson: Person?
+    @State private var addingFromContacts = false
 
     private let size: CGFloat = 346
 
@@ -24,6 +25,7 @@ struct RingsView: View {
                     ringRow(.middle, count: middle.count, fill: Brand.ringMiddle)
                     ringRow(.outer, count: outer.count, fill: Brand.ringOuter)
                 }
+                SecondaryButton(title: "Add from contacts") { addingFromContacts = true }
                 Text("Tap anyone to move them. Tap the outer count to see everyone.")
                     .textStyle(.caption, color: Brand.inkMuted).frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
@@ -38,6 +40,7 @@ struct RingsView: View {
             if let p = model.person(id) { PersonView(person: p) }
         }
         .sheet(item: $sheetPerson) { p in RingSheet(person: p).presentationDetents([.medium]) }
+        .addFromContacts(isPresented: $addingFromContacts)
     }
 
     private func diagram(inner: [Person], middle: [Person], outerCount: Int) -> some View {

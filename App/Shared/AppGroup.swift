@@ -64,6 +64,8 @@ struct WidgetSnapshot: Codable {
         var occasion: String
         var dueDate: Date
         var detail: String?
+        /// Inside 3 days, the act instead of the date: "Order today", "Message ready Tuesday".
+        var soonLine: String?
     }
     var next: [Entry]
     var writtenAt: Date

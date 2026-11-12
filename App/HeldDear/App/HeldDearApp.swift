@@ -85,12 +85,16 @@ struct RouteView: View {
             } else {
                 Color.clear.onAppear { model.route = nil }
             }
-        case .addBirthday:
-            AddBirthdayView()
+        case .addBirthday(let text):
+            AddBirthdayView(initialText: text)
         case .addWish(let personID):
             AddWishView(preselected: personID.flatMap { model.person($0) })
         case .rings:
             NavigationStack { RingsView().toolbar { CloseToolbar { model.route = nil } } }
+        case .lifetime:
+            LifetimeView()
+        case .settings:
+            NavigationStack { SettingsView().toolbar { CloseToolbar { model.route = nil } } }
         }
     }
 }

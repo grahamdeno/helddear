@@ -1,0 +1,163 @@
+import SwiftUI
+import UIKit
+
+/// The Held Dear Lifetime offer. Reached only from Settings, a locked card design, or once after the
+/// first yearly line. The close button shows at once. No countdown timers, no blur, no nagging.
+struct LifetimeView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var purchases = Purchases.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark").font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Brand.action).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Close")
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    CirclesMark(size: 64).frame(maxWidth: .infinity).padding(.top, 8)
+                    if purchases.hasLifetime {
+                        Text("Thank you. It's all yours.").textStyle(.display).frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    } else {
+                        Text("Held Dear Lifetime").textStyle(.display)
+                        Text("Everything that keeps you from missing anyone stays free. Lifetime adds more ways to make it personal.")
+                            .textStyle(.body, color: Brand.ink.opacity(0.85))
+                    }
+                    VStack(alignment: .leading, spacing: 18) {
+                        benefit("rectangle.portrait.on.rectangle.portrait", "Every card design, in your own words")
+                        benefit("lock.iphone", "A countdown on your Lock Screen")
+                        benefit("clock.arrow.circlepath", "1 year ago, and a yearly keepsake to share")
+                        benefit("calendar.badge.plus", "Christmas, anniversaries and school, as they arrive")
+                    }
+                    .padding(Brand.space4 + 4)
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                }
+                .padding(.horizontal, Brand.space5)
+            }
+            VStack(spacing: Brand.space2) {
+                if purchases.hasLifetime {
+                    PrimaryButton(title: "Done") { dismiss() }
+                } else {
+                    PrimaryButton(title: purchases.isWorking ? "One moment…" : "Get Lifetime · \(purchases.priceText)") {
+                        Task { await purchases.buy() }
+                    }
+                    .disabled(purchases.isWorking)
+                    Text("One payment. No subscription. Shared with your family.")
+                        .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.center)
+                    TextLink(title: "Restore purchase") { Task { await purchases.restore() } }
+                }
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.bottom, 12)
+        }
+        .background(Brand.page.ignoresSafeArea())
+        .alert(purchases.message ?? "", isPresented: Binding(get: { purchases.message != nil }, set: { if !$0 { purchases.message = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    private func benefit(_ symbol: String, _ text: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: symbol).font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(Brand.action).frame(width: 28)
+                .accessibilityHidden(true)
+            Text(text).textStyle(.bodyStrong).frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// The app's three-circle mark, drawn in code.
+struct CirclesMark: View {
+    var size: CGFloat
+    var body: some View {
+        let d = size * 0.62
+        ZStack {
+            Circle().fill(Color(red: 0.965, green: 0.706, blue: 0.561)).frame(width: d, height: d).offset(y: -size * 0.16)
+            Circle().fill(Color(red: 0.910, green: 0.404, blue: 0.290)).frame(width: d, height: d).offset(x: -size * 0.14, y: size * 0.1).blendMode(.multiply)
+            Circle().fill(Color(red: 0.557, green: 0.353, blue: 0.580)).frame(width: d, height: d).offset(x: size * 0.14, y: size * 0.1).blendMode(.multiply)
+        }
+        .compositingGroup()
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Settings: Lifetime, people, Lock Screen privacy, and what stays on the phone.
+struct SettingsView: View {
+    @EnvironmentObject var model: AppModel
+    @ObservedObject private var purchases = Purchases.shared
+    @State private var showLifetime = false
+    @State private var addingFromContacts = false
+    @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Settings").textStyle(.title).accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Held Dear Lifetime")
+                    OptionRow(title: purchases.hasLifetime ? "Lifetime is on" : "Held Dear Lifetime",
+                              caption: purchases.hasLifetime ? "Thank you" : "Every card design, Lock Screen, look-back · \(purchases.priceText)") {
+                        showLifetime = true
+                    }
+                }
+                if purchases.isTestBuild {
+                    VStack(alignment: .leading, spacing: Brand.space2) {
+                        Eyebrow(text: "TestFlight only")
+                        Toggle(isOn: Binding(get: { purchases.hasLifetime },
+                                             set: { on in Task { await purchases.setTestOverride(on) } })) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Lifetime for testing").textStyle(.bodyStrong)
+                                Text("Turns the paid features on without buying. Not in the App Store version. A sandbox purchase also works and is free.")
+                                    .textStyle(.caption, color: Brand.inkMuted)
+                            }
+                        }
+                        .tint(Brand.action)
+                        .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    }
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "People")
+                    OptionRow(title: "Add from contacts", caption: "Share more people with Held Dear") { addingFromContacts = true }
+                    OptionRow(title: "Add a birthday", caption: "Type a name and a date") { model.route = .addBirthday("") }
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Lock Screen")
+                    Toggle(isOn: $initialsOnly) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Initials only").textStyle(.bodyStrong)
+                            Text("The Lock Screen widget shows initials instead of names").textStyle(.caption, color: Brand.inkMuted)
+                        }
+                    }
+                    .tint(Brand.action)
+                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Alerts")
+                    OptionRow(title: model.notificationsAllowed ? "Alerts are on" : "Alerts are off",
+                              caption: "Change them in the Settings app") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    }
+                }
+                Text("Everything you add stays on this iPhone. Held Dear has no account. Purchases go through Apple; nothing else leaves your phone.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.vertical, 8)
+        }
+        .background(Brand.page.ignoresSafeArea())
+        .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .addFromContacts(isPresented: $addingFromContacts)
+    }
+}

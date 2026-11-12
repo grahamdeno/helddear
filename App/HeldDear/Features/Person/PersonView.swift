@@ -16,12 +16,17 @@ struct PersonView: View {
     @State private var editedLine = ""
     @State private var confirmRemove = false
     @State private var phoneText = ""
+    @State private var showLifetime = false
+    @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
         let _ = model.revision
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
+                if let next = model.nextMoment(for: person) { scheduleCard(next) }
+                if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
+                if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
                 section("Occasions") {
@@ -35,7 +40,15 @@ struct PersonView: View {
                     }
                     SecondaryButton(title: "Save a wish") { model.route = .addWish(person.id) }
                 }
-                section("Photos for the day") { photoStrip }
+                section("Photos for the card") {
+                    photoStrip
+                    Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
+                        Text("Show \(person.name)'s age on the card").textStyle(.body)
+                    }
+                    .tint(Brand.action)
+                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                }
                 if !person.ledger.isEmpty {
                     section("\(person.name)'s years") {
                         ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
@@ -62,6 +75,7 @@ struct PersonView: View {
             .ignoresSafeArea()
         }
         .sheet(isPresented: $editingDate) { BirthdayEditor(person: person).presentationDetents([.medium]) }
+        .sheet(isPresented: $showLifetime) { LifetimeView() }
         .onChange(of: photoItem) { _, item in addPhoto(item) }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
                             titleVisibility: .visible) {
@@ -86,14 +100,109 @@ struct PersonView: View {
 
     private var header: some View {
         HStack(spacing: 16) {
-            Face(person: person, size: 72)
+            Face(person: person, size: 96)
             VStack(alignment: .leading, spacing: 6) {
                 Text(person.name).textStyle(.title)
+                if let next = model.nextMoment(for: person) {
+                    let date = next.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
+                    Text(next.turning.map { "Turns \($0) on \(date)" } ?? "Birthday on \(date)")
+                        .textStyle(.callout, color: Brand.inkMuted)
+                }
                 Button { showRing = true } label: { Tag(text: person.ring.label) }
                     .buttonStyle(.plain)
                     .accessibilityHint("Changes how early Held Dear reminds you")
             }
         }
+    }
+
+    /// "What Held Dear will do": the coming heads-up, order-by and message-ready dates for this person.
+    private func scheduleCard(_ m: Moment) -> some View {
+        let stops = AlertPlanner.schedule(for: model.state(for: m))
+        let now = Date()
+        return VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "What Held Dear will do").padding(.bottom, Brand.space3)
+            if stops.isEmpty {
+                Text(m.status.isSettled || m.status == .done ? "This year is taken care of." : "A message ready on the day.")
+                    .textStyle(.body)
+            }
+            ForEach(Array(stops.enumerated()), id: \.offset) { i, stop in
+                let past = stop.date <= now
+                HStack(alignment: .top, spacing: Brand.space3) {
+                    VStack(spacing: 0) {
+                        ZStack {
+                            Circle().fill(past ? Brand.line : Brand.accent).frame(width: 10, height: 10)
+                            if past {
+                                Image(systemName: "checkmark").font(.system(size: 7, weight: .heavy)).foregroundStyle(Brand.inkMuted)
+                            }
+                        }
+                        .padding(.top, 6)
+                        if i < stops.count - 1 { Rectangle().fill(Brand.line).frame(width: 2).frame(maxHeight: .infinity) }
+                    }
+                    .frame(width: 12)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stop.showsTime ? stop.date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+                                            : stop.date.formatted(.dateTime.month(.abbreviated).day()))
+                            .textStyle(.caption, color: Brand.inkMuted)
+                        Text(stop.label).textStyle(.body, color: past ? Brand.inkMuted : Brand.ink)
+                    }
+                    .padding(.bottom, Brand.space3)
+                    Spacer(minLength: 0)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(Brand.space4)
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+    }
+
+    private var oneYearAgo: LedgerEntry? {
+        let year = Calendar.current.component(.year, from: Date())
+        return person.sortedLedger.first { $0.year == year - 1 } ?? person.sortedLedger.first { $0.year < year }
+    }
+
+    /// 1 year ago (Lifetime): last year's card and line, with a keepsake to share.
+    private func lookBack(_ entry: LedgerEntry) -> some View {
+        VStack(alignment: .leading, spacing: Brand.space3) {
+            Eyebrow(text: "\(Calendar.current.component(.year, from: Date()) - entry.year == 1 ? "1 year ago" : String(entry.year))")
+            HStack(alignment: .top, spacing: 14) {
+                PhotoTile(image: PhotoStore.load(entry.cardFile ?? entry.photoFile), label: "Card", height: 112, radius: Brand.radiusSm)
+                    .frame(width: 80)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.what).textStyle(.bodyStrong)
+                    if let line = entry.line { Text(line).textStyle(.body, color: Brand.ink.opacity(0.85)) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let image = Keepsake.image(person: person, entry: entry) {
+                ShareLink(item: Image(uiImage: image), preview: SharePreview("\(person.name), \(entry.year)", image: Image(uiImage: image))) {
+                    Text("Share as keepsake").font(TypeStyle.callout.font.weight(.heavy))
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .foregroundStyle(Brand.action)
+                        .background(Brand.page, in: Capsule())
+                }
+            }
+        }
+        .padding(Brand.space4)
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+    }
+
+    /// A skipped Get ahead photo: one quiet next step.
+    private var photoNudge: some View {
+        PhotosPicker(selection: $photoItem, matching: .images) {
+            HStack(spacing: 14) {
+                Image(systemName: "plus").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Brand.ink)
+                    .frame(width: 56, height: 56)
+                    .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Add a photo for \(person.name)'s card").font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                    Text("It stays on this iPhone").textStyle(.caption, color: Brand.inkMuted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(Brand.space4)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var linkRow: some View {

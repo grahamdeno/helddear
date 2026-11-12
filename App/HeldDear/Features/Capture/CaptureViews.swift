@@ -4,7 +4,11 @@ import SwiftUI
 
 struct AddBirthdayView: View {
     @EnvironmentObject var model: AppModel
-    @State private var text = ""
+    @State private var text: String
+
+    init(initialText: String = "") {
+        _text = State(initialValue: initialText)
+    }
     @State private var showHint = false
     @State private var choices: [ContactInfo] = []
     @State private var pendingChange: (person: Person, parsed: ParsedBirthday)?

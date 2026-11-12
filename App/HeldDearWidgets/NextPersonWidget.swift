@@ -4,7 +4,10 @@ import WidgetKit
 /// The one v1 widget: next person up.
 @main
 struct HeldDearWidgetBundle: WidgetBundle {
-    var body: some Widget { NextPersonWidget() }
+    var body: some Widget {
+        NextPersonWidget()
+        LockScreenWidget()
+    }
 }
 
 struct NextPersonEntry: TimelineEntry {
@@ -41,6 +44,74 @@ struct NextPersonWidget: Widget {
         .configurationDisplayName("Next person up")
         .description("Whose day is coming, and how long until it.")
         .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+/// Lock Screen (Held Dear Lifetime): rectangular and circular. Never shows a missed birthday.
+struct LockScreenWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "LockScreen", provider: NextPersonProvider()) { entry in
+            LockScreenView(entry: entry)
+                .containerBackground(.clear, for: .widget)
+        }
+        .configurationDisplayName("Next person up")
+        .description("A countdown on your Lock Screen. Part of Held Dear Lifetime.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular])
+    }
+}
+
+struct LockScreenView: View {
+    @Environment(\.widgetFamily) private var family
+    var entry: NextPersonEntry
+
+    private var shared: UserDefaults? { UserDefaults(suiteName: AppGroup.identifier) }
+
+    var body: some View {
+        let hasLifetime = shared?.bool(forKey: "hasLifetime") ?? false
+        let initialsOnly = shared?.bool(forKey: "lockScreenInitialsOnly") ?? false
+        let today = Calendar.current.startOfDay(for: entry.date)
+        let next = (entry.snapshot?.next ?? []).first { $0.dueDate >= today }
+
+        if !hasLifetime {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Held Dear").font(.headline)
+                Text("Part of Held Dear Lifetime").font(.caption)
+            }
+            .widgetURL(URL(string: "helddear://lifetime"))
+        } else if let e = next {
+            let days = Calendar.current.dateComponents([.day], from: today, to: Calendar.current.startOfDay(for: e.dueDate)).day ?? 0
+            let name = initialsOnly ? initials(e.name) : e.name
+            if family == .accessoryCircular {
+                if days == 0 {
+                    VStack(spacing: 0) {
+                        Image(systemName: "gift.fill").font(.system(size: 16, weight: .semibold, design: .rounded))
+                        Text("Today").font(.system(size: 10, weight: .heavy, design: .rounded))
+                    }
+                } else {
+                    Gauge(value: Double(max(0, 21 - min(days, 21))), in: 0...21) {
+                        Text(initials(e.name))
+                    } currentValueLabel: {
+                        Text("\(days)").font(.system(size: 18, weight: .heavy, design: .rounded))
+                    }
+                    .gaugeStyle(.accessoryCircular)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name).font(.system(size: 17, weight: .heavy, design: .rounded)).lineLimit(1)
+                    Text(e.soonLine ?? "\(days == 1 ? "1 day" : "\(days) days") · \(e.dueDate.formatted(.dateTime.weekday(.wide)))")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded)).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .widgetURL(URL(string: "helddear://moment?id=\(e.momentID.uuidString)"))
+            }
+        } else {
+            Text("Held Dear").font(.headline)
+        }
+    }
+
+    private func initials(_ name: String) -> String {
+        let letters = name.split(separator: " ").prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "?" : String(letters).uppercased()
     }
 }
 
