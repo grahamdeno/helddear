@@ -5,6 +5,7 @@ import UIKit
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var path: [UUID] = []
+    @State private var addingFromContacts = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -16,12 +17,22 @@ struct HomeView: View {
             }
             .background(Brand.page.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
-                SecondaryButton(title: "Add a birthday") { model.route = .addBirthday }
+                SecondaryButton(title: "Add a birthday") { model.route = .addBirthday("") }
                     .padding(.horizontal, Brand.space5)
                     .padding(.bottom, 8)
                     .background(Brand.page.opacity(0.95).ignoresSafeArea())
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Button { model.route = .addBirthday("") } label: { Label("Add a birthday", systemImage: "gift") }
+                        Button { addingFromContacts = true } label: { Label("Add from contacts", systemImage: "person.crop.circle.badge.plus") }
+                        Button { model.route = .addWish(nil) } label: { Label("Save a wish", systemImage: "heart") }
+                    } label: {
+                        Image(systemName: "plus").font(.system(size: 17, weight: .semibold, design: .rounded))
+                    }
+                    .accessibilityLabel("Add")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { model.route = .rings } label: {
                         Image(systemName: "person.2.fill").font(.system(size: 16, weight: .semibold, design: .rounded))
@@ -29,6 +40,7 @@ struct HomeView: View {
                     .accessibilityLabel("Your people")
                 }
             }
+            .addFromContacts(isPresented: $addingFromContacts)
             .navigationDestination(for: UUID.self) { id in
                 if let p = model.person(id) { PersonView(person: p) }
             }
@@ -116,7 +128,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             Text("Add your first person").textStyle(.headline)
             Text("Say or type a name and a birthday. Held Dear does the remembering.").textStyle(.body, color: Brand.ink.opacity(0.85))
-            PrimaryButton(title: "Add a birthday") { model.route = .addBirthday }
+            PrimaryButton(title: "Add a birthday") { model.route = .addBirthday("") }
         }
         .padding(20)
         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
@@ -159,7 +171,7 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity)
         case .limited:
-            TextLink(title: "Add more people") { model.route = .addBirthday }
+            TextLink(title: "Add more people from contacts") { addingFromContacts = true }
                 .frame(maxWidth: .infinity)
         default:
             EmptyView()

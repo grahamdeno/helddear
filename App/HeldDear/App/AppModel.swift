@@ -1,3 +1,4 @@
+import Contacts
 import Foundation
 import SwiftData
 import SwiftUI
@@ -22,7 +23,7 @@ enum Route: Identifiable, Equatable {
     case moment(UUID, MomentStep)
     case season(Date)
     case person(UUID)
-    case addBirthday
+    case addBirthday(String)
     case addWish(UUID?)
     case rings
 
@@ -67,6 +68,15 @@ final class AppModel: ObservableObject {
         }
         CallService.shared.onConnected = { [weak self] in self?.callConnected() }
         AppModel.current = self
+        NotificationCenter.default.addObserver(forName: .CNContactStoreDidChange, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.onboarded else { return }
+                self.syncContacts()
+                self.writeSnapshots()
+                await self.scheduleAlerts()
+                self.revision += 1
+            }
+        }
     }
 
     // MARK: Refresh
@@ -74,6 +84,7 @@ final class AppModel: ObservableObject {
     /// Runs on launch and whenever the app becomes active.
     func refresh(now: Date = Date()) async {
         importInbox()
+        if onboarded { syncContacts() }
         MomentEngine.refresh(context, now: now)
         checkReturnFromCall()
         writeSnapshots(now: now)
@@ -197,9 +208,58 @@ final class AppModel: ObservableObject {
     }
 
     func delete(_ person: Person) {
+        if let id = person.contactID {
+            // Remembered so a re-sync never brings back someone the user removed.
+            var removed = Set(defaults.stringArray(forKey: "removedContactIDs") ?? [])
+            removed.insert(id)
+            defaults.set(Array(removed), forKey: "removedContactIDs")
+        }
         for file in person.photoFiles { PhotoStore.delete(file) }
         context.delete(person)
         commit()
+    }
+
+    // MARK: Contacts sync
+
+    /// Brings in every birthday the app can see in Contacts and follows date changes made there.
+    /// Runs on every open and whenever Contacts changes, so people shared later (limited access) arrive too.
+    @discardableResult
+    func syncContacts() -> Int {
+        guard ContactsService.shared.canRead else { return 0 }
+        let removed = Set(defaults.stringArray(forKey: "removedContactIDs") ?? [])
+        var byContact: [String: Person] = [:]
+        for p in allPeople() { if let id = p.contactID { byContact[id] = p } }
+        var added = 0
+        var changed = false
+        for c in ContactsService.shared.allContacts() {
+            guard let month = c.month, let day = c.day, BirthdayParser.isValid(month: month, day: day) else { continue }
+            if let person = byContact[c.id] {
+                if let b = person.birthday {
+                    if b.month != month || b.day != day {
+                        b.month = month; b.day = day; changed = true
+                    }
+                    if b.birthYear == nil, let y = c.year { b.birthYear = y; changed = true }
+                } else {
+                    let occasion = Occasion(month: month, day: day, birthYear: c.year)
+                    context.insert(occasion)
+                    occasion.person = person
+                    changed = true
+                }
+            } else if !removed.contains(c.id) {
+                let person = Person(name: c.displayName, fullName: c.fullName, contactID: c.id, ring: .outer)
+                context.insert(person)
+                let occasion = Occasion(month: month, day: day, birthYear: c.year)
+                context.insert(occasion)
+                occasion.person = person
+                added += 1
+                changed = true
+            }
+        }
+        if changed {
+            MomentEngine.refresh(context)
+            save()
+        }
+        return added
     }
 
     // MARK: Wishes

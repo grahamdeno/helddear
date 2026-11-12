@@ -40,7 +40,7 @@ struct OnboardingView: View {
     private func finish() {
         model.onboarded = true
         Task { await model.refresh() }
-        if addFirstAfterSetup { model.route = .addBirthday }
+        if addFirstAfterSetup { model.route = .addBirthday("") }
     }
 }
 
