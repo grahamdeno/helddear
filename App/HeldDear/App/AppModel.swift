@@ -29,6 +29,7 @@ enum Route: Identifiable, Equatable {
     case rings
     case settings
     case lifetime
+    case ideas(UUID)
 
     var id: String {
         switch self {
@@ -40,6 +41,7 @@ enum Route: Identifiable, Equatable {
         case .rings: "rings"
         case .settings: "settings"
         case .lifetime: "lifetime"
+        case .ideas(let id): "ideas-\(id)"
         }
     }
 }
@@ -333,6 +335,18 @@ final class AppModel: ObservableObject {
         act.complete(.mailed)
         m.status = .done
         commit()
+    }
+
+    /// The user picked a gift and ordered it: the plan becomes that gift, done, arriving on a date.
+    func markOrdered(_ m: Moment, title: String, url: String?, wish: Wish?, arrivesBy: Date) {
+        var w = wish
+        if w == nil, let person = m.person {
+            addWish(to: person, text: title, url: url)
+            w = person.wishes.first { $0.text == title && $0.status == .open }
+        }
+        choosePlan(m, kind: .gift, title: title, wish: w)
+        m.plan?.arrivesBy = arrivesBy
+        completePlan(m)
     }
 
     func completePlan(_ m: Moment, how: ConfirmedBy = .user) {

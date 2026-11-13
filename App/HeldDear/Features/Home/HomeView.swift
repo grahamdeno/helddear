@@ -15,10 +15,6 @@ struct HomeView: View {
             content
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Text("Held Dear").font(Brand.serif(20, relativeTo: .headline, italic: true)).foregroundStyle(Brand.ink)
-                            .accessibilityAddTraits(.isHeader)
-                    }
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         Button { model.route = .rings } label: { Image(systemName: "person.2") }
                             .accessibilityLabel("Your people")
@@ -132,19 +128,71 @@ struct FeaturedView: View {
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                 .multilineTextAlignment(.center)
                 .padding(.top, Brand.space2)
-            if let wish = moment.person?.openWishes.first, !missed {
+            if let wish = moment.person?.openWishes.first, !missed, act != .allSet {
                 (Text("\(name) mentioned wanting ") + Text(wish.text).italic() + Text("."))
                     .font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
                     .multilineTextAlignment(.center).lineLimit(3)
                     .frame(maxWidth: 320)
                     .padding(.top, Brand.space6)
             }
-            PrimaryButton(title: act.title(name: name)) { tap(act) }
+            actionArea(act: act, days: days, missed: missed, name: name)
                 .padding(.top, Brand.space6)
-            secondary(days: days, missed: missed, name: name)
         }
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)
+    }
+
+    /// The one thing to do now, in words and (when there is something to do) one button.
+    @ViewBuilder private func actionArea(act: NextAct, days: Int, missed: Bool, name: String) -> some View {
+        switch act {
+        case .allSet:
+            VStack(spacing: Brand.space2) {
+                Text(plannedLine(name: name)).font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
+                    .multilineTextAlignment(.center).frame(maxWidth: 320)
+                Text("Nothing to do until the day.").textStyle(.callout, color: Brand.inkMuted)
+                TextLink(title: "Change the plan") { model.route = .moment(moment.id, .choose) }
+            }
+        case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
+            VStack(spacing: Brand.space4) {
+                Text(ideaLine(name: name)).font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
+                    .multilineTextAlignment(.center).frame(maxWidth: 330)
+                PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
+                secondary(days: days, missed: missed, name: name)
+            }
+        case .pick, .saveWish:
+            VStack(spacing: Brand.space3) {
+                Text("Nothing to do yet. When you see something \(name) would love, share it to Held Dear.")
+                    .font(Brand.serif(19, relativeTo: .body, italic: true)).foregroundStyle(Brand.inkSoft)
+                    .multilineTextAlignment(.center).frame(maxWidth: 320)
+                SecondaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
+            }
+        default:
+            VStack(spacing: 0) {
+                PrimaryButton(title: act.title(name: name)) { tap(act) }
+                secondary(days: days, missed: missed, name: name)
+            }
+        }
+    }
+
+    private func plannedLine(name: String) -> String {
+        guard let plan = moment.plan else { return "\(name)'s day is planned." }
+        if let arrives = plan.arrivesBy {
+            return "\(plan.title ?? "The gift") is ordered. It arrives by \(arrives.formatted(.dateTime.month(.wide).day()))."
+        }
+        switch plan.kind {
+        case .gift: return "\(plan.title ?? "The gift") is taken care of."
+        case .card: return "The card is on its way."
+        case .dinner: return "Dinner is on your calendar."
+        case .call: return "You'll call \(name) on the day."
+        case .message: return "A message is ready for the day."
+        case .other: return "\(plan.title ?? "The plan") is taken care of."
+        }
+    }
+
+    private func ideaLine(name: String) -> String {
+        let saved = GiftTiming.savedThisYear(moment.person?.openWishes.map(\.capturedAt) ?? [], now: now)
+        let shelf = saved == 0 ? "" : (saved == 1 ? " You saved 1 idea this year." : " You saved \(saved) ideas this year.")
+        return "Time to find something.\(shelf)"
     }
 
     private var displayName: String {
@@ -267,7 +315,9 @@ struct HorizonBand: View {
         .background(Brand.card.ignoresSafeArea(edges: .bottom))
     }
 
-    private struct Mark { let moment: Moment; let x: CGFloat; let top: CGFloat }
+    private struct Mark { let moment: Moment; let x: CGFloat; let top: CGFloat; var leftLabel = false }
+
+    private func labelWidth(_ m: Moment) -> CGFloat { CGFloat(label(m).count) * 9 + 10 }
 
     private func x(for date: Date, start: Date) -> CGFloat {
         let cal = Calendar.current
@@ -284,9 +334,15 @@ struct HorizonBand: View {
         for m in moments.sorted(by: { $0.dueDate < $1.dueDate }) {
             let mx = x(for: m.dueDate, start: start)
             guard mx < Self.lead + Self.monthWidth * 12 else { continue }
-            let level = (0..<Self.levels.count).first { mx - lastX[$0] > 78 } ?? (out.count % Self.levels.count)
+            let level = (0..<Self.levels.count).first { mx - lastX[$0] > labelWidth(m) } ?? (out.count % Self.levels.count)
             lastX[level] = mx
             out.append(Mark(moment: m, x: mx, top: Self.levels[level]))
+        }
+        // A label that would run across the next person's line sits to the left of its own line instead.
+        for i in out.indices where i + 1 < out.count {
+            if out[i + 1].x - out[i].x < labelWidth(out[i].moment) && out[i].x - Self.lead > labelWidth(out[i].moment) {
+                out[i].leftLabel = true
+            }
         }
         return out
     }
@@ -313,7 +369,8 @@ struct HorizonBand: View {
                     .font(Brand.serif(selected ? 20 : 16, relativeTo: .callout))
                     .foregroundStyle(color)
                     .fixedSize()
-                    .offset(x: 4, y: 0)
+                    .frame(width: labelWidth(mark.moment), alignment: mark.leftLabel ? .trailing : .leading)
+                    .offset(x: mark.leftLabel ? -labelWidth(mark.moment) - 2 : 4, y: 0)
             }
             .frame(width: 80, height: Self.axisY - mark.top + 8, alignment: .topLeading)
             .contentShape(Rectangle())

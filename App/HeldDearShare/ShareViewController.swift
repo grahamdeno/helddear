@@ -169,7 +169,7 @@ struct ShareView: View {
                     }
                 }
             }
-            Text("Tapping a person saves it.").textStyle(.caption, color: Brand.inkMuted).frame(maxWidth: .infinity)
+            Text("Tap a person to save it to their gift shelf. Held Dear brings it back about six weeks before their day.").textStyle(.caption, color: Brand.inkMuted).frame(maxWidth: .infinity)
         }
         .padding(Brand.space5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

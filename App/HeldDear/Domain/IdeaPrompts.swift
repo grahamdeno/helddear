@@ -52,6 +52,16 @@ enum IdeaPrompts {
         """
     }
 
+    /// Ideas children could give or make for this person (from the kids, not from the user).
+    static func kidsGifts(_ p: PersonFacts) -> String {
+        """
+        \(facts(p))
+
+        Suggest 3 different things children could give or make for \(String(p.name.prefix(40)).replacingOccurrences(of: "\"", with: "'")): \
+        simple, personal, under 30 dollars or handmade. Each has a short title (under 8 words) and one sentence on why it fits, using the facts.
+        """
+    }
+
     static func cardWords(_ p: PersonFacts) -> String {
         """
         \(facts(p))
