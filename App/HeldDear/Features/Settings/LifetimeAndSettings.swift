@@ -75,16 +75,21 @@ struct LifetimeView: View {
 }
 
 /// The app's three-circle mark, drawn in code.
+/// The Held Dear mark (same as the app icon): a horizon line, two quiet marks and one oxblood mark rising
+/// from a dot. Kept under its old name so callers don't change.
 struct CirclesMark: View {
     var size: CGFloat
     var body: some View {
-        let d = size * 0.62
-        ZStack {
-            Circle().stroke(Brand.ink, lineWidth: 1).frame(width: d, height: d).offset(y: -size * 0.16)
-            Circle().stroke(Brand.ink, lineWidth: 1).frame(width: d, height: d).offset(x: -size * 0.14, y: size * 0.1)
-            Circle().stroke(Brand.accent, lineWidth: 1).frame(width: d, height: d).offset(x: size * 0.14, y: size * 0.1)
+        Canvas { ctx, sz in
+            let w = sz.width, y = w * 0.63
+            ctx.fill(Path(CGRect(x: w * 0.13, y: y - w * 0.013, width: w * 0.74, height: w * 0.026)), with: .color(Brand.ink))
+            for (x, h) in [(0.29, 0.15), (0.71, 0.23)] as [(CGFloat, CGFloat)] {
+                ctx.fill(Path(CGRect(x: w * x - w * 0.011, y: y - w * h, width: w * 0.022, height: w * h)), with: .color(Brand.ink))
+            }
+            ctx.fill(Path(CGRect(x: w * 0.47 - w * 0.018, y: y - w * 0.37, width: w * 0.036, height: w * 0.37)), with: .color(Brand.action))
+            let r = w * 0.058
+            ctx.fill(Path(ellipseIn: CGRect(x: w * 0.47 - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Brand.action))
         }
-        .compositingGroup()
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
