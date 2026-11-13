@@ -193,7 +193,7 @@ struct WhoIsThisFor: View {
             if people.count > 12 {
                 TextField("Search", text: $search).textStyle(.body)
                     .padding(.horizontal, Brand.space4).frame(minHeight: 48)
-                    .background(Brand.card, in: Rectangle())
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
             }
             VStack(spacing: Brand.space2) {
                 ForEach(sorted, id: \.id) { p in

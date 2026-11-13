@@ -1,35 +1,35 @@
 import SwiftUI
 import UIKit
 
-/// Quiet design tokens (v2, decided Nov 12, 2026; replaces Hearth).
-/// Ivory and near-black, one family (Instrument Sans for interface, Instrument Serif for names and numbers),
-/// square corners, hairline rules, photos large, almost no decoration.
+/// Horizon design tokens (v3, chosen Nov 12, 2026; replaces Quiet).
+/// Warm stone pages, one composed screen at a time, the person's name very large in a light serif (Fraunces),
+/// interface text in the system sans, one oxblood action per screen, time running left to right.
 /// Every color has a light and dark value under the same name; never hard-code a light value in a view.
 enum Brand {
     // MARK: Color
-    static let page = dynamic(0xFAFAF7, 0x111111)
-    static let card = dynamic(0xF3F2EE, 0x1B1B1A)
-    static let ink = dynamic(0x111111, 0xF2F1EC)
-    static let inkMuted = dynamic(0x6A6A66, 0xA3A29C)
-    static let line = dynamic(0xE6E5E0, 0x2C2C2A)
-    /// Near-black (light) or ivory (dark). The one color for things you tap.
-    static let action = dynamic(0x111111, 0xF2F1EC)
-    static let onAction = dynamic(0xFAFAF7, 0x111111)
-    /// Muted terracotta. Small marks only (a dot, a rule); never body text, never a large fill.
-    static let accent = dynamic(0xA3472F, 0xD07A62)
-    /// Neutral tint for quiet fills.
-    static let accentSoft = dynamic(0xECEAE4, 0x242422)
-    static let onAccentSoft = dynamic(0x111111, 0xF2F1EC)
-    static let error = dynamic(0xB3261E, 0xF2B8B5)
+    static let page = dynamic(0xEDE8E0, 0x171513)
+    /// The lower band (timeline, years) and quiet fills.
+    static let card = dynamic(0xE3DCD1, 0x221F1B)
+    static let ink = dynamic(0x1C1A17, 0xEFE8DC)
+    static let inkMuted = dynamic(0x5F554A, 0xA89E90)
+    static let inkSoft = dynamic(0x3A342D, 0xCFC6B8)
+    static let line = dynamic(0xD3CABD, 0x34302A)
+    /// Oxblood. The one color for the main thing to tap.
+    static let action = dynamic(0x7A2E2A, 0xD98A7E)
+    static let onAction = dynamic(0xF7F1E8, 0x1A1210)
+    /// The selected mark on a timeline, small accents. Same family as action.
+    static let accent = dynamic(0x7A2E2A, 0xD98A7E)
+    static let accentSoft = dynamic(0xE3DCD1, 0x221F1B)
+    static let onAccentSoft = dynamic(0x1C1A17, 0xEFE8DC)
+    static let error = dynamic(0xA3261E, 0xF2B8B5)
 
-    /// Neutral face fills behind initials, picked by name so a person keeps their tone.
+    /// Warm face fills behind initials, picked by name so a person keeps their tone.
     static let faceFills: [Color] = [
-        dynamic(0xE9E7E1, 0x262624), dynamic(0xE1DED6, 0x2C2B28), dynamic(0xEDEBE6, 0x22221F), dynamic(0xDCD9D1, 0x302F2B),
+        dynamic(0xD8CDBE, 0x2C2823), dynamic(0xCFC2B0, 0x332E28), dynamic(0xDDD3C6, 0x29251F), dynamic(0xC9BBA8, 0x38322B),
     ]
-    /// Ring fills for the "Your people" rings, outer to inner.
-    static let ringOuter = dynamic(0xF3F2EE, 0x1B1B1A)
-    static let ringMiddle = dynamic(0xE9E7E1, 0x242422)
-    static let ringInner = dynamic(0xDCD9D1, 0x302F2B)
+    static let ringOuter = dynamic(0xE3DCD1, 0x221F1B)
+    static let ringMiddle = dynamic(0xD8CDBE, 0x2C2823)
+    static let ringInner = dynamic(0xCFC2B0, 0x332E28)
 
     static func faceFill(for name: String) -> Color {
         let sum = name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
@@ -42,17 +42,20 @@ enum Brand {
         })
     }
 
-    /// The big countdown number (hero and widgets only). Serif, lining figures.
-    static func countdownFont(_ size: CGFloat) -> Font {
-        TypeStyle.hasInstrument
-            ? Font.custom(TypeStyle.serif, size: size, relativeTo: .largeTitle).monospacedDigit()
-            : Font.system(size: size, weight: .regular, design: .serif).monospacedDigit()
+    /// Big numbers (countdowns, day numbers): the light display serif.
+    static func countdownFont(_ size: CGFloat) -> Font { display(size, relativeTo: .largeTitle) }
+
+    /// The light display serif, for names and big numbers (Fraunces 72pt Light).
+    static func display(_ size: CGFloat, relativeTo style: Font.TextStyle = .largeTitle, italic: Bool = false) -> Font {
+        guard TypeStyle.hasSerif else { return Font.system(size: size, weight: .light, design: .serif) }
+        return Font.custom(italic ? TypeStyle.displayItalic : TypeStyle.displayLight, size: size, relativeTo: style)
     }
 
-    /// Serif at an arbitrary size (names on cards, day numbers).
+    /// The text serif, for sentences and quotes at reading sizes (Fraunces 9pt).
     static func serif(_ size: CGFloat, relativeTo style: Font.TextStyle = .body, italic: Bool = false) -> Font {
-        guard TypeStyle.hasInstrument else { return Font.system(size: size, design: .serif) }
-        return Font.custom(italic ? TypeStyle.serifItalic : TypeStyle.serif, size: size, relativeTo: style)
+        guard TypeStyle.hasSerif else { return Font.system(size: size, design: .serif) }
+        if size >= 28 { return display(size, relativeTo: style, italic: italic) }
+        return Font.custom(italic ? TypeStyle.textItalic : TypeStyle.textRegular, size: size, relativeTo: style)
     }
 
     // MARK: Spacing and radius
@@ -60,12 +63,11 @@ enum Brand {
     static let space2: CGFloat = 8
     static let space3: CGFloat = 12
     static let space4: CGFloat = 16
-    static let space5: CGFloat = 22
+    static let space5: CGFloat = 24
     static let space6: CGFloat = 32
-    /// Square corners. Kept as tokens so views don't hard-code shape.
-    static let radiusSm: CGFloat = 2
-    static let radiusMd: CGFloat = 2
-    static let radiusLg: CGFloat = 2
+    static let radiusSm: CGFloat = 4
+    static let radiusMd: CGFloat = 4
+    static let radiusLg: CGFloat = 6
 }
 
 extension UIColor {
@@ -75,27 +77,26 @@ extension UIColor {
     }
 }
 
-/// Type styles. Instrument Sans and Serif are bundled; each style scales with Dynamic Type.
-/// System sans and New York are the fallback.
+/// Type styles. Display styles use Fraunces (bundled); everything else is the system sans, so it reads clearly
+/// and follows Dynamic Type. Eyebrows are small tracked capitals.
 enum TypeStyle {
     case display, title, headline, body, bodyStrong, callout, caption, eyebrow
 
-    static let serif = "InstrumentSerif-Regular"
-    static let serifItalic = "InstrumentSerif-Italic"
-    static let sansRegular = "InstrumentSans-Regular"
-    static let sansMedium = "InstrumentSans-Medium"
-    static let sansSemiBold = "InstrumentSans-SemiBold"
-    static let hasInstrument = UIFont(name: "InstrumentSerif-Regular", size: 12) != nil
+    static let displayLight = "Fraunces72pt-Light"
+    static let displayItalic = "Fraunces72pt-LightItalic"
+    static let textRegular = "Fraunces9pt-Regular"
+    static let textItalic = "Fraunces9pt-Italic"
+    static let hasSerif = UIFont(name: "Fraunces72pt-Light", size: 12) != nil
 
     var size: CGFloat {
         switch self {
-        case .display: 40
-        case .title: 32
+        case .display: 44
+        case .title: 34
         case .headline: 24
         case .body, .bodyStrong: 17
         case .callout: 15
         case .caption: 13
-        case .eyebrow: 13
+        case .eyebrow: 12
         }
     }
 
@@ -106,19 +107,11 @@ enum TypeStyle {
         }
     }
 
-    var fontName: String {
-        switch self {
-        case .display, .title, .headline: TypeStyle.serif
-        case .body, .callout: TypeStyle.sansRegular
-        case .bodyStrong: TypeStyle.sansSemiBold
-        case .caption, .eyebrow: TypeStyle.sansMedium
-        }
-    }
-
-    var fallbackWeight: Font.Weight {
+    var weight: Font.Weight {
         switch self {
         case .bodyStrong: .semibold
-        case .caption, .eyebrow: .medium
+        case .caption: .medium
+        case .eyebrow: .semibold
         default: .regular
         }
     }
@@ -135,18 +128,15 @@ enum TypeStyle {
         }
     }
 
-    /// The same size in SemiBold sans (or the serif for serif styles), for emphasis inside a style.
-    var strong: Font {
-        if isSerif { return font }
-        if TypeStyle.hasInstrument { return Font.custom(TypeStyle.sansSemiBold, size: size, relativeTo: relative) }
-        return Font.system(size: size, weight: .semibold)
+    var font: Font {
+        if isSerif { return Brand.display(size, relativeTo: relative) }
+        return Font.system(relative, weight: weight)
     }
 
-    var font: Font {
-        if TypeStyle.hasInstrument {
-            return Font.custom(fontName, size: size, relativeTo: relative)
-        }
-        return Font.system(size: size, weight: fallbackWeight, design: isSerif ? .serif : .default)
+    /// The same size, emphasized.
+    var strong: Font {
+        if isSerif { return font }
+        return Font.system(relative, weight: .semibold)
     }
 }
 
@@ -154,6 +144,7 @@ extension View {
     func textStyle(_ style: TypeStyle, color: Color = Brand.ink) -> some View {
         self.font(style.font)
             .foregroundStyle(style == .eyebrow && color == Brand.ink ? Brand.inkMuted : color)
-            .tracking(style.isSerif ? -0.3 : 0)
+            .tracking(style == .eyebrow ? 1.6 : (style.isSerif ? -0.4 : 0))
+            .textCase(style == .eyebrow ? .uppercase : nil)
     }
 }

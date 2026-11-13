@@ -72,8 +72,8 @@ struct FamilyPageSection: View {
         Text(title).font(TypeStyle.bodyStrong.font)
             .frame(maxWidth: .infinity, minHeight: 54)
             .foregroundStyle(filled ? Brand.onAction : Brand.action)
-            .background(filled ? Brand.action : Color.clear, in: Rectangle())
-            .overlay(Rectangle().stroke(Brand.action, lineWidth: 1))
+            .background(filled ? Brand.action : Color.clear, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous).stroke(Brand.action, lineWidth: 1))
     }
 
     private func load() async {

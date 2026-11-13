@@ -4,12 +4,10 @@
 <dict>
 	<key>UIAppFonts</key>
 	<array>
-		<string>InstrumentSans-Regular.ttf</string>
-		<string>InstrumentSans-Medium.ttf</string>
-		<string>InstrumentSans-SemiBold.ttf</string>
-		<string>InstrumentSans-Italic.ttf</string>
-		<string>InstrumentSerif-Regular.ttf</string>
-		<string>InstrumentSerif-Italic.ttf</string>
+		<string>Fraunces72pt-Light.ttf</string>
+		<string>Fraunces72pt-LightItalic.ttf</string>
+		<string>Fraunces9pt-Regular.ttf</string>
+		<string>Fraunces9pt-Italic.ttf</string>
 	</array>
 	<key>NSExtension</key>
 	<dict>

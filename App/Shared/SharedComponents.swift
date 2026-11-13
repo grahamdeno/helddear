@@ -8,12 +8,12 @@ struct Tag: View {
     var body: some View {
         Text(text).font(TypeStyle.caption.font)
             .foregroundStyle(Brand.ink)
-            .padding(.vertical, 4).padding(.horizontal, 10)
-            .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
+            .padding(.vertical, 5).padding(.horizontal, 10)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 }
 
-/// A person's face: their contact photo, or initials in serif on a neutral fill. Square, like a print.
+/// A person's face: their contact photo, or initials in serif on a warm fill.
 struct Face: View {
     var name: String
     var initials: String
@@ -33,7 +33,7 @@ struct Face: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Rectangle())
+        .clipShape(RoundedRectangle(cornerRadius: max(4, size * 0.12), style: .continuous))
         .accessibilityHidden(true)
     }
 }

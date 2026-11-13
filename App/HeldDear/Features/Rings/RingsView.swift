@@ -71,7 +71,7 @@ struct RingsView: View {
                     .font(TypeStyle.callout.strong).foregroundStyle(Brand.action)
                     .padding(.vertical, 10).padding(.horizontal, 16)
                     .frame(minHeight: 44)
-                    .background(Brand.card, in: Rectangle())
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
             }
             .position(x: c, y: 28)
         }
@@ -123,7 +123,7 @@ struct EveryoneView: View {
                 Text(focus.label).textStyle(.title)
                 TextField("Search", text: $search).textStyle(.body)
                     .padding(.horizontal, Brand.space4).frame(minHeight: 48)
-                    .background(Brand.card, in: Rectangle())
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
                 ForEach([focus] + Ring.allCases.filter { $0 != focus }) { ring in
                     let group = people.filter { $0.ring == ring }
                     if !group.isEmpty {

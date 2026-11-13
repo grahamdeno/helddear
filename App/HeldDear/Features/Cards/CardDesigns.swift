@@ -56,10 +56,10 @@ enum CardPalette {
     static let blush = Color(red: 0.953, green: 0.851, blue: 0.784)      // #F3D9C8
 }
 
-/// Card type: names and numbers in Instrument Serif, small lines in Instrument Sans.
+/// Card type: names and numbers in Fraunces, small lines in the system sans.
 func cardFont(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
     if weight == .heavy { return Brand.serif(size) }
-    return TypeStyle.hasInstrument ? Font.custom(TypeStyle.sansMedium, size: size) : Font.system(size: size, weight: .medium)
+    return Font.system(size: size, weight: .medium)
 }
 
 struct CardView: View {

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// Quiet components. Separation comes from hairline rules and space, never shadows or heavy fills.
+// Horizon components. One oxblood action per screen; quiet things sit on the stone band color.
 
 /// A flow screen: question at the top, choices below, the one action at the bottom.
 struct FlowScreen<Content: View, Footer: View>: View {
@@ -70,9 +70,9 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title).font(TypeStyle.bodyStrong.font)
-                .frame(maxWidth: .infinity, minHeight: 54)
+                .frame(maxWidth: .infinity, minHeight: 56)
                 .foregroundStyle(Brand.onAction)
-                .background(Brand.action, in: Rectangle())
+                .background(Brand.action, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
@@ -86,10 +86,10 @@ struct SecondaryButton: View {
         Button(action: action) {
             Text(title).font(TypeStyle.bodyStrong.font)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 54)
+                .frame(maxWidth: .infinity, minHeight: 56)
                 .padding(.horizontal, 12)
-                .foregroundStyle(Brand.action)
-                .overlay(Rectangle().stroke(Brand.action, lineWidth: 1))
+                .foregroundStyle(Brand.ink)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
@@ -103,7 +103,6 @@ struct TextLink: View {
         Button(action: action) {
             Text(title).font(TypeStyle.callout.font)
                 .foregroundStyle(Brand.action)
-                .underline(true, color: Brand.line)
                 .padding(.vertical, 11).padding(.horizontal, 8)
                 .frame(minHeight: 44)
         }
@@ -172,7 +171,7 @@ struct CheckBadge: View {
         Image(systemName: "checkmark").font(.system(size: size * 0.5, weight: .semibold))
             .foregroundStyle(Brand.onAction)
             .frame(width: size, height: size)
-            .background(Brand.action, in: Rectangle())
+            .background(Brand.action, in: Circle())
             .accessibilityHidden(true)
     }
 }
@@ -181,10 +180,8 @@ struct CheckBadge: View {
 struct ContextLine: View {
     var text: String
     var body: some View {
-        Text(text).textStyle(.callout, color: Brand.inkMuted)
+        Text(text).font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, Brand.space3)
-            .overlay(alignment: .leading) { Rectangle().fill(Brand.line).frame(width: 1) }
     }
 }
 
@@ -195,7 +192,7 @@ struct Card<Content: View>: View {
         VStack(alignment: .leading, spacing: 14) { content }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
-            .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
     }
 }
 
@@ -258,7 +255,7 @@ struct LineField: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(Brand.onAction)
                             .frame(width: 44, height: 44)
-                            .background(Brand.action, in: Rectangle())
+                            .background(Brand.action, in: Circle())
                     }
                     .accessibilityLabel(dictation.isListening ? "Stop dictating" : "Dictate")
                 }

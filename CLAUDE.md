@@ -29,8 +29,10 @@ SKU helddear001. iOS 26, iPhone only.
   deleted 30 days after the day (Vercel Blob, daily cleanup cron). Family's notes are untrusted text, always escaped.
 - Mailed cards are paid with Apple Pay through Stripe, never in-app purchase (App Review 3.1.3(e)).
 - No guilt: no streaks, red badges, or "you forgot". A missed birthday gets a way back.
-- Quiet look (v2, Nov 12): `Brand.action` (near-black, ivory in dark mode) is the only color for things you tap.
-  The terracotta accent never holds text. Instrument Sans and Instrument Serif are bundled. Square corners, hairlines.
+- Horizon look (v3, Nov 12): warm stone pages, each main screen one composed page (no stacked feeds). Names and
+  big numbers in Fraunces (bundled, light display serif); interface text in the system sans. One oxblood
+  `Brand.action` per screen for the main thing to tap; everything else is a text link or a stone-band fill.
+  Time runs left to right (the Home band, a person's years).
 - No pronouns for people: the app doesn't know them. Use the name ("Call Mom").
 
 ## Safety
