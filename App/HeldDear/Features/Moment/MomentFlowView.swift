@@ -101,42 +101,42 @@ struct ChooseStep: View {
 
     private var name: String { moment.person?.name ?? "" }
 
+    /// C2 in the Horizon look: one big question, the thing they mentioned as the one filled tile,
+    /// everything else as stone tiles in a grid. One decision.
     private var choices: some View {
         let wishes = Array(moment.person?.openWishes.prefix(3) ?? [])
-        var sub = OccasionDates.longDate(moment.dueDate)
-        if let t = moment.turning { sub += " · turning \(t)" }
+        let days = OccasionDates.daysBetween(Date(), moment.dueDate)
+        let cols = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
         return FlowScreen(onClose: { model.route = nil }) {
-            Question(tag: "\(moment.type.label) · \(OccasionDates.countdown(to: moment.dueDate, from: Date()))",
-                     title: "What will you do for \(name)?", subtitle: sub)
-            if let last = model.lastYear(for: moment) {
-                ContextLine(text: "Last year: \(last.what.prefix(1).lowercased() + last.what.dropFirst())")
-            }
-            if !wishes.isEmpty {
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Saved ideas")
-                    ForEach(wishes, id: \.id) { wish in
-                        OptionRow(title: wish.text, caption: wish.savedLine) { pick(.gift, wish: wish) }
-                    }
-                }
-            }
-            if OccasionDates.daysBetween(Date(), moment.dueDate) >= 6 {
-                OptionRow(title: "Mail a real card",
-                          caption: "Written in pen, stamped and mailed for you · $6.99",
-                          action: { go(.mailCard) },
-                          leading: {
-                              Image(systemName: "envelope.fill").font(.system(size: 18, weight: .semibold))
-                                  .foregroundStyle(Brand.action).frame(width: 32)
-                          },
-                          trailing: { ChevronDisc() })
-            }
             VStack(alignment: .leading, spacing: Brand.space2) {
-                Eyebrow(text: wishes.isEmpty ? "Pick one" : "Or")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                    SecondaryButton(title: "Send a card") { pick(.card) }
-                    SecondaryButton(title: "Call \(name)") { pick(.call) }
-                    SecondaryButton(title: "Dinner together") { pick(.dinner) }
-                    SecondaryButton(title: "Something else") { describing = true }
+                Text("\(name) · \(OccasionDates.shortDate(moment.dueDate)) · \(OccasionDates.countdown(to: moment.dueDate, from: Date()))")
+                    .textStyle(.eyebrow)
+                Text("What will you do for \(name)?").font(Brand.display(40)).tracking(-0.8)
+                    .foregroundStyle(Brand.ink).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                if let last = model.lastYear(for: moment) {
+                    Text("Last year: \(last.what.prefix(1).lowercased() + last.what.dropFirst())")
+                        .font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
                 }
+            }
+            if let first = wishes.first {
+                PlanTile(eyebrow: "\(name) mentioned", title: first.text,
+                         caption: days > OccasionDates.cutoffDays
+                            ? "Order by \(OccasionDates.shortDate(OccasionDates.adding(days: -OccasionDates.cutoffDays, to: moment.dueDate)))"
+                            : first.savedLine,
+                         filled: true, tall: true) { pick(.gift, wish: first) }
+            }
+            LazyVGrid(columns: cols, spacing: 8) {
+                ForEach(wishes.dropFirst(), id: \.id) { wish in
+                    PlanTile(title: wish.text, caption: "Saved idea") { pick(.gift, wish: wish) }
+                }
+                if days >= 6 {
+                    PlanTile(title: "Mail a real card", caption: "Pen-written, mailed for you · $6.99", filled: wishes.isEmpty) { go(.mailCard) }
+                }
+                PlanTile(title: "Send a card", caption: "A card with a photo, sent by message") { pick(.card) }
+                PlanTile(title: "Call \(name)", caption: "A reminder that morning") { pick(.call) }
+                PlanTile(title: "Dinner together", caption: "On your calendar") { pick(.dinner) }
+                PlanTile(title: "Something else", caption: "Say it in one line") { describing = true }
             }
         }
     }
@@ -144,7 +144,7 @@ struct ChooseStep: View {
     private var somethingElse: some View {
         FlowScreen(onClose: { describing = false }) {
             Question(title: "What will you do for \(name)?")
-            LineField(label: "One line to describe it", text: $otherText, placeholder: "Take her to the garden show", onSubmit: saveOther)
+            LineField(label: "One line to describe it", text: $otherText, placeholder: "A trip to the garden show", onSubmit: saveOther)
         } footer: {
             PrimaryButton(title: "Save", action: saveOther)
                 .disabled(otherText.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -240,5 +240,40 @@ struct MissedStep: View {
                 close()
             }
         }
+    }
+}
+
+/// One option on the plan screen. Filled (oxblood) for the single suggested option, stone for the rest.
+struct PlanTile: View {
+    var eyebrow: String? = nil
+    var title: String
+    var caption: String?
+    var filled = false
+    var tall = false
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                if let eyebrow {
+                    Text(eyebrow).textStyle(.eyebrow, color: filled ? Brand.onAction.opacity(0.85) : Brand.inkMuted)
+                }
+                Spacer(minLength: 0)
+                Text(title)
+                    .font(tall ? Brand.display(30, relativeTo: .title2) : Brand.serif(20, relativeTo: .headline))
+                    .foregroundStyle(filled ? Brand.onAction : Brand.ink)
+                    .multilineTextAlignment(.leading).lineLimit(3)
+                if let caption {
+                    Text(caption).font(.footnote.weight(.medium))
+                        .foregroundStyle(filled ? Brand.onAction.opacity(0.9) : Brand.inkMuted)
+                        .multilineTextAlignment(.leading).lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: tall ? 150 : 118, alignment: .topLeading)
+            .padding(Brand.space4)
+            .background(filled ? Brand.action : Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle())
     }
 }

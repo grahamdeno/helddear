@@ -57,12 +57,16 @@ export async function categoryId(occasion = "birthday") {
   return 7; // Handwrytten's documented Birthday category id
 }
 
+// Business cards (work anniversaries, employee thank-yous) share categories with personal ones; leave them out.
+const BUSINESS = /work|employee|staff|team|client|customer|service|dedication|contribution|excellence|achievement|success|commitment|journey with us|hard work|business|company/i;
+export const isPersonal = (name) => !BUSINESS.test(String(name ?? ""));
+
 /** Cards for an occasion with a cover image, as the app shows them. */
 export async function listCards(occasion = "birthday") {
   const id = await categoryId(occasion);
   const json = await hw(`/cards/list?category_id=${id}&with_images=1`);
   return pickList(json, "cards", "data", "items")
-    .filter((c) => c.cover && c.id)
+    .filter((c) => c.cover && c.id && isPersonal(c.name))
     .map((c) => ({
       id: Number(c.id),
       name: String(c.name ?? "Card"),
