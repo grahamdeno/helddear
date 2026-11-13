@@ -1,41 +1,39 @@
 import SwiftUI
 
-/// R1. "Your people": faces for the inner and middle rings, a count for the outer ring.
+/// "Your people": everyone, soonest first. Each row is the person, their next day, and how early Held Dear reminds
+/// you (tap that to change it). Replaced the ring diagram, which looked busy and told you little (Nov 12).
 struct RingsView: View {
     @EnvironmentObject var model: AppModel
     @State private var sheetPerson: Person?
     @State private var addingFromContacts = false
 
-    private let size: CGFloat = 346
-
     var body: some View {
         let _ = model.revision
-        let people = model.allPeople()
-        let inner = people.filter { $0.ring == .inner }
-        let middle = people.filter { $0.ring == .middle }
-        let outer = people.filter { $0.ring == .outer }
+        let rows = model.allPeople().map { p in (person: p, next: model.nextMoment(for: p)) }
+            .sorted { ($0.next?.dueDate ?? .distantFuture) < ($1.next?.dueDate ?? .distantFuture) }
+        let early = rows.filter { $0.person.ring == .inner }.count
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text("Your people").textStyle(.title).accessibilityAddTraits(.isHeader)
-                diagram(inner: inner, middle: middle, outerCount: outer.count)
-                    .frame(maxWidth: .infinity)
-                VStack(spacing: Brand.space2) {
-                    ringRow(.inner, count: inner.count, fill: Brand.ringInner)
-                    ringRow(.middle, count: middle.count, fill: Brand.ringMiddle)
-                    ringRow(.outer, count: outer.count, fill: Brand.ringOuter)
+                Text(summary(total: rows.count, early: early))
+                    .font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
+                    .padding(.top, Brand.space1)
+                    .padding(.bottom, Brand.space5)
+                ForEach(rows, id: \.person.id) { row in
+                    personRow(row.person, next: row.next)
                 }
-                SecondaryButton(title: "Add from contacts") { addingFromContacts = true }
-                Text("Tap anyone to move them. Tap the outer count to see everyone.")
-                    .textStyle(.caption, color: Brand.inkMuted).frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
+                SecondaryButton(title: "Add from Contacts") { addingFromContacts = true }
+                    .padding(.top, Brand.space5)
+                Text("Tap a person to open them. Tap the reminder on the right to change how early Held Dear tells you.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+                    .padding(.top, Brand.space3)
             }
             .padding(.horizontal, Brand.space5)
             .padding(.vertical, 8)
         }
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: Ring.self) { ring in EveryoneView(focus: ring) }
         .navigationDestination(for: UUID.self) { id in
             if let p = model.person(id) { PersonView(person: p) }
         }
@@ -43,73 +41,54 @@ struct RingsView: View {
         .addFromContacts(isPresented: $addingFromContacts)
     }
 
-    private func diagram(inner: [Person], middle: [Person], outerCount: Int) -> some View {
-        let c = size / 2
-        let innerShown = Array(inner.prefix(6))
-        let middleShown = Array(middle.prefix(10))
-        return ZStack {
-            Circle().fill(Brand.ringOuter).frame(width: size, height: size)
-            Circle().fill(Brand.ringMiddle).frame(width: 230, height: 230)
-            Circle().fill(Brand.ringInner).frame(width: 120, height: 120)
-
-            ForEach(Array(innerShown.enumerated()), id: \.element.id) { i, p in
-                face(p, size: 44)
-                    .position(point(index: i, of: innerShown.count, radius: innerShown.count == 1 ? 0 : 28, center: c, offset: -.pi / 2))
-            }
-            ForEach(Array(middleShown.enumerated()), id: \.element.id) { i, p in
-                face(p, size: 40)
-                    .position(point(index: i, of: middleShown.count, radius: 88, center: c, offset: -.pi / 3))
-            }
-            if inner.count > innerShown.count || middle.count > middleShown.count {
-                Text("+\(inner.count - innerShown.count + middle.count - middleShown.count)")
-                    .font(TypeStyle.caption.strong).foregroundStyle(Brand.ink)
-                    .frame(width: 40, height: 40).background(Brand.card, in: Circle())
-                    .position(x: c + 70, y: c + 70)
-            }
-            NavigationLink(value: Ring.outer) {
-                Text(outerCount == 1 ? "1 more person" : "\(outerCount) more people")
-                    .font(TypeStyle.callout.strong).foregroundStyle(Brand.action)
-                    .padding(.vertical, 10).padding(.horizontal, 16)
-                    .frame(minHeight: 44)
-                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
-            }
-            .position(x: c, y: 28)
-        }
-        .frame(width: size, height: size)
-        .accessibilityElement(children: .contain)
+    private func summary(total: Int, early: Int) -> String {
+        let people = total == 1 ? "1 person" : "\(total) people"
+        guard early > 0 else { return people }
+        return "\(people) · \(early) with a 3-week heads-up"
     }
 
-    private func face(_ p: Person, size: CGFloat) -> some View {
-        Button { sheetPerson = p } label: { Face(person: p, size: size, fill: Brand.card) }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(p.name), \(p.ring.label)")
-    }
-
-    private func point(index: Int, of count: Int, radius: CGFloat, center: CGFloat, offset: Double) -> CGPoint {
-        guard count > 0 else { return CGPoint(x: center, y: center) }
-        let angle = offset + Double(index) * 2 * .pi / Double(count)
-        return CGPoint(x: center + radius * CGFloat(cos(angle)), y: center + radius * CGFloat(sin(angle)))
-    }
-
-    private func ringRow(_ ring: Ring, count: Int, fill: Color) -> some View {
-        NavigationLink(value: ring) {
-            HStack(spacing: 12) {
-                Circle().fill(fill).frame(width: 20, height: 20).accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ring.label).font(TypeStyle.body.strong).foregroundStyle(Brand.ink)
-                    Text(ring.promise).textStyle(.caption, color: Brand.inkMuted)
+    private func personRow(_ p: Person, next: Moment?) -> some View {
+        HStack(alignment: .center, spacing: Brand.space4) {
+            NavigationLink(value: p.id) {
+                HStack(spacing: Brand.space4) {
+                    Text(next.map { String(Calendar.current.component(.day, from: $0.dueDate)) } ?? "–")
+                        .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
+                        .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(p.name).textStyle(.bodyStrong).lineLimit(1)
+                        Text(caption(next)).textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Text("\(count)").font(TypeStyle.callout.strong).foregroundStyle(Brand.inkMuted)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .buttonStyle(.plain)
+            Button { sheetPerson = p } label: {
+                Text(reminder(p.ring)).font(.caption.weight(.semibold)).foregroundStyle(Brand.ink)
+                    .padding(.horizontal, 10).frame(minHeight: 32)
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Reminder for \(p.name): \(p.ring.promise). Change")
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, Brand.space2)
+    }
+
+    private func caption(_ next: Moment?) -> String {
+        guard let next else { return "No date yet" }
+        return "\(next.dueDate.formatted(.dateTime.month(.abbreviated).day())) · \(next.occasionLine)"
+    }
+
+    private func reminder(_ ring: Ring) -> String {
+        switch ring {
+        case .inner: "3 weeks"
+        case .middle: "1 week"
+        case .outer: "On the day"
+        }
     }
 }
 
-/// Everyone, by ring. Tap a person to see them.
 struct EveryoneView: View {
     @EnvironmentObject var model: AppModel
     var focus: Ring
