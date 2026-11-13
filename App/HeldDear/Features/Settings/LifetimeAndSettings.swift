@@ -33,10 +33,12 @@ struct LifetimeView: View {
                         benefit("rectangle.portrait.on.rectangle.portrait", "Every card design, in your own words")
                         benefit("lock.iphone", "A countdown on your Lock Screen")
                         benefit("clock.arrow.circlepath", "1 year ago, and a yearly keepsake to share")
-                        benefit("calendar.badge.plus", "Christmas, anniversaries and school, as they arrive")
+                        benefit("calendar.badge.plus", "Anniversaries, holidays and life moments, not just birthdays")
+                        benefit("sparkles", "Gift ideas and card words, written on your iPhone")
+                        benefit("photo.on.rectangle", "Every year of birthday photos, from your library")
                     }
                     .padding(Brand.space4 + 4)
-                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
                 }
                 .padding(.horizontal, Brand.space5)
             }
