@@ -20,6 +20,8 @@ struct PersonView: View {
     @State private var phoneText = ""
     @State private var showLifetime = false
     @State private var editingPortrait = false
+    @State private var addingOccasion = false
+    @State private var occasionToEdit: Occasion?
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -37,9 +39,15 @@ struct PersonView: View {
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
                 section("Occasions") {
-                    if let b = person.birthday, let next = model.nextMoment(for: person) {
-                        OptionRow(title: "Birthday", caption: birthdayCaption(b, next)) { editingDate = true }
+                    ForEach(sortedOccasions, id: \.id) { o in
+                        if o.type == .birthday {
+                            OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
+                        } else {
+                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)" : o.type.label,
+                                      caption: occasionCaption(o)) { occasionToEdit = o }
+                        }
                     }
+                    SecondaryButton(title: "Add an occasion") { addingOccasion = true }
                 }
                 section("Wishes") {
                     ForEach(person.openWishes, id: \.id) { wish in
@@ -85,6 +93,12 @@ struct PersonView: View {
         .sheet(isPresented: $editingDate) { BirthdayEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
+        .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
+                            isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
+                            titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { if let o = occasionToEdit { model.removeOccasion(o) } }
+        }
         .onChange(of: photoItem) { _, item in addPhoto(item) }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
                             titleVisibility: .visible) {
@@ -115,7 +129,7 @@ struct PersonView: View {
                 Text(person.name).textStyle(.display)
                 if let next = model.nextMoment(for: person) {
                     let date = next.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
-                    Text(next.turning.map { "Turns \($0) on \(date)" } ?? "Birthday on \(date)")
+                    Text("\(next.occasionLine) on \(date)")
                         .textStyle(.callout, color: Brand.inkMuted)
                 }
             }
@@ -295,9 +309,26 @@ struct PersonView: View {
         }
     }
 
-    private func birthdayCaption(_ b: Occasion, _ next: Moment) -> String {
+    private var sortedOccasions: [Occasion] {
+        person.occasions.sorted { a, b in
+            if a.type == .birthday { return true }
+            if b.type == .birthday { return false }
+            return (nextDate(a) ?? .distantFuture) < (nextDate(b) ?? .distantFuture)
+        }
+    }
+
+    private func nextDate(_ o: Occasion) -> Date? {
+        let today = Calendar.current.startOfDay(for: Date())
+        return o.moments.filter { $0.dueDate >= today }.map(\.dueDate).min()
+    }
+
+    private func occasionCaption(_ o: Occasion) -> String {
+        let today = Calendar.current.startOfDay(for: Date())
+        guard let next = o.moments.filter({ $0.dueDate >= today }).min(by: { $0.dueDate < $1.dueDate }) else {
+            return o.type.kind == .once ? "Passed" : "Next year"
+        }
         let date = OccasionDates.longDate(next.dueDate)
-        if let t = next.turning { return "\(date) · turning \(t)" }
+        if let count = next.countLine { return "\(date) · \(count.prefix(1).lowercased() + count.dropFirst())" }
         return date
     }
 
@@ -625,5 +656,81 @@ struct AssetThumb: View {
         .frame(width: side, height: side)
         .clipped()
         .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.thumbnail(asset, side: side) }
+    }
+}
+
+/// Add an occasion: first what kind (one decision), then the date if it needs one.
+struct AddOccasionView: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var type: OccasionType?
+    @State private var date = Date()
+    @State private var knowsYear = false
+    @State private var partner = ""
+
+    var body: some View {
+        if let type { dateStep(type) } else { pickStep }
+    }
+
+    private var choices: [OccasionType] {
+        OccasionType.allCases.filter { t in
+            t != .birthday && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
+        }
+    }
+
+    private var pickStep: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "What else matters for \(person.name)?")
+            section("Every year", choices.filter { $0.kind == .yearly })
+            section("Holidays", choices.filter { $0.kind == .holiday })
+            section("Life moments", choices.filter { $0.kind == .once })
+        }
+    }
+
+    @ViewBuilder private func section(_ title: String, _ items: [OccasionType]) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: title)
+                ForEach(items) { t in
+                    OptionRow(title: t.label, caption: caption(t)) {
+                        if t.needsDate { type = t } else { save(t) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func caption(_ t: OccasionType) -> String? {
+        switch t {
+        case .christmas: "December 25"
+        case .valentines: "February 14"
+        case .mothersDay: "Second Sunday in May"
+        case .fathersDay: "Third Sunday in June"
+        case .anniversary: "Theirs, or yours together"
+        default: nil
+        }
+    }
+
+    private func dateStep(_ t: OccasionType) -> some View {
+        FlowScreen(onClose: { type = nil }) {
+            Question(title: t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?")
+            DatePicker(t.label, selection: $date, displayedComponents: .date)
+                .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
+            if t == .anniversary {
+                LineField(label: "With (optional)", text: $partner, placeholder: "Dad", showsDictation: false)
+                Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
+            }
+        } footer: {
+            PrimaryButton(title: "Save") { save(t) }
+        }
+    }
+
+    private func save(_ t: OccasionType) {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        let year: Int? = t.kind == .once ? c.year : (t == .anniversary && knowsYear ? c.year : nil)
+        model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
+                          partnerName: t == .anniversary ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
+        dismiss()
     }
 }

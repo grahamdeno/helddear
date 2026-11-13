@@ -69,8 +69,10 @@ enum MailedCards {
 
     static var canPay: Bool { PKPaymentAuthorizationController.canMakePayments(usingNetworks: networks) }
 
-    static func catalog() async throws -> Catalog {
-        let (data, response) = try await URLSession.shared.data(from: baseURL.appendingPathComponent("api/cards"))
+    static func catalog(occasion: String = "birthday") async throws -> Catalog {
+        var components = URLComponents(url: baseURL.appendingPathComponent("api/cards"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "occasion", value: occasion)]
+        let (data, response) = try await URLSession.shared.data(from: components.url!)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw Failure(message: "Cards are unavailable right now. Try again in a little while.")
         }
@@ -78,11 +80,12 @@ enum MailedCards {
     }
 
     static func placeOrder(reference: String, card: MailCard, message: String, wishes: String,
-                           recipient: MailAddress, sender: MailAddress, payment: PKPayment) async throws -> OrderResult {
+                           recipient: MailAddress, sender: MailAddress, occasion: String = "birthday",
+                           payment: PKPayment) async throws -> OrderResult {
         struct ApplePay: Encodable { var paymentData: String; var transactionIdentifier: String; var network: String; var displayName: String }
         struct Body: Encodable {
             var reference: String; var cardId: Int; var message: String; var wishes: String
-            var recipient: MailAddress; var sender: MailAddress; var applePay: ApplePay
+            var recipient: MailAddress; var sender: MailAddress; var applePay: ApplePay; var occasion: String
         }
         let method = payment.token.paymentMethod
         let body = Body(reference: reference, cardId: card.id, message: message, wishes: wishes,
@@ -90,7 +93,8 @@ enum MailedCards {
                         applePay: ApplePay(paymentData: payment.token.paymentData.base64EncodedString(),
                                            transactionIdentifier: payment.token.transactionIdentifier,
                                            network: method.network?.rawValue ?? "",
-                                           displayName: method.displayName ?? ""))
+                                           displayName: method.displayName ?? ""),
+                        occasion: occasion)
         var request = URLRequest(url: baseURL.appendingPathComponent("api/order"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

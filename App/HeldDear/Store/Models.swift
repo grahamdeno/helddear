@@ -71,6 +71,8 @@ final class Occasion {
     var ringOverrideRaw: String?
     /// Further recipients for a pair occasion (stage 2 anniversaries). Empty for birthdays.
     var extraRecipientIDs: [UUID]
+    /// The other half of a couple for an anniversary ("Dad" in "Mom & Dad's anniversary"), in the user's words.
+    var partnerName: String?
     var person: Person?
     @Relationship(deleteRule: .cascade, inverse: \Moment.occasion) var moments: [Moment] = []
 
@@ -129,7 +131,20 @@ final class Moment {
         return false
     }
 
-    var turning: Int? { OccasionDates.turning(birthYear: occasion?.birthYear, occurrenceYear: year) }
+    var turning: Int? {
+        OccasionRules.count(type: occasion?.type ?? .birthday, startYear: occasion?.birthYear, occurrenceYear: year)
+    }
+    var type: OccasionType { occasion?.type ?? .birthday }
+    /// "Mom's birthday", "Mom & Dad's anniversary", "Christmas for Mom".
+    var subject: String { type.subject(name: person?.name ?? "", partner: occasion?.partnerName) }
+    /// "Turns 68", "40th anniversary", or nil.
+    var countLine: String? { type.countLine(turning) }
+    /// "Turns 68", "Birthday", "40th anniversary with Dad", "Christmas".
+    var occasionLine: String {
+        var line = countLine ?? type.label
+        if type == .anniversary, let partner = occasion?.partnerName { line += " with \(partner)" }
+        return line
+    }
 }
 
 @Model

@@ -25,24 +25,47 @@ const pickList = (json, ...keys) => {
   return [];
 };
 
-export async function birthdayCategoryId() {
+// Which Handwrytten category to show for each Held Dear occasion. Unknown occasions get birthday cards' fallback chain.
+export const OCCASION_CATEGORY = {
+  birthday: [/birthday/i],
+  anniversary: [/anniversar/i, /love/i],
+  christmas: [/christmas/i, /holiday/i],
+  valentines: [/valentine/i, /love/i],
+  mothersDay: [/mother/i],
+  fathersDay: [/father/i],
+  newBaby: [/baby/i, /congrat/i],
+  graduation: [/graduat/i, /congrat/i],
+  newHome: [/housewarm/i, /new home/i, /congrat/i],
+  retirement: [/retire/i, /congrat/i],
+};
+
+export function pickCategory(cats, occasion) {
+  const patterns = [...(OCCASION_CATEGORY[occasion] ?? []), /blank/i, /thinking/i, /general/i];
+  for (const re of patterns) {
+    const match = cats.find((c) => re.test(c.name ?? ""));
+    if (match?.id) return match.id;
+  }
+  return null;
+}
+
+export async function categoryId(occasion = "birthday") {
   try {
     const cats = pickList(await hw("/categories/list"), "categories", "data", "items");
-    const match = cats.find((c) => /birthday/i.test(c.name ?? ""));
-    if (match?.id) return match.id;
+    const id = pickCategory(cats, occasion);
+    if (id) return id;
   } catch {}
   return 7; // Handwrytten's documented Birthday category id
 }
 
-/** Birthday cards with a cover image, as the app shows them. */
-export async function listBirthdayCards() {
-  const id = await birthdayCategoryId();
+/** Cards for an occasion with a cover image, as the app shows them. */
+export async function listCards(occasion = "birthday") {
+  const id = await categoryId(occasion);
   const json = await hw(`/cards/list?category_id=${id}&with_images=1`);
   return pickList(json, "cards", "data", "items")
     .filter((c) => c.cover && c.id)
     .map((c) => ({
       id: Number(c.id),
-      name: String(c.name ?? "Birthday card"),
+      name: String(c.name ?? "Card"),
       cover: c.cover,
       inside: c.inside_image ?? null,
       characters: Number(c.characters) || 300,

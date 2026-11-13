@@ -18,6 +18,11 @@ struct MomentState: Equatable {
     var turning: Int?
     /// When the heads-up was (or will be) delivered. Set once, so a late heads-up is not repeated.
     var headsUpAt: Date?
+    var occasion: OccasionType = .birthday
+    var partnerName: String? = nil
+
+    /// "Mom's birthday", "Christmas for Mom".
+    var subject: String { occasion.subject(name: personName, partner: partnerName) }
 }
 
 enum AlertKind: String {
@@ -98,7 +103,7 @@ enum AlertPlanner {
                                 let days = D.daysBetween(nudge, m.dueDate, calendar: calendar)
                                 let tail = m.openWishCount > 0 ? "Your saved ideas are ready." : "Pick one thing and Held Dear sets it up."
                                 alerts.append(PlannedAlert(id: "nudge\(n)-\(m.id)", kind: .nudge, fireDate: nudge,
-                                                           body: "\(name)'s birthday is in \(days) days. \(tail)", momentID: m.id))
+                                                           body: "\(m.subject.prefix(1).uppercased() + m.subject.dropFirst()) is in \(days) days. \(tail)", momentID: m.id))
                             }
                         }
                     }
@@ -127,29 +132,32 @@ enum AlertPlanner {
                 let fire = D.alertTime(on: D.adding(days: 1, to: m.dueDate, calendar: calendar), calendar: calendar)
                 if fire > now {
                     alerts.append(PlannedAlert(id: "missed-\(m.id)", kind: .missed, fireDate: fire,
-                                               body: "\(name)'s birthday was yesterday. A late note still counts.", momentID: m.id))
+                                               body: "\(m.subject.prefix(1).uppercased() + m.subject.dropFirst()) was yesterday. A late note still counts.", momentID: m.id))
                 }
             }
         }
 
         // S1: one early heads-up for a busy month, 3 weeks before it starts.
+        let otherIDs = Set(moments.filter { $0.occasion != .birthday }.map(\.id))
         for s in seasons {
             let fire = D.alertTime(on: D.adding(days: -21, to: s.monthStart, calendar: calendar), calendar: calendar)
             guard fire > now else { continue }
             let month = s.monthStart.formatted(.dateTime.month(.wide))
             alerts.append(PlannedAlert(id: "season-\(month)-\(calendar.component(.year, from: s.monthStart))", kind: .season,
                                        fireDate: fire,
-                                       body: "\(month) is a big month. \(s.momentIDs.count) of your people have birthdays in it.",
+                                       body: "\(month) is a big month. \(s.momentIDs.count) of your people have \(s.momentIDs.contains(where: otherIDs.contains) ? "occasions" : "birthdays") in it.",
                                        monthStart: s.monthStart))
         }
 
-        alerts = groupHeadsUps(alerts, names: Dictionary(uniqueKeysWithValues: moments.map { ($0.id, $0.personName) }), calendar: calendar)
+        alerts = groupHeadsUps(alerts, names: Dictionary(uniqueKeysWithValues: moments.map { ($0.id, $0.personName) }),
+                               others: otherIDs, calendar: calendar)
         alerts.sort { $0.fireDate == $1.fireDate ? $0.id < $1.id : $0.fireDate < $1.fireDate }
         return (Array(alerts.prefix(maxAlerts)), updates)
     }
 
     /// Two or more heads-ups on the same morning become one alert that opens Home.
-    static func groupHeadsUps(_ alerts: [PlannedAlert], names: [UUID: String], calendar: Calendar = .current) -> [PlannedAlert] {
+    static func groupHeadsUps(_ alerts: [PlannedAlert], names: [UUID: String], others: Set<UUID> = [],
+                              calendar: Calendar = .current) -> [PlannedAlert] {
         let heads = alerts.filter { $0.kind == .headsUp }
         let byDay = Dictionary(grouping: heads) { calendar.startOfDay(for: $0.fireDate) }
         var result = alerts.filter { $0.kind != .headsUp }
@@ -159,7 +167,7 @@ enum AlertPlanner {
             let list = who.count == 2 ? "\(who[0]) and \(who[1])" : who.dropLast().joined(separator: ", ") + ", and " + (who.last ?? "")
             result.append(PlannedAlert(id: "grouped-\(Int(day.timeIntervalSince1970))", kind: .grouped,
                                        fireDate: group[0].fireDate,
-                                       body: "\(group.count) birthdays coming up: \(list).", momentID: nil))
+                                       body: "\(group.count) \(group.contains { $0.momentID.map(others.contains) ?? false } ? "occasions" : "birthdays") coming up: \(list).", momentID: nil))
         }
         return result
     }
@@ -174,15 +182,17 @@ enum AlertPlanner {
         case 21: when = "in 3 weeks"
         default: when = "in \(days) days"
         }
-        var text = "\(m.personName)'s birthday is \(when)."
+        var text = "\(m.subject.prefix(1).uppercased() + m.subject.dropFirst()) is \(when)."
         if m.openWishCount == 1 { text += " You saved 1 idea." }
         if m.openWishCount > 1 { text += " You saved \(m.openWishCount) ideas." }
         return text
     }
 
     static func dayOfText(_ m: MomentState) -> String {
-        var text = "It's \(m.personName)'s birthday."
-        if let t = m.turning { text += " Turning \(t) today." }
+        var text = "It's \(m.subject)."
+        if let t = m.turning {
+            text += m.occasion == .birthday ? " Turning \(t) today." : (m.occasion.countLine(t).map { " The \($0)." } ?? "")
+        }
         if m.planDone, let kind = m.planKind {
             switch kind {
             case .gift: text += " Your gift is on its way."

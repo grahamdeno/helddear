@@ -246,3 +246,44 @@ final class PhotoWindowsTests: XCTestCase {
         XCTAssertEqual(cal.dateComponents([.month, .day], from: w[0].start), DateComponents(month: 2, day: 27))
     }
 }
+
+final class OccasionRulesTests: XCTestCase {
+    private var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }()
+
+    private func ymd(_ d: Date) -> DateComponents { cal.dateComponents([.year, .month, .day], from: d) }
+
+    func testMothersAndFathersDay2027() {
+        XCTAssertEqual(ymd(OccasionRules.date(type: .mothersDay, month: 0, day: 0, year: 2027, calendar: cal)!),
+                       DateComponents(year: 2027, month: 5, day: 9))
+        XCTAssertEqual(ymd(OccasionRules.date(type: .fathersDay, month: 0, day: 0, year: 2027, calendar: cal)!),
+                       DateComponents(year: 2027, month: 6, day: 20))
+    }
+
+    func testChristmasIgnoresStoredDate() {
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        let o = OccasionRules.occurrences(type: .christmas, month: 1, day: 1, year: nil, from: now, calendar: cal)
+        XCTAssertEqual(o.count, 1)
+        XCTAssertEqual(ymd(o[0].date), DateComponents(year: 2026, month: 12, day: 25))
+    }
+
+    func testOneTimeEventOnlyInItsYear() {
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        XCTAssertEqual(OccasionRules.occurrences(type: .graduation, month: 5, day: 20, year: 2027, from: now, calendar: cal).map(\.year), [2027])
+        XCTAssertTrue(OccasionRules.occurrences(type: .graduation, month: 5, day: 20, year: 2026, from: now, calendar: cal).isEmpty)
+        XCTAssertTrue(OccasionRules.occurrences(type: .newHome, month: 5, day: 20, year: nil, from: now, calendar: cal).isEmpty)
+    }
+
+    func testWordsAndCounts() {
+        XCTAssertEqual(OccasionType.anniversary.subject(name: "Mom", partner: "Dad"), "Mom & Dad's anniversary")
+        XCTAssertEqual(OccasionType.anniversary.countLine(OccasionRules.count(type: .anniversary, startYear: 1986, occurrenceYear: 2026)),
+                       "40th anniversary")
+        XCTAssertEqual(OccasionType.ordinal(11), "11th")
+        XCTAssertEqual(OccasionType.ordinal(22), "22nd")
+        XCTAssertEqual(OccasionType.christmas.greeting(name: "Mom"), "Merry Christmas, Mom!")
+        XCTAssertNil(OccasionType.christmas.countLine(3))
+    }
+}

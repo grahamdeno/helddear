@@ -160,7 +160,7 @@ struct HeroCard: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: Brand.space1) {
                     if state.status == .missed {
-                        Text("Yesterday was \(name)'s birthday.").textStyle(.title).fixedSize(horizontal: false, vertical: true)
+                        Text("Yesterday was \(moment.subject).").textStyle(.title).fixedSize(horizontal: false, vertical: true)
                         Text("A late note still counts.").textStyle(.callout, color: Brand.inkMuted)
                     } else {
                         Text(name).textStyle(.display).lineLimit(2).minimumScaleFactor(0.7)
@@ -214,8 +214,7 @@ struct HeroCard: View {
 
     private func contextLine(days: Int) -> String {
         let date = moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
-        if let t = moment.turning { return days == 0 ? "Turns \(t) today" : "Turns \(t) · \(date)" }
-        return days == 0 ? "Birthday today" : "Birthday · \(date)"
+        return days == 0 ? "\(moment.occasionLine) today" : "\(moment.occasionLine) · \(date)"
     }
 
     private func tap(_ act: NextAct) {
@@ -317,8 +316,7 @@ struct YourYear: View {
 
     private func caption(_ m: Moment) -> String {
         let weekday = m.dueDate.formatted(.dateTime.weekday(.wide))
-        if let t = m.turning { return "Turns \(t) · \(weekday)" }
-        return "Birthday · \(weekday)"
+        return "\(m.occasionLine) · \(weekday)"
     }
 
     /// The busy-month insight, inside its month, only within 8 weeks.

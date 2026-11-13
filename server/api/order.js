@@ -1,4 +1,4 @@
-import { listBirthdayCards, placeOrder } from "../lib/handwrytten.js";
+import { listCards, OCCASION_CATEGORY, placeOrder } from "../lib/handwrytten.js";
 import { charge, refund, tagOrder, tokenFromApplePay } from "../lib/stripe.js";
 import { retailCents, validateOrder } from "../lib/validate.js";
 
@@ -8,7 +8,8 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   let cards;
   try {
-    cards = await listBirthdayCards();
+    const raw = String(req.body?.occasion ?? "birthday");
+    cards = await listCards(Object.hasOwn(OCCASION_CATEGORY, raw) ? raw : "birthday");
   } catch (e) {
     console.error("cards failed:", e.message);
     return res.status(502).json({ error: "Cards are unavailable right now. You weren't charged." });

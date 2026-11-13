@@ -32,12 +32,6 @@ enum Ring: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum OccasionType: String, Codable {
-    case birthday
-
-    var label: String { "Birthday" }
-}
-
 enum MomentStatus: String, Codable {
     case upcoming, planning, done, missed, lateSent, letGo, closed
 

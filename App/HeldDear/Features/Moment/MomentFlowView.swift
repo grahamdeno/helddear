@@ -106,7 +106,7 @@ struct ChooseStep: View {
         var sub = OccasionDates.longDate(moment.dueDate)
         if let t = moment.turning { sub += " · turning \(t)" }
         return FlowScreen(onClose: { model.route = nil }) {
-            Question(tag: "\(moment.occasion?.type.label ?? "Birthday") · \(OccasionDates.countdown(to: moment.dueDate, from: Date()))",
+            Question(tag: "\(moment.type.label) · \(OccasionDates.countdown(to: moment.dueDate, from: Date()))",
                      title: "What will you do for \(name)?", subtitle: sub)
             if let last = model.lastYear(for: moment) {
                 ContextLine(text: "Last year: \(last.what.prefix(1).lowercased() + last.what.dropFirst())")
@@ -177,7 +177,7 @@ struct DayOfStep: View {
         let hasPhone = model.phone(for: moment.person) != nil
         FlowScreen(onClose: close) {
             if let p = moment.person { Face(person: p, size: 88).frame(maxWidth: .infinity).padding(.top, 80) }
-            Question(title: "It's \(name)'s birthday.", subtitle: moment.turning.map { "Turning \($0) today." })
+            Question(title: "It's \(moment.subject).", subtitle: moment.countLine.map { "\($0) today." })
         } footer: {
             if !hasPhone, let p = moment.person {
                 PrimaryButton(title: "Add \(name)'s number") { model.route = .person(p.id) }
@@ -231,7 +231,7 @@ struct MissedStep: View {
         let days = OccasionDates.daysBetween(moment.dueDate, Date())
         FlowScreen(onClose: close) {
             if let p = moment.person { Face(person: p, size: 88).frame(maxWidth: .infinity).padding(.top, 120) }
-            Question(title: days <= 1 ? "\(name)'s birthday was yesterday." : "\(name)'s birthday was \(days) days ago.",
+            Question(title: days <= 1 ? "\(moment.subject.capitalizedFirst) was yesterday." : "\(moment.subject.capitalizedFirst) was \(days) days ago.",
                      subtitle: "A late note still counts.")
         } footer: {
             PrimaryButton(title: "Send a late note") { go(.photo) }

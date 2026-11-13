@@ -329,9 +329,9 @@ struct PhotoStep: View {
 
     private var cardContent: CardContent {
         CardContent(name: name, photo: selectedChoice?.image,
-                    words: purchases.hasLifetime && !words.isEmpty && words != "Happy birthday, \(name)!" ? words : nil,
+                    words: purchases.hasLifetime && !words.isEmpty && words != greetingText ? words : nil,
                     age: moment.person?.showAgeOnCard == true ? moment.turning : nil,
-                    date: moment.dueDate)
+                    date: moment.dueDate, occasion: moment.type)
     }
 
     /// "Which card?": real previews with this person's photo and name. One decision.
@@ -364,7 +364,7 @@ struct PhotoStep: View {
                 PrimaryButton(title: "See Lifetime") { showLifetime = true }
             } else {
                 PrimaryButton(title: "Use this card") {
-                    if purchases.hasLifetime { words = "Happy birthday, \(name)!"; phase = .words } else { send() }
+                    if purchases.hasLifetime { words = greetingText; phase = .words } else { send() }
                 }
             }
         }
@@ -397,7 +397,7 @@ struct PhotoStep: View {
         }
     }
 
-    private var greetingText: String { "Happy birthday, \(name)!" }
+    private var greetingText: String { moment.type.greeting(name: name) }
 
     private var shareItems: [Any] {
         var items: [Any] = []
@@ -513,7 +513,7 @@ struct RecordStep: View {
     }
 
     private var eyebrow: String {
-        var text = "\(moment.year) · \(moment.occasion?.type.label ?? "Birthday")"
+        var text = "\(moment.year) · \(moment.type.label)"
         if let t = moment.turning { text += " · turning \(t)" }
         return text
     }
