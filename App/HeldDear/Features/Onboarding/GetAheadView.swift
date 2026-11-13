@@ -65,10 +65,10 @@ struct GetAheadView: View {
             Face(person: p, size: 120).frame(maxWidth: .infinity).padding(.top, 24)
         } footer: {
             PhotosPicker(selection: $photoItem, matching: .images) {
-                Text("Choose a photo").font(TypeStyle.callout.font.weight(.heavy))
+                Text("Choose a photo").font(TypeStyle.callout.strong)
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .foregroundStyle(Brand.onAction)
-                    .background(Brand.action, in: Capsule())
+                    .background(Brand.action, in: Rectangle())
             }
             TextLink(title: "Skip") { next(after: i) }
         }

@@ -141,7 +141,7 @@ struct ChooseInnerRingView: View {
                 TextField("Search", text: $search)
                     .textStyle(.body)
                     .padding(.horizontal, Brand.space4).frame(minHeight: 48)
-                    .background(Brand.card, in: Capsule())
+                    .background(Brand.card, in: Rectangle())
             }
             let shown = filtered
             if search.isEmpty {
@@ -156,7 +156,7 @@ struct ChooseInnerRingView: View {
             }
         } footer: {
             if !picked.isEmpty {
-                Text("\(picked.count) picked").font(TypeStyle.callout.font.weight(.bold)).foregroundStyle(Brand.inkMuted)
+                Text("\(picked.count) picked").font(TypeStyle.callout.strong).foregroundStyle(Brand.inkMuted)
             }
             PrimaryButton(title: picked.isEmpty ? "Skip for now" : "Done") {
                 for entry in people where picked.contains(entry.person.id) { entry.person.ring = .inner }
@@ -186,7 +186,7 @@ struct ChooseInnerRingView: View {
                                 .overlay(Circle().stroke(on ? Brand.action : Color.clear, lineWidth: 3))
                             if on { CheckBadge().offset(x: 2, y: 2) }
                         }
-                        Text(item.person.name).font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.ink).lineLimit(1)
+                        Text(item.person.name).font(TypeStyle.callout.strong).foregroundStyle(Brand.ink).lineLimit(1)
                         Text(OccasionDates.shortDate(item.due)).textStyle(.caption, color: Brand.inkMuted)
                     }
                     .frame(maxWidth: .infinity)

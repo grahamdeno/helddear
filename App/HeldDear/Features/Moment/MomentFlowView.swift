@@ -124,7 +124,7 @@ struct ChooseStep: View {
                           caption: "Written in pen, stamped and mailed for you · $6.99",
                           action: { go(.mailCard) },
                           leading: {
-                              Image(systemName: "envelope.fill").font(.system(size: 18, weight: .semibold, design: .rounded))
+                              Image(systemName: "envelope.fill").font(.system(size: 18, weight: .semibold))
                                   .foregroundStyle(Brand.action).frame(width: 32)
                           },
                           trailing: { ChevronDisc() })

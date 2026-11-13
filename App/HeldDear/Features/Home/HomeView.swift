@@ -21,13 +21,13 @@ struct HomeView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { model.route = .settings } label: {
-                        Image(systemName: "gearshape").font(.system(size: 16, weight: .semibold, design: .rounded))
+                        Image(systemName: "gearshape").font(.system(size: 16, weight: .regular))
                     }
                     .accessibilityLabel("Settings")
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { model.route = .rings } label: {
-                        Image(systemName: "person.2").font(.system(size: 16, weight: .semibold, design: .rounded))
+                        Image(systemName: "person.2").font(.system(size: 16, weight: .regular))
                     }
                     .accessibilityLabel("Your people")
                     Menu {
@@ -35,7 +35,7 @@ struct HomeView: View {
                         Button { addingFromContacts = true } label: { Label("Add from Contacts", systemImage: "person.crop.circle.badge.plus") }
                         Button { model.route = .addWish(nil) } label: { Label("Save a wish", systemImage: "heart") }
                     } label: {
-                        Image(systemName: "plus").font(.system(size: 20, weight: .semibold, design: .rounded))
+                        Image(systemName: "plus").font(.system(size: 18, weight: .regular))
                     }
                     .accessibilityLabel("Add")
                 }
@@ -57,8 +57,8 @@ struct HomeView: View {
         let ready = moments.filter { $0.id != hero?.id && MomentEngine.needsAction($0, now: now) }
 
         VStack(alignment: .leading, spacing: Brand.space6) {
-            Text(now.formatted(.dateTime.weekday(.wide).month(.wide).day())).textStyle(.eyebrow, color: Brand.inkMuted)
-                .padding(.bottom, -Brand.space5)
+            Text(now.formatted(.dateTime.weekday(.wide).month(.wide).day())).textStyle(.eyebrow)
+                .padding(.bottom, -Brand.space4)
 
             if let hero, let state = heroState {
                 HeroCard(moment: hero, state: state, now: now)
@@ -96,14 +96,13 @@ struct HomeView: View {
     private var emptyHero: some View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             CirclesMark(size: 72)
-            Text("Who do you keep remembered?").textStyle(.title)
+            Text("Who do you keep remembered?").textStyle(.display)
             Text("Add the people whose birthdays matter. Held Dear does the remembering.")
                 .textStyle(.body, color: Brand.ink.opacity(0.85))
             PrimaryButton(title: "Add from Contacts") { addingFromContacts = true }
             SecondaryButton(title: "Type a birthday") { model.route = .addBirthday("") }
         }
-        .padding(Brand.space5)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+        .padding(.vertical, Brand.space4)
     }
 
     /// A next-step card for someone other than the hero.
@@ -123,7 +122,7 @@ struct HomeView: View {
                 Text("Has anyone mentioned wanting something?").textStyle(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button { model.firstVisitCardDismissed = true } label: {
-                    Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Brand.inkMuted)
+                    Image(systemName: "xmark").font(.system(size: 13, weight: .regular)).foregroundStyle(Brand.inkMuted)
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Dismiss")
@@ -136,12 +135,14 @@ struct HomeView: View {
             }
         }
         .padding(20)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+        .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
     }
 }
 
 // MARK: Hero
 
+/// The next person, quiet and large: their photo, their name in serif, the date, the countdown,
+/// the thing they mentioned, then the next act and a card. Direction C (Quiet).
 struct HeroCard: View {
     @EnvironmentObject var model: AppModel
     let moment: Moment
@@ -155,33 +156,42 @@ struct HeroCard: View {
         let days = OccasionDates.daysBetween(now, moment.dueDate)
 
         VStack(alignment: .leading, spacing: Brand.space4) {
-            HStack(alignment: .center, spacing: Brand.space4) {
-                ZStack {
-                    if days == 0 { Circle().fill(Brand.accent).frame(width: 112, height: 112).accessibilityHidden(true) }
-                    if let person { Face(person: person, size: 96) }
+            if let person { HeroPhoto(person: person) }
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: Brand.space1) {
+                    if state.status == .missed {
+                        Text("Yesterday was \(name)'s birthday.").textStyle(.title).fixedSize(horizontal: false, vertical: true)
+                        Text("A late note still counts.").textStyle(.callout, color: Brand.inkMuted)
+                    } else {
+                        Text(name).textStyle(.display).lineLimit(2).minimumScaleFactor(0.7)
+                        Text(contextLine(days: days)).textStyle(.callout, color: Brand.inkMuted)
+                    }
                 }
-                .frame(width: 112, height: 112)
-                Spacer(minLength: 0)
+                Spacer(minLength: Brand.space3)
                 countdown(days: days)
             }
-            VStack(alignment: .leading, spacing: Brand.space1) {
-                if state.status == .missed {
-                    Text("Yesterday was \(name)'s birthday.").textStyle(.title).fixedSize(horizontal: false, vertical: true)
-                    Text("A late note still counts.").textStyle(.callout, color: Brand.inkMuted)
-                } else {
-                    Text(name).textStyle(.title)
-                    Text(contextLine(days: days)).textStyle(.callout, color: Brand.inkMuted)
+            if let wish = person?.openWishes.first, state.status != .missed {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Mentioned").textStyle(.eyebrow)
+                    Text("\u{201C}\(wish.text)\u{201D}").font(Brand.serif(20, relativeTo: .title3, italic: true))
+                        .foregroundStyle(Brand.ink).lineLimit(2)
                 }
+                .padding(.top, Brand.space1)
             }
-            if state.ring != .outer && state.status != .missed && days > 0 { progress }
+            Rectangle().fill(Brand.line).frame(height: 1)
             if act.isGentle {
                 SecondaryButton(title: act.title(name: name)) { tap(act) }
             } else {
                 PrimaryButton(title: act.title(name: name)) { tap(act) }
             }
+            if state.status != .missed && days > 0 {
+                if days >= 6 {
+                    SecondaryButton(title: "Mail \(name) a card") { model.route = .moment(moment.id, .mailCard) }
+                } else if !state.greetingDone {
+                    SecondaryButton(title: "Make \(name) a card") { model.route = .moment(moment.id, .photo) }
+                }
+            }
         }
-        .padding(Brand.space5)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
         .accessibilityElement(children: .contain)
     }
 
@@ -189,14 +199,14 @@ struct HeroCard: View {
         if state.status == .missed {
             EmptyView()
         } else if days == 0 {
-            Text("Today").font(Brand.countdownFont(52)).foregroundStyle(Brand.ink)
+            Text("Today").font(Brand.countdownFont(44)).foregroundStyle(Brand.accent)
         } else {
             let months = days > NextAct.farDays
             let number = months ? max(1, Int((Double(days) / 30.4).rounded())) : days
-            VStack(alignment: .trailing, spacing: 0) {
-                Text("\(number)").font(Brand.countdownFont(72)).foregroundStyle(Brand.ink)
+            VStack(alignment: .trailing, spacing: -6) {
+                Text("\(number)").font(Brand.countdownFont(64)).foregroundStyle(Brand.ink)
                 Text(months ? (number == 1 ? "month" : "months") : (number == 1 ? "day" : "days"))
-                    .textStyle(.callout, color: Brand.inkMuted)
+                    .textStyle(.caption, color: Brand.inkMuted)
             }
             .accessibilityElement(children: .combine)
         }
@@ -206,37 +216,6 @@ struct HeroCard: View {
         let date = moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
         if let t = moment.turning { return days == 0 ? "Turns \(t) today" : "Turns \(t) · \(date)" }
         return days == 0 ? "Birthday today" : "Birthday · \(date)"
-    }
-
-    /// Heads-up, plan, message: filled coral dots for what's done.
-    private var progress: some View {
-        let headsUpDone = (moment.headsUpAt.map { $0 <= now } ?? false) || state.status != .upcoming
-        let planDone = moment.plan != nil
-        let messageDone = state.greetingDone
-        return HStack(spacing: 0) {
-            stop("Heads-up", done: headsUpDone)
-            line
-            stop("Plan", done: planDone)
-            line
-            stop("Message", done: messageDone)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Heads-up \(headsUpDone ? "done" : "coming"), plan \(planDone ? "chosen" : "not chosen yet"), message \(messageDone ? "sent" : "ready on the day")")
-    }
-
-    private var line: some View {
-        Rectangle().fill(Brand.line).frame(height: 2).frame(maxWidth: .infinity).padding(.bottom, 20)
-    }
-
-    private func stop(_ label: String, done: Bool) -> some View {
-        VStack(spacing: 6) {
-            Circle()
-                .fill(done ? Brand.accent : Color.clear)
-                .overlay(Circle().stroke(done ? Brand.accent : Brand.line, lineWidth: 2))
-                .frame(width: 10, height: 10)
-            Text(label).textStyle(.caption, color: done ? Brand.ink : Brand.inkMuted)
-        }
-        .fixedSize()
     }
 
     private func tap(_ act: NextAct) {
@@ -252,8 +231,31 @@ struct HeroCard: View {
     }
 }
 
-// MARK: Your year
+/// A large photo of the person: their newest photo in Held Dear, else their contact photo, else a quiet serif initial.
+struct HeroPhoto: View {
+    let person: Person
+    var height: CGFloat = 300
 
+    var body: some View {
+        let image = PhotoStore.load(person.photoFiles.last) ?? ContactsService.shared.photo(contactID: person.contactID)
+        ZStack {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Brand.faceFill(for: person.name)
+                Text(person.initials).font(Brand.serif(96)).foregroundStyle(Brand.ink.opacity(0.75))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipped()
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: Coming up
+
+/// The year ahead as a plain list: month in serif, then one row per person with the day number in serif.
 struct YourYear: View {
     let moments: [Moment]
     let now: Date
@@ -266,10 +268,11 @@ struct YourYear: View {
         let months = (0..<12).map { cal.date(byAdding: .month, value: $0, to: start)! }
         let upcoming = moments.filter { $0.dueDate >= cal.startOfDay(for: now) }
 
-        VStack(alignment: .leading, spacing: Brand.space3) {
-            Eyebrow(text: "Your year")
+        VStack(alignment: .leading, spacing: Brand.space5) {
+            Text("Coming up").textStyle(.headline)
             ForEach(months, id: \.self) { month in
-                monthBlock(month, items(in: month, from: upcoming))
+                let list = items(in: month, from: upcoming)
+                if !list.isEmpty { monthBlock(month, list) }
             }
         }
     }
@@ -279,48 +282,43 @@ struct YourYear: View {
         return upcoming.filter { $0.dueDate >= month && $0.dueDate < end }.sorted { $0.dueDate < $1.dueDate }
     }
 
-    @ViewBuilder private func monthBlock(_ month: Date, _ items: [Moment]) -> some View {
+    private func monthBlock(_ month: Date, _ items: [Moment]) -> some View {
         let title = month.formatted(.dateTime.month(.wide))
-        if items.isEmpty {
-            HStack {
-                Text(title).textStyle(.headline, color: Brand.inkMuted)
-                Spacer()
-                Text("Quiet month").textStyle(.caption, color: Brand.inkMuted)
-            }
-            .padding(.horizontal, Brand.space4)
-            .padding(.vertical, Brand.space2)
-        } else {
-            VStack(alignment: .leading, spacing: Brand.space3) {
-                HStack {
-                    Text(title).textStyle(.headline)
-                    Spacer()
-                    Text(items.count == 1 ? "1 birthday" : "\(items.count) birthdays").textStyle(.caption, color: Brand.inkMuted)
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 14) {
-                        ForEach(items, id: \.id) { m in face(m) }
-                    }
-                }
-                busyLine(month, title: title, items: items)
-            }
-            .padding(Brand.space4)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(title).textStyle(.eyebrow).padding(.bottom, Brand.space2)
+            Rectangle().fill(Brand.line).frame(height: 1)
+            ForEach(items, id: \.id) { m in row(m) }
+            busyLine(month, title: title, items: items)
         }
     }
 
-    @ViewBuilder private func face(_ m: Moment) -> some View {
+    @ViewBuilder private func row(_ m: Moment) -> some View {
         if let p = m.person {
             Button { openPerson(p) } label: {
-                VStack(spacing: 4) {
-                    Face(person: p, size: 44)
-                    Text(p.name).font(TypeStyle.caption.font.weight(.heavy)).foregroundStyle(Brand.ink).lineLimit(1)
-                    Text("\(Calendar.current.component(.day, from: m.dueDate))").textStyle(.caption, color: Brand.inkMuted)
+                HStack(alignment: .center, spacing: Brand.space4) {
+                    Text("\(Calendar.current.component(.day, from: m.dueDate))")
+                        .font(Brand.serif(30, relativeTo: .title2)).monospacedDigit()
+                        .foregroundStyle(Brand.ink).frame(width: 44, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(p.name).textStyle(.bodyStrong).lineLimit(1)
+                        Text(caption(m)).textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Face(person: p, size: 40)
                 }
-                .frame(width: 60)
+                .padding(.vertical, Brand.space3)
+                .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(p.name), \(OccasionDates.longDate(m.dueDate))")
         }
+    }
+
+    private func caption(_ m: Moment) -> String {
+        let weekday = m.dueDate.formatted(.dateTime.weekday(.wide))
+        if let t = m.turning { return "Turns \(t) · \(weekday)" }
+        return "Birthday · \(weekday)"
     }
 
     /// The busy-month insight, inside its month, only within 8 weeks.
@@ -342,8 +340,8 @@ struct BusyMonthLine: View {
     var body: some View {
         Button { model.route = .season(monthStart) } label: {
             HStack(spacing: Brand.space2) {
-                Circle().fill(Brand.accent).frame(width: 8, height: 8).accessibilityHidden(true)
-                Text(text).textStyle(.callout, color: Brand.action).multilineTextAlignment(.leading)
+                Rectangle().fill(Brand.accent).frame(width: 6, height: 6).accessibilityHidden(true)
+                Text(text).textStyle(.callout, color: Brand.action).underline(true, color: Brand.line).multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, Brand.space2)

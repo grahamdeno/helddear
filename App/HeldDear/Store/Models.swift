@@ -22,6 +22,12 @@ final class Person {
     var createdAt: Date
     /// Many adults don't want their age on a card; off unless turned on for this person.
     var showAgeOnCard: Bool = false
+    /// The portrait (v2): things they love, in the user's words ("gardening", "dark chocolate").
+    var loves: [String] = []
+    /// Sizes in one line, in the user's words ("M tops, 8.5 shoes").
+    var sizes: String?
+    /// Anything else worth keeping ("Allergic to lilies", "Calls on Sundays").
+    var goodToKnow: String?
 
     @Relationship(deleteRule: .cascade, inverse: \Wish.person) var wishes: [Wish] = []
     @Relationship(deleteRule: .cascade, inverse: \Occasion.person) var occasions: [Occasion] = []

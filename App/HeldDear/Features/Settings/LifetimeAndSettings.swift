@@ -11,7 +11,7 @@ struct LifetimeView: View {
         VStack(spacing: 0) {
             HStack {
                 Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 17, weight: .semibold, design: .rounded))
+                    Image(systemName: "xmark").font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Brand.action).frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Close")
@@ -64,7 +64,7 @@ struct LifetimeView: View {
 
     private func benefit(_ symbol: String, _ text: String) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 20, weight: .semibold, design: .rounded))
+            Image(systemName: symbol).font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Brand.action).frame(width: 28)
                 .accessibilityHidden(true)
             Text(text).textStyle(.bodyStrong).frame(maxWidth: .infinity, alignment: .leading)
@@ -78,9 +78,9 @@ struct CirclesMark: View {
     var body: some View {
         let d = size * 0.62
         ZStack {
-            Circle().fill(Color(red: 0.965, green: 0.706, blue: 0.561)).frame(width: d, height: d).offset(y: -size * 0.16)
-            Circle().fill(Color(red: 0.910, green: 0.404, blue: 0.290)).frame(width: d, height: d).offset(x: -size * 0.14, y: size * 0.1).blendMode(.multiply)
-            Circle().fill(Color(red: 0.557, green: 0.353, blue: 0.580)).frame(width: d, height: d).offset(x: size * 0.14, y: size * 0.1).blendMode(.multiply)
+            Circle().stroke(Brand.ink, lineWidth: 1).frame(width: d, height: d).offset(y: -size * 0.16)
+            Circle().stroke(Brand.ink, lineWidth: 1).frame(width: d, height: d).offset(x: -size * 0.14, y: size * 0.1)
+            Circle().stroke(Brand.accent, lineWidth: 1).frame(width: d, height: d).offset(x: size * 0.14, y: size * 0.1)
         }
         .compositingGroup()
         .frame(width: size, height: size)

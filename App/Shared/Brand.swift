@@ -1,33 +1,35 @@
 import SwiftUI
 import UIKit
 
-/// Hearth design system tokens (https://claude.ai/artifact/9D5FzJ3DKgKmnqQ3keut3K).
+/// Quiet design tokens (v2, decided Nov 12, 2026; replaces Hearth).
+/// Ivory and near-black, one family (Instrument Sans for interface, Instrument Serif for names and numbers),
+/// square corners, hairline rules, photos large, almost no decoration.
 /// Every color has a light and dark value under the same name; never hard-code a light value in a view.
 enum Brand {
     // MARK: Color
-    static let page = dynamic(0xFFF4EC, 0x1F1720)
-    static let card = dynamic(0xFFFFFF, 0x2C2230)
-    static let ink = dynamic(0x3A2340, 0xF7ECE6)
-    static let inkMuted = dynamic(0x6E5A66, 0xCBB8C2)
-    static let line = dynamic(0xEBD8CB, 0x3D3040)
-    /// Plum. The one color for things you tap.
-    static let action = dynamic(0x5B2A5E, 0xD7A8D4)
-    static let onAction = dynamic(0xFFFFFF, 0x2A1530)
-    /// Coral. Small shapes only; never text, never a large fill.
-    static let accent = dynamic(0xE8674A, 0xF07E62)
-    /// Apricot. Tag fills.
-    static let accentSoft = dynamic(0xF6B48F, 0x6B4334)
-    static let onAccentSoft = dynamic(0x3A2340, 0xF7ECE6)
+    static let page = dynamic(0xFAFAF7, 0x111111)
+    static let card = dynamic(0xF3F2EE, 0x1B1B1A)
+    static let ink = dynamic(0x111111, 0xF2F1EC)
+    static let inkMuted = dynamic(0x6A6A66, 0xA3A29C)
+    static let line = dynamic(0xE6E5E0, 0x2C2C2A)
+    /// Near-black (light) or ivory (dark). The one color for things you tap.
+    static let action = dynamic(0x111111, 0xF2F1EC)
+    static let onAction = dynamic(0xFAFAF7, 0x111111)
+    /// Muted terracotta. Small marks only (a dot, a rule); never body text, never a large fill.
+    static let accent = dynamic(0xA3472F, 0xD07A62)
+    /// Neutral tint for quiet fills.
+    static let accentSoft = dynamic(0xECEAE4, 0x242422)
+    static let onAccentSoft = dynamic(0x111111, 0xF2F1EC)
     static let error = dynamic(0xB3261E, 0xF2B8B5)
 
-    /// Soft face fills behind initials, picked by name so a person keeps their color.
+    /// Neutral face fills behind initials, picked by name so a person keeps their tone.
     static let faceFills: [Color] = [
-        dynamic(0xF3D9C8, 0x4A3540), dynamic(0xE9D3E6, 0x46344A), dynamic(0xF6B48F, 0x6B4334), dynamic(0xEFE3DA, 0x3D3040),
+        dynamic(0xE9E7E1, 0x262624), dynamic(0xE1DED6, 0x2C2B28), dynamic(0xEDEBE6, 0x22221F), dynamic(0xDCD9D1, 0x302F2B),
     ]
     /// Ring fills for the "Your people" rings, outer to inner.
-    static let ringOuter = dynamic(0xFBE8DC, 0x2F2433)
-    static let ringMiddle = dynamic(0xF8D7C3, 0x45313A)
-    static let ringInner = dynamic(0xF6B48F, 0x6B4334)
+    static let ringOuter = dynamic(0xF3F2EE, 0x1B1B1A)
+    static let ringMiddle = dynamic(0xE9E7E1, 0x242422)
+    static let ringInner = dynamic(0xDCD9D1, 0x302F2B)
 
     static func faceFill(for name: String) -> Color {
         let sum = name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
@@ -40,10 +42,17 @@ enum Brand {
         })
     }
 
-    /// The big countdown number (hero and widgets only). Tabular digits so it doesn't jitter.
+    /// The big countdown number (hero and widgets only). Serif, lining figures.
     static func countdownFont(_ size: CGFloat) -> Font {
-        let base = TypeStyle.hasNunito ? Font.custom("Nunito", size: size, relativeTo: .largeTitle) : Font.system(size: size, design: .rounded)
-        return base.weight(.heavy).monospacedDigit()
+        TypeStyle.hasInstrument
+            ? Font.custom(TypeStyle.serif, size: size, relativeTo: .largeTitle).monospacedDigit()
+            : Font.system(size: size, weight: .regular, design: .serif).monospacedDigit()
+    }
+
+    /// Serif at an arbitrary size (names on cards, day numbers).
+    static func serif(_ size: CGFloat, relativeTo style: Font.TextStyle = .body, italic: Bool = false) -> Font {
+        guard TypeStyle.hasInstrument else { return Font.system(size: size, design: .serif) }
+        return Font.custom(italic ? TypeStyle.serifItalic : TypeStyle.serif, size: size, relativeTo: style)
     }
 
     // MARK: Spacing and radius
@@ -53,9 +62,10 @@ enum Brand {
     static let space4: CGFloat = 16
     static let space5: CGFloat = 22
     static let space6: CGFloat = 32
-    static let radiusSm: CGFloat = 12
-    static let radiusMd: CGFloat = 22
-    static let radiusLg: CGFloat = 32
+    /// Square corners. Kept as tokens so views don't hard-code shape.
+    static let radiusSm: CGFloat = 2
+    static let radiusMd: CGFloat = 2
+    static let radiusLg: CGFloat = 2
 }
 
 extension UIColor {
@@ -65,28 +75,51 @@ extension UIColor {
     }
 }
 
-/// Type styles. Nunito is bundled; each style scales with Dynamic Type. SF Pro Rounded is the fallback.
+/// Type styles. Instrument Sans and Serif are bundled; each style scales with Dynamic Type.
+/// System sans and New York are the fallback.
 enum TypeStyle {
     case display, title, headline, body, bodyStrong, callout, caption, eyebrow
 
+    static let serif = "InstrumentSerif-Regular"
+    static let serifItalic = "InstrumentSerif-Italic"
+    static let sansRegular = "InstrumentSans-Regular"
+    static let sansMedium = "InstrumentSans-Medium"
+    static let sansSemiBold = "InstrumentSans-SemiBold"
+    static let hasInstrument = UIFont(name: "InstrumentSerif-Regular", size: 12) != nil
+
     var size: CGFloat {
         switch self {
-        case .display: 30
-        case .title: 28
-        case .headline: 20
+        case .display: 40
+        case .title: 32
+        case .headline: 24
         case .body, .bodyStrong: 17
         case .callout: 15
         case .caption: 13
-        case .eyebrow: 12
+        case .eyebrow: 13
         }
     }
 
-    var weight: Font.Weight {
+    var isSerif: Bool {
         switch self {
-        case .display, .title, .headline, .eyebrow: .heavy
-        case .body: .regular
-        case .bodyStrong: .bold
-        case .callout, .caption: .semibold
+        case .display, .title, .headline: true
+        default: false
+        }
+    }
+
+    var fontName: String {
+        switch self {
+        case .display, .title, .headline: TypeStyle.serif
+        case .body, .callout: TypeStyle.sansRegular
+        case .bodyStrong: TypeStyle.sansSemiBold
+        case .caption, .eyebrow: TypeStyle.sansMedium
+        }
+    }
+
+    var fallbackWeight: Font.Weight {
+        switch self {
+        case .bodyStrong: .semibold
+        case .caption, .eyebrow: .medium
+        default: .regular
         }
     }
 
@@ -102,21 +135,25 @@ enum TypeStyle {
         }
     }
 
-    static let hasNunito = UIFont.familyNames.contains("Nunito")
+    /// The same size in SemiBold sans (or the serif for serif styles), for emphasis inside a style.
+    var strong: Font {
+        if isSerif { return font }
+        if TypeStyle.hasInstrument { return Font.custom(TypeStyle.sansSemiBold, size: size, relativeTo: relative) }
+        return Font.system(size: size, weight: .semibold)
+    }
 
     var font: Font {
-        if TypeStyle.hasNunito {
-            return Font.custom("Nunito", size: size, relativeTo: relative).weight(weight)
+        if TypeStyle.hasInstrument {
+            return Font.custom(fontName, size: size, relativeTo: relative)
         }
-        return Font.system(size: size, weight: weight, design: .rounded)
+        return Font.system(size: size, weight: fallbackWeight, design: isSerif ? .serif : .default)
     }
 }
 
 extension View {
     func textStyle(_ style: TypeStyle, color: Color = Brand.ink) -> some View {
         self.font(style.font)
-            .foregroundStyle(color)
-            .tracking(style == .eyebrow ? 1 : 0)
-            .textCase(style == .eyebrow ? .uppercase : nil)
+            .foregroundStyle(style == .eyebrow && color == Brand.ink ? Brand.inkMuted : color)
+            .tracking(style.isSerif ? -0.3 : 0)
     }
 }

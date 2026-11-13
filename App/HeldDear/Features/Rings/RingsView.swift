@@ -62,16 +62,16 @@ struct RingsView: View {
             }
             if inner.count > innerShown.count || middle.count > middleShown.count {
                 Text("+\(inner.count - innerShown.count + middle.count - middleShown.count)")
-                    .font(TypeStyle.caption.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                    .font(TypeStyle.caption.strong).foregroundStyle(Brand.ink)
                     .frame(width: 40, height: 40).background(Brand.card, in: Circle())
                     .position(x: c + 70, y: c + 70)
             }
             NavigationLink(value: Ring.outer) {
                 Text(outerCount == 1 ? "1 more person" : "\(outerCount) more people")
-                    .font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.action)
+                    .font(TypeStyle.callout.strong).foregroundStyle(Brand.action)
                     .padding(.vertical, 10).padding(.horizontal, 16)
                     .frame(minHeight: 44)
-                    .background(Brand.card, in: Capsule())
+                    .background(Brand.card, in: Rectangle())
             }
             .position(x: c, y: 28)
         }
@@ -96,11 +96,11 @@ struct RingsView: View {
             HStack(spacing: 12) {
                 Circle().fill(fill).frame(width: 20, height: 20).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(ring.label).font(TypeStyle.body.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                    Text(ring.label).font(TypeStyle.body.strong).foregroundStyle(Brand.ink)
                     Text(ring.promise).textStyle(.caption, color: Brand.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("\(count)").font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.inkMuted)
+                Text("\(count)").font(TypeStyle.callout.strong).foregroundStyle(Brand.inkMuted)
             }
             .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
             .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
@@ -123,7 +123,7 @@ struct EveryoneView: View {
                 Text(focus.label).textStyle(.title)
                 TextField("Search", text: $search).textStyle(.body)
                     .padding(.horizontal, Brand.space4).frame(minHeight: 48)
-                    .background(Brand.card, in: Capsule())
+                    .background(Brand.card, in: Rectangle())
                 ForEach([focus] + Ring.allCases.filter { $0 != focus }) { ring in
                     let group = people.filter { $0.ring == ring }
                     if !group.isEmpty {

@@ -84,22 +84,22 @@ struct LockScreenView: View {
             if family == .accessoryCircular {
                 if days == 0 {
                     VStack(spacing: 0) {
-                        Image(systemName: "gift.fill").font(.system(size: 16, weight: .semibold, design: .rounded))
-                        Text("Today").font(.system(size: 10, weight: .heavy, design: .rounded))
+                        Image(systemName: "gift.fill").font(.system(size: 16, weight: .semibold))
+                        Text("Today").font(.system(size: 10, weight: .semibold))
                     }
                 } else {
                     Gauge(value: Double(max(0, 21 - min(days, 21))), in: 0...21) {
                         Text(initials(e.name))
                     } currentValueLabel: {
-                        Text("\(days)").font(.system(size: 18, weight: .heavy, design: .rounded))
+                        Text("\(days)").font(.system(size: 18, weight: .semibold))
                     }
                     .gaugeStyle(.accessoryCircular)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(name).font(.system(size: 17, weight: .heavy, design: .rounded)).lineLimit(1)
+                    Text(name).font(Brand.serif(19)).lineLimit(1)
                     Text(e.soonLine ?? "\(days == 1 ? "1 day" : "\(days) days") · \(e.dueDate.formatted(.dateTime.weekday(.wide)))")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded)).lineLimit(1)
+                        .font(.system(size: 14, weight: .semibold)).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .widgetURL(URL(string: "helddear://moment?id=\(e.momentID.uuidString)"))

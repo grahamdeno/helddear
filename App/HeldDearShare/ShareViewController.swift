@@ -116,7 +116,7 @@ struct ShareView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Button("Cancel", action: onCancel).font(TypeStyle.callout.font.weight(.bold)).foregroundStyle(Brand.action)
+                Button("Cancel", action: onCancel).font(TypeStyle.callout.strong).foregroundStyle(Brand.action)
                 Spacer()
             }
             HStack(spacing: 14) {
@@ -135,7 +135,7 @@ struct ShareView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     TextField("What is it?", text: $model.title, axis: .vertical)
                         .lineLimit(1...3)
-                        .font(TypeStyle.body.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                        .font(TypeStyle.body.strong).foregroundStyle(Brand.ink)
                     if let host = model.url?.host() {
                         Text(host.replacingOccurrences(of: "www.", with: "")).textStyle(.caption, color: Brand.inkMuted)
                     }
@@ -155,7 +155,7 @@ struct ShareView: View {
                             } label: {
                                 VStack(spacing: 6) {
                                     Face(name: p.name, initials: initials(p.name), image: nil, size: 56)
-                                    Text(p.name).font(TypeStyle.caption.font.weight(.heavy)).foregroundStyle(Brand.ink).lineLimit(1)
+                                    Text(p.name).font(TypeStyle.caption.strong).foregroundStyle(Brand.ink).lineLimit(1)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -164,7 +164,7 @@ struct ShareView: View {
                     }
                     if !model.showEveryone {
                         Button("Someone else") { model.showEveryone = true }
-                            .font(TypeStyle.callout.font.weight(.bold)).foregroundStyle(Brand.action)
+                            .font(TypeStyle.callout.strong).foregroundStyle(Brand.action)
                             .frame(minHeight: 44).frame(maxWidth: .infinity)
                     }
                 }

@@ -50,7 +50,17 @@ targets:
     sources:
       - App/HeldDearShare
       - App/Shared
-      - path: App/HeldDear/Resources/Fonts/Nunito-Variable.ttf
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Medium.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-SemiBold.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Italic.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Italic.ttf
         buildPhase: resources
     settings:
       base:
@@ -67,7 +77,17 @@ targets:
     sources:
       - App/HeldDearWidgets
       - App/Shared
-      - path: App/HeldDear/Resources/Fonts/Nunito-Variable.ttf
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Medium.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-SemiBold.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Italic.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Italic.ttf
         buildPhase: resources
     settings:
       base:

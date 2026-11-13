@@ -186,23 +186,23 @@ struct NextStepView: View {
     @ViewBuilder private var photoPrompt: some View {
         if let p = moment.person, p.ring == .inner, p.photoFiles.isEmpty, !moment.photoPromptShown {
             HStack(spacing: 14) {
-                Image(systemName: "plus").font(.system(size: 20, weight: .bold, design: .rounded))
+                Image(systemName: "plus").font(.system(size: 20, weight: .regular))
                     .foregroundStyle(Brand.ink)
                     .frame(width: 56, height: 56)
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add a photo of you two").font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                    Text("Add a photo of you two").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
                     Text("For the message on the day").textStyle(.caption, color: Brand.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Text("Add").font(TypeStyle.callout.font.weight(.bold)).foregroundStyle(Brand.action).frame(minWidth: 44, minHeight: 44)
+                    Text("Add").font(TypeStyle.callout.strong).foregroundStyle(Brand.action).frame(minWidth: 44, minHeight: 44)
                 }
                 Button {
                     moment.photoPromptShown = true
                     model.save()
                 } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Brand.inkMuted).frame(width: 32, height: 44)
+                    Image(systemName: "xmark").font(.system(size: 12, weight: .regular)).foregroundStyle(Brand.inkMuted).frame(width: 32, height: 44)
                 }
                 .accessibilityLabel("Skip")
             }
@@ -315,7 +315,7 @@ struct PhotoStep: View {
                 }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Text(choices.isEmpty ? "Add a photo" : "Choose another")
-                        .font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.action)
+                        .font(TypeStyle.callout.strong).foregroundStyle(Brand.action)
                         .frame(maxWidth: .infinity).frame(height: 150)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 }

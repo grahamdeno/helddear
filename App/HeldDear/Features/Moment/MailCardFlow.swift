@@ -96,7 +96,7 @@ struct MailCardFlow: View {
         FlowScreen(onClose: { step = .pick }) {
             Question(title: "What should it say?", subtitle: "Handwrytten writes it in pen, word for word.", style: .title)
             VStack(alignment: .leading, spacing: 6) {
-                Text("Message").font(TypeStyle.caption.font.weight(.bold)).foregroundStyle(Brand.inkMuted)
+                Text("Message").font(TypeStyle.caption.strong).foregroundStyle(Brand.inkMuted)
                 TextField("Happy birthday!", text: $message, axis: .vertical)
                     .lineLimit(4...8)
                     .textStyle(.body)
@@ -158,7 +158,7 @@ struct MailCardFlow: View {
                 PayWithApplePayButton(.order) { pay() }
                     .payWithApplePayButtonStyle(.automatic)
                     .frame(height: 56)
-                    .clipShape(Capsule())
+                    .clipShape(Rectangle())
                     .disabled(paying)
             } else {
                 Text("Apple Pay isn't set up on this iPhone. Add a card in Wallet to mail cards.")
