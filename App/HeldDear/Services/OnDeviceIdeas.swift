@@ -45,6 +45,18 @@ enum OnDeviceIdeas {
         return response.content.ideas.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
+    @Generable
+    struct KidsIdeas {
+        @Guide(description: "Three different ideas", .count(3))
+        var ideas: [Idea]
+    }
+
+    static func kidsGifts(for facts: PersonFacts) async throws -> [Idea] {
+        let session = LanguageModelSession(instructions: IdeaPrompts.instructions)
+        let response = try await session.respond(to: IdeaPrompts.kidsGifts(facts), generating: KidsIdeas.self)
+        return response.content.ideas.filter { !$0.title.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
+
     static func cardWords(for facts: PersonFacts) async throws -> [String] {
         let session = LanguageModelSession(instructions: IdeaPrompts.instructions)
         let response = try await session.respond(to: IdeaPrompts.cardWords(facts), generating: CardLines.self)

@@ -191,11 +191,7 @@ struct PersonView: View {
                     if days >= 6 {
                         TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
                     }
-                    if OnDeviceIdeas.isAvailable {
-                        TextLink(title: purchases.hasLifetime ? "Ideas" : "Ideas · Lifetime") {
-                            if purchases.hasLifetime { showIdeas = true } else { showLifetime = true }
-                        }
-                    }
+                    TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
                     TextLink(title: "Edit") { editingPortrait = true }
                 }
                 .padding(.leading, -8)

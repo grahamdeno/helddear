@@ -133,7 +133,7 @@ struct ChooseStep: View {
                 if days >= 6 {
                     PlanTile(title: "Mail a real card", caption: "Pen-written, mailed for you · $6.99", filled: wishes.isEmpty) { go(.mailCard) }
                 }
-                PlanTile(title: "Send a card", caption: "A card with a photo, sent by message") { pick(.card) }
+                PlanTile(title: "Find a gift", caption: "Ideas for \(name), and your shelf") { model.route = .ideas(moment.id) }
                 PlanTile(title: "Call \(name)", caption: "A reminder that morning") { pick(.call) }
                 PlanTile(title: "Dinner together", caption: "On your calendar") { pick(.dinner) }
                 PlanTile(title: "Something else", caption: "Say it in one line") { describing = true }

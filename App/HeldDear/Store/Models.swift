@@ -196,6 +196,8 @@ final class Act {
     /// "from both of us". Stage 4 links these names to household members.
     var fromNote: String?
     var dinnerDate: Date?
+    /// For a gift the user ordered: when it should arrive.
+    var arrivesBy: Date?
     var photoFile: String?
     /// The rendered card image that was sent, for the yearly record and the look-back.
     var cardFile: String?

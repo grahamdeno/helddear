@@ -79,7 +79,6 @@ struct NextStepView: View {
                 }
                 if let link { PrimaryButton(title: "Open the link") { openURL(link) } }
             }
-            photoPrompt
         } footer: {
             SecondaryButton(title: link == nil ? "Done, it's bought" : "Done, it's ordered") { finish() }
             TextLink(title: "Change plan") { go(.choose) }
@@ -101,7 +100,6 @@ struct NextStepView: View {
                 Question(tag: "Plan · A card", title: "No address for \(name)",
                          subtitle: "Ask once, and it's here every year after. It comes from your contacts.")
             }
-            photoPrompt
         } footer: {
             if address == nil {
                 PrimaryButton(title: "Ask \(name) for it") { askingAddress = true }
@@ -123,7 +121,6 @@ struct NextStepView: View {
                     .labelsHidden()
                     .tint(Brand.action)
             }
-            photoPrompt
         } footer: {
             PrimaryButton(title: "Add to calendar") {
                 Task {
@@ -148,7 +145,6 @@ struct NextStepView: View {
             Question(tag: plan.kind == .call ? "Plan · A call" : "Plan · A message",
                      title: "We'll set it up on the morning of",
                      subtitle: "On \(OccasionDates.longDate(moment.dueDate)) at 9:00, one tap \(verb) \(name).")
-            photoPrompt
         } footer: {
             PrimaryButton(title: "OK", action: close)
             TextLink(title: "Change plan") { go(.choose) }
@@ -160,7 +156,6 @@ struct NextStepView: View {
             Spacer(minLength: 40)
             Question(tag: "Plan", title: plan.title ?? "Something special",
                      subtitle: "Tap Done when it's taken care of. Held Dear checks in before \(OccasionDates.longDate(moment.dueDate)).")
-            photoPrompt
         } footer: {
             SecondaryButton(title: "Done") { finish() }
             TextLink(title: "Change plan") { go(.choose) }

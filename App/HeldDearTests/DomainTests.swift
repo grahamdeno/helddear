@@ -308,3 +308,30 @@ final class IdeaPromptsTests: XCTestCase {
         XCTAssertNil(IdeaPrompts.cleanCardLine("\"\""))
     }
 }
+
+final class GiftTimingTests: XCTestCase {
+    private var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }()
+    private func d(_ y: Int, _ m: Int, _ day: Int) -> Date { cal.date(from: DateComponents(year: y, month: m, day: day))! }
+
+    func testIdeaWindow() {
+        let now = d(2026, 11, 13)
+        XCTAssertTrue(GiftTiming.isIdeaTime(due: d(2026, 12, 17), now: now, calendar: cal))
+        XCTAssertFalse(GiftTiming.isIdeaTime(due: d(2027, 1, 26), now: now, calendar: cal))
+        XCTAssertFalse(GiftTiming.isIdeaTime(due: d(2026, 11, 13), now: now, calendar: cal))
+    }
+
+    func testSuggestedArrival() {
+        let now = d(2026, 11, 13)
+        XCTAssertEqual(GiftTiming.suggestedArrival(due: d(2026, 12, 17), now: now, calendar: cal), d(2026, 12, 12))
+        XCTAssertEqual(GiftTiming.suggestedArrival(due: d(2026, 11, 16), now: now, calendar: cal), d(2026, 11, 14))
+    }
+
+    func testSavedThisYear() {
+        let now = d(2026, 11, 13)
+        XCTAssertEqual(GiftTiming.savedThisYear([d(2026, 3, 1), d(2025, 10, 1), d(2026, 11, 1)], now: now, calendar: cal), 2)
+    }
+}
