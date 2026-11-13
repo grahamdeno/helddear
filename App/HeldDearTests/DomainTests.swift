@@ -223,3 +223,26 @@ extension DomainTests {
         XCTAssertEqual(outer.map(\.label), ["A message ready"])
     }
 }
+
+final class PhotoWindowsTests: XCTestCase {
+    private var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }()
+
+    func testSkipsThisYearWhenBirthdayIsAhead() {
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        let w = PhotoWindows.birthdays(month: 12, day: 9, now: now, yearsBack: 3, calendar: cal)
+        XCTAssertEqual(w.map(\.year), [2025, 2024, 2023])
+        XCTAssertEqual(cal.dateComponents([.month, .day], from: w[0].start), DateComponents(month: 12, day: 8))
+        XCTAssertEqual(cal.dateComponents([.month, .day], from: w[0].end), DateComponents(month: 12, day: 11))
+    }
+
+    func testIncludesThisYearWhenPassedAndLeapDay() {
+        let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        let w = PhotoWindows.birthdays(month: 2, day: 29, now: now, yearsBack: 1, calendar: cal)
+        XCTAssertEqual(w.map(\.year), [2026, 2025])
+        XCTAssertEqual(cal.dateComponents([.month, .day], from: w[0].start), DateComponents(month: 2, day: 27))
+    }
+}

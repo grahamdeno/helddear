@@ -1,4 +1,5 @@
 import ContactsUI
+import Photos
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -29,6 +30,9 @@ struct PersonView: View {
                 portrait
                 if let next = model.nextMoment(for: person) { scheduleCard(next) }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
+                if let b = person.birthday {
+                    BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
+                }
                 if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
@@ -539,5 +543,87 @@ struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
+    }
+}
+
+/// Photos from past birthdays, found in the Photos library on this iPhone.
+/// Free shows the most recent year; Lifetime shows every year.
+struct BirthdayMemories: View {
+    @EnvironmentObject var model: AppModel
+    @ObservedObject private var photos = PhotoMemories.shared
+    @ObservedObject private var purchases = Purchases.shared
+    let person: Person
+    let month: Int
+    let day: Int
+    var showLifetime: () -> Void
+    @State private var years: [PhotoMemories.Year] = []
+    @State private var picked: PHAsset?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Brand.space3) {
+            if photos.canRead {
+                if !years.isEmpty {
+                    Text("On \(person.name)'s birthdays").textStyle(.headline)
+                    ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
+                    if !purchases.hasLifetime && years.count > 1 {
+                        TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
+                    }
+                }
+            } else if photos.status == .notDetermined {
+                OptionRow(title: "Photos from \(person.name)'s birthdays",
+                          caption: "Held Dear looks in your library on this iPhone") {
+                    Task { await photos.requestAccess(); load() }
+                }
+            }
+        }
+        .onAppear(perform: load)
+        .confirmationDialog("Use this photo on \(person.name)'s card?", isPresented: Binding(get: { picked != nil }, set: { if !$0 { picked = nil } }),
+                            titleVisibility: .visible) {
+            Button("Use for the card") { if let a = picked { use(a) } }
+        }
+    }
+
+    private func yearRow(_ y: PhotoMemories.Year) -> some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Text(String(y.year)).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(y.assets, id: \.localIdentifier) { asset in
+                        Button { picked = asset } label: { AssetThumb(asset: asset, side: 104) }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Photo from \(String(y.year))")
+                    }
+                }
+            }
+        }
+    }
+
+    private func load() {
+        years = photos.years(month: month, day: day)
+    }
+
+    private func use(_ asset: PHAsset) {
+        Task {
+            if let image = await photos.fullImage(asset), let file = PhotoStore.save(image) {
+                person.photoFiles.append(file)
+                model.save()
+            }
+        }
+    }
+}
+
+struct AssetThumb: View {
+    let asset: PHAsset
+    let side: CGFloat
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            Brand.card
+            if let image { Image(uiImage: image).resizable().scaledToFill() }
+        }
+        .frame(width: side, height: side)
+        .clipped()
+        .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.thumbnail(asset, side: side) }
     }
 }
