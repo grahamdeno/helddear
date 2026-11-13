@@ -31,6 +31,8 @@ struct PersonView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 portrait
+                PersonYears(person: person)
+                    .padding(.horizontal, -Brand.space5)
                 if let next = model.nextMoment(for: person) {
                     FamilyPageSection(person: person, moment: next)
                     scheduleCard(next)
@@ -130,75 +132,94 @@ struct PersonView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Brand.space4) {
-            HeroPhoto(person: person, height: 340)
-                .padding(.horizontal, -Brand.space5)
-            VStack(alignment: .leading, spacing: Brand.space1) {
-                Text(person.name).textStyle(.display)
-                if let next = model.nextMoment(for: person) {
-                    let date = next.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
-                    Text("\(next.occasionLine) on \(date)")
-                        .textStyle(.callout, color: Brand.inkMuted)
+            HStack(alignment: .bottom, spacing: Brand.space4) {
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Text(person.name).font(Brand.display(person.name.count > 7 ? 64 : 96)).tracking(-1.5)
+                        .foregroundStyle(Brand.ink).lineLimit(1).minimumScaleFactor(0.5)
+                    if let next = model.nextMoment(for: person) {
+                        Text(subline(next)).font(Brand.display(20, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                HeroPhoto(person: person, height: 132).frame(width: 100)
             }
             Button { showRing = true } label: { Tag(text: person.ring.label) }
                 .buttonStyle(.plain)
                 .accessibilityHint("Changes how early Held Dear reminds you")
-            if let next = model.nextMoment(for: person), next.status != .missed {
-                let days = OccasionDates.daysBetween(Date(), next.dueDate)
-                if days >= 6 {
-                    PrimaryButton(title: "Mail \(person.name) a card") { model.route = .moment(next.id, .mailCard) }
-                } else if days >= 0 && !model.state(for: next).greetingDone {
-                    PrimaryButton(title: "Make \(person.name) a card") { model.route = .moment(next.id, .photo) }
+        }
+    }
+
+    private func subline(_ next: Moment) -> String {
+        let date = next.dueDate.formatted(.dateTime.month(.wide).day())
+        let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.type.label.lowercased()
+        return next.type.kind == .holiday ? "\(next.type.label), \(date)" : "\(date), \(what)"
+    }
+
+    /// The portrait, written as sentences: what they love, sizes, good to know, what they mentioned.
+    private var portrait: some View {
+        VStack(alignment: .leading, spacing: Brand.space4) {
+            if person.loves.isEmpty {
+                Button { editingPortrait = true } label: {
+                    Text("What does \(person.name) love? Add it and every idea gets better.")
+                        .font(Brand.serif(22, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
+                        .multilineTextAlignment(.leading)
                 }
+                .buttonStyle(.plain)
+            } else {
+                Button { editingPortrait = true } label: {
+                    lovesSentence.font(Brand.serif(24, relativeTo: .title3)).foregroundStyle(Brand.ink)
+                        .multilineTextAlignment(.leading)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Edit what \(person.name) loves")
+            }
+            if person.sizes != nil || person.goodToKnow != nil {
+                HStack(alignment: .top, spacing: Brand.space4) {
+                    if let sizes = person.sizes { portraitLine("Sizes", sizes) }
+                    if let note = person.goodToKnow { portraitLine("Good to know", note) }
+                }
+            }
+            if let wish = person.openWishes.first {
+                (Text("Mentioned wanting ") + Text(wish.text).italic() + Text("."))
+                    .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
+            }
+            if let next = model.nextMoment(for: person), next.status != .missed {
+                PrimaryButton(title: "Plan \(person.name)'s day") { model.route = .moment(next.id, .auto) }
+                    .padding(.top, Brand.space2)
+                let days = OccasionDates.daysBetween(Date(), next.dueDate)
+                HStack(spacing: Brand.space4) {
+                    if days >= 6 {
+                        TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
+                    }
+                    if OnDeviceIdeas.isAvailable {
+                        TextLink(title: purchases.hasLifetime ? "Ideas" : "Ideas · Lifetime") {
+                            if purchases.hasLifetime { showIdeas = true } else { showLifetime = true }
+                        }
+                    }
+                    TextLink(title: "Edit") { editingPortrait = true }
+                }
+                .padding(.leading, -8)
             }
         }
     }
 
-    /// The portrait: what they love, sizes, what they mentioned, and anything good to know.
-    private var portrait: some View {
-        VStack(alignment: .leading, spacing: Brand.space4) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("What \(person.name) loves").textStyle(.headline)
-                Spacer()
-                TextLink(title: person.loves.isEmpty && person.sizes == nil ? "Add" : "Edit") { editingPortrait = true }
-            }
-            if person.loves.isEmpty {
-                Text("Things they love, their sizes, what they've mentioned. It makes every idea better.")
-                    .textStyle(.callout, color: Brand.inkMuted)
-            } else {
-                FlowLayout(spacing: Brand.space2) {
-                    ForEach(person.loves, id: \.self) { Tag(text: $0) }
-                }
-            }
-            if let sizes = person.sizes {
-                portraitLine("Sizes", sizes)
-            }
-            if let note = person.goodToKnow {
-                portraitLine("Good to know", note)
-            }
-            if let wish = person.openWishes.first {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Mentioned").textStyle(.eyebrow)
-                    Text("\u{201C}\(wish.text)\u{201D}").font(Brand.serif(20, relativeTo: .title3, italic: true))
-                        .foregroundStyle(Brand.ink)
-                }
-            }
-            if OnDeviceIdeas.isAvailable {
-                SecondaryButton(title: purchases.hasLifetime ? "Ideas for \(person.name)" : "Ideas for \(person.name) · Lifetime") {
-                    if purchases.hasLifetime { showIdeas = true } else { showLifetime = true }
-                }
-            }
+    /// "Loves gardening, dark chocolate and the Cubs."
+    private var lovesSentence: Text {
+        let items = person.loves
+        var t = Text("Loves ").foregroundColor(Brand.inkSoft)
+        for (i, item) in items.enumerated() {
+            if i > 0 { t = t + Text(i == items.count - 1 ? " and " : ", ").foregroundColor(Brand.inkSoft) }
+            t = t + Text(item)
         }
-        .padding(.vertical, Brand.space4)
-        .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
-        .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+        return t + Text(".").foregroundColor(Brand.inkSoft)
     }
 
     private func portraitLine(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Brand.space3) {
-            Text(label).textStyle(.eyebrow).frame(width: 96, alignment: .leading)
-            Text(value).textStyle(.body).frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).textStyle(.eyebrow)
+            Text(value).textStyle(.body)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// "What Held Dear will do": the coming heads-up, order-by and message-ready dates for this person.
@@ -238,7 +259,7 @@ struct PersonView: View {
             }
         }
         .padding(Brand.space4)
-        .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
     }
 
     private var oneYearAgo: LedgerEntry? {
@@ -264,7 +285,7 @@ struct PersonView: View {
                     Text("Share as keepsake").font(TypeStyle.callout.strong)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .foregroundStyle(Brand.action)
-                        .background(Brand.page, in: Rectangle())
+                        .background(Brand.page, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
                 }
             }
         }
@@ -744,5 +765,44 @@ struct AddOccasionView: View {
         model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
                           partnerName: t == .anniversary ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
         dismiss()
+    }
+}
+
+/// The person's years on a line, oldest to newest, ending with this year ("Still open" until something is done).
+struct PersonYears: View {
+    let person: Person
+
+    var body: some View {
+        let year = Calendar.current.component(.year, from: Date())
+        let past = Array(person.sortedLedger.filter { $0.year < year }.prefix(3).reversed())
+        let thisYear = person.sortedLedger.first { $0.year == year }
+        VStack(alignment: .leading, spacing: Brand.space3) {
+            Text("\(person.name)'s years").textStyle(.eyebrow)
+            ZStack(alignment: .top) {
+                Rectangle().fill(Brand.ink).frame(height: 1.5).offset(y: 44)
+                HStack(alignment: .top, spacing: Brand.space2) {
+                    ForEach(past, id: \.id) { e in column(String(e.year), e.what, current: false) }
+                    column(String(year), thisYear?.what ?? "Still open", current: true, open: thisYear == nil)
+                    if past.count < 3 { Spacer(minLength: 0) }
+                }
+            }
+        }
+        .padding(.horizontal, Brand.space5)
+        .padding(.vertical, Brand.space4)
+        .background(Brand.card)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func column(_ year: String, _ what: String, current: Bool, open: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(year).font(Brand.display(22, relativeTo: .title3)).foregroundStyle(current ? Brand.action : Brand.inkMuted)
+            Circle().fill(current ? Brand.action : Brand.inkMuted).frame(width: current ? 13 : 9, height: current ? 13 : 9)
+                .padding(.top, current ? 2 : 4)
+            Text(what)
+                .font(open ? Brand.serif(15, relativeTo: .callout, italic: true) : .subheadline)
+                .foregroundStyle(current ? Brand.action : Brand.inkSoft)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: 90, alignment: .leading)
     }
 }

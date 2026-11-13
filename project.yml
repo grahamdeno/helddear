@@ -51,17 +51,13 @@ targets:
     sources:
       - App/HeldDearShare
       - App/Shared
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Regular.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces72pt-Light.ttf
         buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Medium.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces72pt-LightItalic.ttf
         buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-SemiBold.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces9pt-Regular.ttf
         buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Italic.ttf
-        buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Regular.ttf
-        buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Italic.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces9pt-Italic.ttf
         buildPhase: resources
     settings:
       base:
@@ -78,17 +74,13 @@ targets:
     sources:
       - App/HeldDearWidgets
       - App/Shared
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Regular.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces72pt-Light.ttf
         buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Medium.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces72pt-LightItalic.ttf
         buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-SemiBold.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces9pt-Regular.ttf
         buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Italic.ttf
-        buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Regular.ttf
-        buildPhase: resources
-      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Italic.ttf
+      - path: App/HeldDear/Resources/Fonts/Fraunces9pt-Italic.ttf
         buildPhase: resources
     settings:
       base:

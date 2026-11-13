@@ -68,7 +68,7 @@ struct GetAheadView: View {
                 Text("Choose a photo").font(TypeStyle.callout.strong)
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .foregroundStyle(Brand.onAction)
-                    .background(Brand.action, in: Rectangle())
+                    .background(Brand.action, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
             }
             TextLink(title: "Skip") { next(after: i) }
         }

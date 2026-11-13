@@ -38,7 +38,7 @@ struct LifetimeView: View {
                         benefit("photo.on.rectangle", "Every year of birthday photos, from your library")
                     }
                     .padding(Brand.space4 + 4)
-                    .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 }
                 .padding(.horizontal, Brand.space5)
             }
