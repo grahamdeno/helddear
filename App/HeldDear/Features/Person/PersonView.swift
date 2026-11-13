@@ -22,6 +22,7 @@ struct PersonView: View {
     @State private var editingPortrait = false
     @State private var addingOccasion = false
     @State private var occasionToEdit: Occasion?
+    @State private var showIdeas = false
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -30,7 +31,10 @@ struct PersonView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 portrait
-                if let next = model.nextMoment(for: person) { scheduleCard(next) }
+                if let next = model.nextMoment(for: person) {
+                    FamilyPageSection(person: person, moment: next)
+                    scheduleCard(next)
+                }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
                 if let b = person.birthday {
                     BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
@@ -47,7 +51,9 @@ struct PersonView: View {
                                       caption: occasionCaption(o)) { occasionToEdit = o }
                         }
                     }
-                    SecondaryButton(title: "Add an occasion") { addingOccasion = true }
+                    SecondaryButton(title: purchases.hasLifetime ? "Add an occasion" : "Add an occasion · Lifetime") {
+                        if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
+                    }
                 }
                 section("Wishes") {
                     ForEach(person.openWishes, id: \.id) { wish in
@@ -94,6 +100,7 @@ struct PersonView: View {
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
                             titleVisibility: .visible) {
@@ -174,6 +181,11 @@ struct PersonView: View {
                     Text("Mentioned").textStyle(.eyebrow)
                     Text("\u{201C}\(wish.text)\u{201D}").font(Brand.serif(20, relativeTo: .title3, italic: true))
                         .foregroundStyle(Brand.ink)
+                }
+            }
+            if OnDeviceIdeas.isAvailable {
+                SecondaryButton(title: purchases.hasLifetime ? "Ideas for \(person.name)" : "Ideas for \(person.name) · Lifetime") {
+                    if purchases.hasLifetime { showIdeas = true } else { showLifetime = true }
                 }
             }
         }

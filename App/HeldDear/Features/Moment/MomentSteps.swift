@@ -258,6 +258,8 @@ struct PhotoStep: View {
     @State private var words = ""
     @State private var cardImage: UIImage?
     @State private var showLifetime = false
+    @State private var suggestions: [String] = []
+    @State private var suggesting = false
     @ObservedObject private var purchases = Purchases.shared
 
     enum Phase { case photo, card, words }
@@ -376,6 +378,25 @@ struct PhotoStep: View {
             Question(title: "Your words on the card?", subtitle: "Up to 40 characters.", style: .title)
             LineField(label: "On the card", text: $words, onSubmit: send)
                 .onChange(of: words) { _, w in if w.count > 40 { words = String(w.prefix(40)) } }
+            if OnDeviceIdeas.isAvailable, let person = moment.person {
+                if suggestions.isEmpty {
+                    TextLink(title: suggesting ? "Writing on this iPhone…" : "Suggest words") {
+                        Task {
+                            suggesting = true
+                            suggestions = (try? await OnDeviceIdeas.cardWords(for: PersonFacts(person: person, moment: moment))) ?? []
+                            suggesting = false
+                        }
+                    }
+                    .disabled(suggesting)
+                    .padding(.leading, -8)
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(suggestions, id: \.self) { line in
+                            OptionRow(title: line) { words = line }
+                        }
+                    }
+                }
+            }
             CardView(design: design, content: cardContent)
                 .scaleEffect(0.4)
                 .frame(width: CardView.size.width * 0.4, height: CardView.size.height * 0.4)

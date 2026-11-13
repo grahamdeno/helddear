@@ -2,7 +2,14 @@
   "name": "helddear-mail",
   "private": true,
   "type": "module",
-  "description": "Held Dear mailed cards: lists Handwrytten birthday cards and places an order only after Stripe confirms the Apple Pay payment. No dependencies.",
-  "engines": { "node": "22.x" },
-  "scripts": { "test": "node --test" }
+  "description": "Held Dear's server: mailed cards (Handwrytten, paid with Apple Pay through Stripe) and family pages (Vercel Blob, deleted 30 days after the day).",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@vercel/blob": "^1.1.1"
+  }
 }

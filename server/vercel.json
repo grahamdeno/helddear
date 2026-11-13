@@ -1,3 +1,8 @@
 {
-  "functions": { "api/*.js": { "maxDuration": 30 } }
+  "functions": { "api/*.js": { "maxDuration": 30 } },
+  "rewrites": [
+    { "source": "/p/:id/:k", "destination": "/api/page-html?mode=invite&id=:id&k=:k" },
+    { "source": "/g/:id/:k", "destination": "/api/page-html?mode=gift&id=:id&k=:k" }
+  ],
+  "crons": [{ "path": "/api/cleanup", "schedule": "17 9 * * *" }]
 }
