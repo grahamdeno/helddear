@@ -264,6 +264,9 @@ struct HorizonBand: View {
     let seasons: [Season]
     var select: (UUID) -> Void
 
+    @State private var position = ScrollPosition(x: 0)
+    @State private var userScrolling = false
+
     static let monthWidth: CGFloat = 118
     static let lead: CGFloat = 24
     static let axisY: CGFloat = 150
@@ -285,31 +288,68 @@ struct HorizonBand: View {
                             .frame(minHeight: 44)
                     }
                 } else {
-                    Text("Slide to move").textStyle(.eyebrow)
+                    Text("Slide to change").textStyle(.eyebrow)
                 }
             }
             .padding(.horizontal, Brand.space5)
             .padding(.top, Brand.space2)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                ZStack(alignment: .topLeading) {
-                    Rectangle().fill(Brand.ink).frame(width: Self.lead * 2 + Self.monthWidth * 12, height: 1.5)
-                        .offset(y: Self.axisY)
-                    ForEach(Array(months.enumerated()), id: \.offset) { i, month in
-                        Text(month.formatted(.dateTime.month(.abbreviated)))
-                            .font(.caption.weight(.semibold)).foregroundStyle(Brand.inkMuted)
-                            .offset(x: Self.lead + CGFloat(i) * Self.monthWidth, y: Self.axisY + 10)
-                        Rectangle().fill(Brand.ink).frame(width: 1.5, height: 10)
-                            .offset(x: Self.lead + CGFloat(i) * Self.monthWidth, y: Self.axisY - 10)
+            GeometryReader { geo in
+                let half = geo.size.width / 2
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        Color.clear.frame(width: half)
+                        ZStack(alignment: .topLeading) {
+                            Rectangle().fill(Brand.ink).frame(width: Self.lead * 2 + Self.monthWidth * 12, height: 1.5)
+                                .offset(y: Self.axisY)
+                            ForEach(Array(months.enumerated()), id: \.offset) { i, month in
+                                Text(month.formatted(.dateTime.month(.abbreviated)))
+                                    .font(.caption.weight(.semibold)).foregroundStyle(Brand.inkMuted)
+                                    .offset(x: Self.lead + CGFloat(i) * Self.monthWidth, y: Self.axisY + 10)
+                                Rectangle().fill(Brand.ink).frame(width: 1.5, height: 10)
+                                    .offset(x: Self.lead + CGFloat(i) * Self.monthWidth, y: Self.axisY - 10)
+                            }
+                            Circle().fill(Brand.ink).frame(width: 7, height: 7)
+                                .offset(x: x(for: now, start: start) - 3.5, y: Self.axisY - 3)
+                                .accessibilityHidden(true)
+                            ForEach(marks, id: \.moment.id) { mark in markView(mark) }
+                        }
+                        .frame(width: Self.lead * 2 + Self.monthWidth * 12, height: Self.axisY + 34, alignment: .topLeading)
+                        Color.clear.frame(width: half)
                     }
-                    Circle().fill(Brand.ink).frame(width: 7, height: 7)
-                        .offset(x: x(for: now, start: start) - 3.5, y: Self.axisY - 3)
-                        .accessibilityHidden(true)
-                    ForEach(marks, id: \.moment.id) { mark in markView(mark) }
                 }
-                .frame(width: Self.lead * 2 + Self.monthWidth * 12, height: Self.axisY + 34, alignment: .topLeading)
+                .scrollPosition($position)
+                .scrollClipDisabled()
+                // The point under the center marker is contentOffset.x in line coordinates (the half-width pads
+                // make it so). Whoever is nearest it is featured above, so the name follows the slide.
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x } action: { _, center in
+                    guard userScrolling, let nearest = marks.min(by: { abs($0.x - center) < abs($1.x - center) }),
+                          nearest.moment.id != selectedID else { return }
+                    select(nearest.moment.id)
+                }
+                .onScrollPhaseChange { _, phase in
+                    userScrolling = phase == .interacting || phase == .decelerating
+                    // When the slide settles, line the featured person up with the marker.
+                    if phase == .idle, let m = marks.first(where: { $0.moment.id == selectedID }) {
+                        withAnimation(.snappy) { position.scrollTo(x: m.x) }
+                    }
+                }
+                .onAppear {
+                    if let m = marks.first(where: { $0.moment.id == selectedID }) { position.scrollTo(x: m.x) }
+                }
+                .onChange(of: selectedID) { _, id in
+                    guard !userScrolling, let m = marks.first(where: { $0.moment.id == id }) else { return }
+                    withAnimation(.snappy) { position.scrollTo(x: m.x) }
+                }
+                .overlay(alignment: .topLeading) {
+                    Rectangle().fill(Brand.action.opacity(0.25)).frame(width: 1, height: Self.axisY)
+                        .offset(x: half - 0.5)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
             }
-            .scrollClipDisabled()
+            .frame(height: Self.axisY + 34)
+            .sensoryFeedback(.selection, trigger: selectedID)
         }
         .padding(.bottom, Brand.space2)
         .background(Brand.card.ignoresSafeArea(edges: .bottom))
@@ -356,7 +396,10 @@ struct HorizonBand: View {
     private func markView(_ mark: Mark) -> some View {
         let selected = mark.moment.id == selectedID
         let color = selected ? Brand.action : Brand.ink
-        return Button { select(mark.moment.id) } label: {
+        return Button {
+            select(mark.moment.id)
+            withAnimation(.snappy) { position.scrollTo(x: mark.x) }
+        } label: {
             ZStack(alignment: .topLeading) {
                 Rectangle().fill(selected ? Brand.action : Brand.inkMuted)
                     .frame(width: selected ? 2 : 1.5, height: Self.axisY - mark.top - 20)
