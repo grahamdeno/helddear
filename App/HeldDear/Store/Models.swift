@@ -104,6 +104,11 @@ final class Moment {
     var callStartedAt: Date?
     var photoPromptShown: Bool
     var missedAt: Date?
+    /// Family page for this day (FamilyPages). The owner key never leaves this iPhone except to manage the page.
+    var familyPageID: String?
+    var familyOwnerKey: String?
+    var familyInviteURL: String?
+    var familyGiftURL: String?
     var occasion: Occasion?
     @Relationship(deleteRule: .cascade, inverse: \Act.moment) var acts: [Act] = []
 

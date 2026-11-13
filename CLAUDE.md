@@ -23,6 +23,10 @@ SKU helddear001. iOS 26, iPhone only.
   One exception (Nov 12, 2026): mailed cards. Only `Services/MailedCards.swift` talks to Held Dear's server
   (`server/`, Vercel project helddear-mail) at checkout. The server holds the Handwrytten and Stripe keys and
   places an order only after Stripe confirms the Apple Pay payment. `scripts/privacy_guard.py` enforces this in CI.
+  Second exception (Nov 12, 2026, Graham approved): family pages. Only `Services/FamilyPages.swift` talks to the
+  same server, to make or manage a page for one person's day (first name, date, the user's name and line, an optional
+  photo, family's notes). No accounts; keys stay on the phone, the server keeps only their hashes; everything is
+  deleted 30 days after the day (Vercel Blob, daily cleanup cron). Family's notes are untrusted text, always escaped.
 - Mailed cards are paid with Apple Pay through Stripe, never in-app purchase (App Review 3.1.3(e)).
 - No guilt: no streaks, red badges, or "you forgot". A missed birthday gets a way back.
 - Plum (`Brand.action`) is the only color for things you tap. Coral never holds text. Nunito is bundled.

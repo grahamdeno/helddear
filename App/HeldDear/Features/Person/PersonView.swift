@@ -30,7 +30,10 @@ struct PersonView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 portrait
-                if let next = model.nextMoment(for: person) { scheduleCard(next) }
+                if let next = model.nextMoment(for: person) {
+                    FamilyPageSection(person: person, moment: next)
+                    scheduleCard(next)
+                }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
                 if let b = person.birthday {
                     BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }

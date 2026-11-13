@@ -184,6 +184,14 @@ struct HeroCard: View {
             } else {
                 PrimaryButton(title: act.title(name: name)) { tap(act) }
             }
+            if days == 0, let gift = moment.familyGiftURL.flatMap(URL.init(string:)) {
+                ShareLink(item: gift, message: Text(moment.type.greeting(name: name))) {
+                    Text("Send \(name) the family page").font(TypeStyle.bodyStrong.font)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .foregroundStyle(Brand.action)
+                        .overlay(Rectangle().stroke(Brand.action, lineWidth: 1))
+                }
+            }
             if state.status != .missed && days > 0 {
                 if days >= 6 {
                     SecondaryButton(title: "Mail \(name) a card") { model.route = .moment(moment.id, .mailCard) }

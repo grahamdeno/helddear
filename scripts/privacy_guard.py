@@ -3,8 +3,9 @@
 
 Data stays on the phone: no network code, no analytics, no third-party SDKs.
 Contacts are read only; the calendar is write only (one dinner event the user chose).
-One exception, decided Nov 12, 2026: mailed cards. Only App/HeldDear/Services/MailedCards.swift may
-make network requests, and only to Held Dear's own server at checkout.
+Two exceptions, both decided Nov 12, 2026, both only to Held Dear's own server:
+mailed cards (App/HeldDear/Services/MailedCards.swift, at checkout) and family pages
+(App/HeldDear/Services/FamilyPages.swift, when the user makes or manages a page).
 
   python3 -I scripts/privacy_guard.py check     scan App/ for forbidden calls
   python3 -I scripts/privacy_guard.py selftest  prove the scanner catches them
@@ -27,8 +28,8 @@ FORBIDDEN = {
 }
 
 
-# The one file allowed to make network requests (mailed cards at checkout), and to which host.
-NETWORK_ALLOWED = {"App/HeldDear/Services/MailedCards.swift"}
+# The only files allowed to make network requests, and to which host.
+NETWORK_ALLOWED = {"App/HeldDear/Services/MailedCards.swift", "App/HeldDear/Services/FamilyPages.swift"}
 NETWORK_RULES = {"network request"}
 ALLOWED_HOST = "helddear-mail.vercel.app"
 
