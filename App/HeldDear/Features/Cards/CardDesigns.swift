@@ -32,6 +32,13 @@ struct CardContent {
     /// Shown only when the user turned age on for this person.
     var age: Int?
     var date: Date
+    var occasion: OccasionType = .birthday
+
+    /// "Turning 70", "40 years", or nil.
+    var countText: String? {
+        guard let age else { return nil }
+        return occasion == .birthday ? "Turning \(age)" : "\(age) years"
+    }
 
     var initials: String {
         let letters = name.split(separator: " ").prefix(2).compactMap(\.first)
@@ -49,8 +56,10 @@ enum CardPalette {
     static let blush = Color(red: 0.953, green: 0.851, blue: 0.784)      // #F3D9C8
 }
 
+/// Card type: names and numbers in Instrument Serif, small lines in Instrument Sans.
 func cardFont(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
-    TypeStyle.hasNunito ? Font.custom("Nunito", size: size).weight(weight) : Font.system(size: size, weight: weight, design: .rounded)
+    if weight == .heavy { return Brand.serif(size) }
+    return TypeStyle.hasInstrument ? Font.custom(TypeStyle.sansMedium, size: size) : Font.system(size: size, weight: .medium)
 }
 
 struct CardView: View {
@@ -82,12 +91,12 @@ struct CardView: View {
                 Text(words).font(cardFont(nameSize * 0.7)).foregroundStyle(nameColor)
                     .multilineTextAlignment(.center).minimumScaleFactor(0.5).lineLimit(3)
             } else {
-                Text("Happy birthday,").font(cardFont(28)).foregroundStyle(color)
+                Text(content.occasion.cardOpening).font(cardFont(28)).foregroundStyle(color)
                 Text(content.name).font(cardFont(nameSize)).foregroundStyle(nameColor)
                     .minimumScaleFactor(0.4).lineLimit(1)
             }
-            if let age = content.age {
-                Text("Turning \(age)").font(cardFont(20, .bold)).foregroundStyle(color.opacity(0.8)).padding(.top, 2)
+            if let count = content.countText {
+                Text(count).font(cardFont(20, .bold)).foregroundStyle(color.opacity(0.8)).padding(.top, 2)
             }
         }
         .padding(.horizontal, 30)
@@ -214,14 +223,14 @@ struct CardView: View {
                     if let words = content.words, !words.isEmpty {
                         Text(words)
                     } else {
-                        Text("Happy birthday, \(content.name)")
+                        Text("\(content.occasion.cardOpening) \(content.name)")
                     }
                 }
                 .font(cardFont(30)).foregroundStyle(CardPalette.ink)
                 .multilineTextAlignment(.center).minimumScaleFactor(0.5).lineLimit(2)
                 .frame(width: 360)
-                if let age = content.age {
-                    Text("Turning \(age)").font(cardFont(18, .bold)).foregroundStyle(CardPalette.ink.opacity(0.7))
+                if let count = content.countText {
+                    Text(count).font(cardFont(18, .bold)).foregroundStyle(CardPalette.ink.opacity(0.7))
                 }
             }
             .padding(.top, 22).padding(.horizontal, 22).padding(.bottom, 44)
@@ -254,7 +263,7 @@ struct CardView: View {
                     if let words = content.words, !words.isEmpty {
                         Text(words)
                     } else {
-                        Text("Happy birthday, \(content.name)")
+                        Text("\(content.occasion.cardOpening) \(content.name)")
                     }
                 }
                 .font(cardFont(32)).foregroundStyle(CardPalette.ink)

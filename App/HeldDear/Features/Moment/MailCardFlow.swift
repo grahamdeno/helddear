@@ -51,7 +51,7 @@ struct MailCardFlow: View {
         FlowScreen(onClose: close) {
             Spacer(minLength: 120)
             ProgressView().frame(maxWidth: .infinity)
-            Text("Finding birthday cards…").textStyle(.callout, color: Brand.inkMuted).frame(maxWidth: .infinity)
+            Text("Finding cards…").textStyle(.callout, color: Brand.inkMuted).frame(maxWidth: .infinity)
         }
     }
 
@@ -96,8 +96,8 @@ struct MailCardFlow: View {
         FlowScreen(onClose: { step = .pick }) {
             Question(title: "What should it say?", subtitle: "Handwrytten writes it in pen, word for word.", style: .title)
             VStack(alignment: .leading, spacing: 6) {
-                Text("Message").font(TypeStyle.caption.font.weight(.bold)).foregroundStyle(Brand.inkMuted)
-                TextField("Happy birthday!", text: $message, axis: .vertical)
+                Text("Message").font(TypeStyle.caption.strong).foregroundStyle(Brand.inkMuted)
+                TextField(moment.type.cardOpening.replacingOccurrences(of: ",", with: "!"), text: $message, axis: .vertical)
                     .lineLimit(4...8)
                     .textStyle(.body)
                     .padding(Brand.space4)
@@ -158,7 +158,7 @@ struct MailCardFlow: View {
                 PayWithApplePayButton(.order) { pay() }
                     .payWithApplePayButtonStyle(.automatic)
                     .frame(height: 56)
-                    .clipShape(Capsule())
+                    .clipShape(Rectangle())
                     .disabled(paying)
             } else {
                 Text("Apple Pay isn't set up on this iPhone. Add a card in Wallet to mail cards.")
@@ -193,14 +193,14 @@ struct MailCardFlow: View {
     private func load() async {
         guard catalog == nil else { return }
         do {
-            let c = try await MailedCards.catalog()
+            let c = try await MailedCards.catalog(occasion: moment.type.rawValue)
             catalog = c
             card = c.cards.first
-            if message.isEmpty { message = "Happy birthday, \(name)!" }
+            if message.isEmpty { message = moment.type.greeting(name: name) }
             if wishes.isEmpty, !sender.firstName.isEmpty { wishes = "Love, \(sender.firstName)" }
             if let address = ContactsService.shared.mailAddress(contactID: moment.person?.contactID) { recipient = address }
             if recipient.firstName.isEmpty { recipient.firstName = name }
-            step = c.cards.isEmpty ? .failed("No birthday cards are available right now.") : .pick
+            step = c.cards.isEmpty ? .failed("No cards for this occasion are available right now.") : .pick
         } catch {
             step = .failed(error.localizedDescription)
         }
@@ -209,11 +209,11 @@ struct MailCardFlow: View {
     private func pay() {
         guard let card, let catalog else { return }
         paying = true
-        let m = message, w = wishes, r = recipient, s = sender, ref = reference
-        checkout.start(priceCents: catalog.priceCents, label: "Mailed birthday card") { payment in
+        let m = message, w = wishes, r = recipient, s = sender, ref = reference, occ = moment.type.rawValue
+        checkout.start(priceCents: catalog.priceCents, label: "Mailed card") { payment in
             do {
                 return .success(try await MailedCards.placeOrder(reference: ref, card: card, message: m, wishes: w,
-                                                                  recipient: r, sender: s, payment: payment))
+                                                                  recipient: r, sender: s, occasion: occ, payment: payment))
             } catch {
                 return .failure(error)
             }

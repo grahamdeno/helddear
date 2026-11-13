@@ -4,7 +4,12 @@
 <dict>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Nunito-Variable.ttf</string>
+		<string>InstrumentSans-Regular.ttf</string>
+		<string>InstrumentSans-Medium.ttf</string>
+		<string>InstrumentSans-SemiBold.ttf</string>
+		<string>InstrumentSans-Italic.ttf</string>
+		<string>InstrumentSerif-Regular.ttf</string>
+		<string>InstrumentSerif-Italic.ttf</string>
 	</array>
 	<key>NSExtension</key>
 	<dict>

@@ -10,7 +10,7 @@ enum MomentEngine {
     static func refresh(_ context: ModelContext, now: Date = Date(), calendar: Calendar = .current) {
         let occasions = (try? context.fetch(FetchDescriptor<Occasion>())) ?? []
         for occasion in occasions where occasion.person != nil {
-            for (year, date) in OccasionDates.occurrences(month: occasion.month, day: occasion.day, from: now, calendar: calendar) {
+            for (year, date) in OccasionRules.occurrences(type: occasion.type, month: occasion.month, day: occasion.day, year: occasion.birthYear, from: now, calendar: calendar) {
                 if let existing = occasion.moments.first(where: { $0.year == year }) {
                     // The date changed (edited birthday): keep the Moment, move its day, reset the heads-up.
                     if existing.dueDate != date && existing.status == .upcoming {
@@ -24,7 +24,7 @@ enum MomentEngine {
                 }
             }
             // A moved birthday can leave a stale, untouched Moment behind.
-            let valid = Set(OccasionDates.occurrences(month: occasion.month, day: occasion.day, from: now, calendar: calendar).map(\.year))
+            let valid = Set(OccasionRules.occurrences(type: occasion.type, month: occasion.month, day: occasion.day, year: occasion.birthYear, from: now, calendar: calendar).map(\.year))
             for m in occasion.moments where m.status == .upcoming && m.acts.isEmpty && !valid.contains(m.year)
                 && m.dueDate >= calendar.startOfDay(for: now) {
                 context.delete(m)

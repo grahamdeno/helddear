@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// Components from the Hearth design system README. Separation comes from card against page, never shadows.
+// Quiet components. Separation comes from hairline rules and space, never shadows or heavy fills.
 
 /// A flow screen: question at the top, choices below, the one action at the bottom.
 struct FlowScreen<Content: View, Footer: View>: View {
@@ -14,7 +14,7 @@ struct FlowScreen<Content: View, Footer: View>: View {
             if let onClose {
                 HStack {
                     Button(action: onClose) {
-                        Image(systemName: "xmark").font(.system(size: 17, weight: .semibold, design: .rounded))
+                        Image(systemName: "xmark").font(.system(size: 16, weight: .regular))
                             .foregroundStyle(Brand.action)
                             .frame(width: 44, height: 44)
                     }
@@ -69,11 +69,11 @@ struct PrimaryButton: View {
     var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(TypeStyle.callout.font.weight(.heavy))
-                .frame(maxWidth: .infinity, minHeight: 56)
+            Text(title).font(TypeStyle.bodyStrong.font)
+                .frame(maxWidth: .infinity, minHeight: 54)
                 .foregroundStyle(Brand.onAction)
-                .background(Brand.action, in: Capsule())
-                .contentShape(Capsule())
+                .background(Brand.action, in: Rectangle())
+                .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
     }
@@ -84,13 +84,13 @@ struct SecondaryButton: View {
     var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(TypeStyle.callout.font.weight(.heavy))
+            Text(title).font(TypeStyle.bodyStrong.font)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 56)
+                .frame(maxWidth: .infinity, minHeight: 54)
                 .padding(.horizontal, 12)
                 .foregroundStyle(Brand.action)
-                .background(Brand.card, in: Capsule())
-                .contentShape(Capsule())
+                .overlay(Rectangle().stroke(Brand.action, lineWidth: 1))
+                .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
     }
@@ -101,8 +101,9 @@ struct TextLink: View {
     var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(TypeStyle.callout.font.weight(.bold))
+            Text(title).font(TypeStyle.callout.font)
                 .foregroundStyle(Brand.action)
+                .underline(true, color: Brand.line)
                 .padding(.vertical, 11).padding(.horizontal, 8)
                 .frame(minHeight: 44)
         }
@@ -122,7 +123,7 @@ struct Eyebrow: View {
     var body: some View { Text(text).textStyle(.eyebrow, color: Brand.inkMuted).accessibilityAddTraits(.isHeader) }
 }
 
-/// A card row that is one button: title, optional caption, coral chevron disc.
+/// A row that is one button: title, optional caption, plain chevron, hairline below.
 struct OptionRow<Leading: View, Trailing: View>: View {
     var title: String
     var caption: String?
@@ -141,10 +142,10 @@ struct OptionRow<Leading: View, Trailing: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 trailing
             }
-            .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+            .padding(.vertical, Brand.space4)
             .frame(minHeight: 64)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+            .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
     }
@@ -158,10 +159,9 @@ extension OptionRow where Leading == EmptyView, Trailing == ChevronDisc {
 
 struct ChevronDisc: View {
     var body: some View {
-        Image(systemName: "chevron.right").font(.system(size: 13, weight: .heavy, design: .rounded))
-            .foregroundStyle(Color.white)
-            .frame(width: 32, height: 32)
-            .background(Brand.accent, in: Circle())
+        Image(systemName: "chevron.right").font(.system(size: 13, weight: .regular))
+            .foregroundStyle(Brand.inkMuted)
+            .frame(width: 24, height: 32)
             .accessibilityHidden(true)
     }
 }
@@ -169,10 +169,10 @@ struct ChevronDisc: View {
 struct CheckBadge: View {
     var size: CGFloat = 22
     var body: some View {
-        Image(systemName: "checkmark").font(.system(size: size * 0.5, weight: .heavy, design: .rounded))
+        Image(systemName: "checkmark").font(.system(size: size * 0.5, weight: .semibold))
             .foregroundStyle(Brand.onAction)
             .frame(width: size, height: size)
-            .background(Brand.action, in: Circle())
+            .background(Brand.action, in: Rectangle())
             .accessibilityHidden(true)
     }
 }
@@ -181,10 +181,10 @@ struct CheckBadge: View {
 struct ContextLine: View {
     var text: String
     var body: some View {
-        Text(text).textStyle(.callout, color: Brand.ink.opacity(0.85))
+        Text(text).textStyle(.callout, color: Brand.inkMuted)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .padding(.leading, Brand.space3)
+            .overlay(alignment: .leading) { Rectangle().fill(Brand.line).frame(width: 1) }
     }
 }
 
@@ -195,7 +195,7 @@ struct Card<Content: View>: View {
         VStack(alignment: .leading, spacing: 14) { content }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(padding)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
     }
 }
 
@@ -242,11 +242,10 @@ struct LineField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(TypeStyle.caption.font.weight(.bold)).foregroundStyle(Brand.inkMuted)
+            Text(label).font(TypeStyle.caption.font).foregroundStyle(Brand.inkMuted)
             HStack(spacing: 10) {
                 TextField(placeholder, text: $text)
-                    .font(TypeStyle.hasNunito ? Font.custom("Nunito", size: 19, relativeTo: .body).weight(.bold)
-                                              : Font.system(size: 19, weight: .bold, design: .rounded))
+                    .font(Brand.serif(22, relativeTo: .title3))
                     .foregroundStyle(Brand.ink)
                     .focused($focused)
                     .submitLabel(.done)
@@ -259,16 +258,16 @@ struct LineField: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(Brand.onAction)
                             .frame(width: 44, height: 44)
-                            .background(Brand.action, in: Circle())
+                            .background(Brand.action, in: Rectangle())
                     }
                     .accessibilityLabel(dictation.isListening ? "Stop dictating" : "Dictate")
                 }
             }
             .padding(.leading, Brand.space4).padding(.trailing, 8).padding(.vertical, 8)
             .frame(minHeight: 60)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous)
-                .stroke(focused || dictation.isListening ? Brand.action : Brand.line, lineWidth: 2))
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(focused || dictation.isListening ? Brand.action : Brand.line).frame(height: 1)
+            }
             .onTapGesture { focused = true }
         }
         .onDisappear { dictation.stop() }

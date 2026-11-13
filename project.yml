@@ -34,6 +34,7 @@ targets:
         INFOPLIST_KEY_NSContactsUsageDescription: "Held Dear looks for birthdays, phone numbers and addresses already in your contacts. Nothing leaves your iPhone."
         INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription: "Held Dear adds a dinner date you choose to your calendar. It never reads your calendar."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Held Dear turns what you say into text on this iPhone, so you can add a birthday or a wish by voice."
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Held Dear finds photos from past birthdays in your library, on this iPhone, so you can see the years and use one on a card."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Held Dear listens only after you tap the microphone button, to add a birthday or a wish by voice."
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
@@ -50,7 +51,17 @@ targets:
     sources:
       - App/HeldDearShare
       - App/Shared
-      - path: App/HeldDear/Resources/Fonts/Nunito-Variable.ttf
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Medium.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-SemiBold.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Italic.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Italic.ttf
         buildPhase: resources
     settings:
       base:
@@ -67,7 +78,17 @@ targets:
     sources:
       - App/HeldDearWidgets
       - App/Shared
-      - path: App/HeldDear/Resources/Fonts/Nunito-Variable.ttf
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Medium.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-SemiBold.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSans-Italic.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Regular.ttf
+        buildPhase: resources
+      - path: App/HeldDear/Resources/Fonts/InstrumentSerif-Italic.ttf
         buildPhase: resources
     settings:
       base:

@@ -1,6 +1,8 @@
 import ContactsUI
+import Photos
 import PhotosUI
 import SwiftUI
+import UIKit
 
 /// Person: name, ring, photo set, open wishes, occasions, ledger by year. A browse screen: tap any item to change it.
 struct PersonView: View {
@@ -17,6 +19,9 @@ struct PersonView: View {
     @State private var confirmRemove = false
     @State private var phoneText = ""
     @State private var showLifetime = false
+    @State private var editingPortrait = false
+    @State private var addingOccasion = false
+    @State private var occasionToEdit: Occasion?
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -24,15 +29,25 @@ struct PersonView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
+                portrait
                 if let next = model.nextMoment(for: person) { scheduleCard(next) }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
+                if let b = person.birthday {
+                    BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
+                }
                 if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
                 section("Occasions") {
-                    if let b = person.birthday, let next = model.nextMoment(for: person) {
-                        OptionRow(title: "Birthday", caption: birthdayCaption(b, next)) { editingDate = true }
+                    ForEach(sortedOccasions, id: \.id) { o in
+                        if o.type == .birthday {
+                            OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
+                        } else {
+                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)" : o.type.label,
+                                      caption: occasionCaption(o)) { occasionToEdit = o }
+                        }
                     }
+                    SecondaryButton(title: "Add an occasion") { addingOccasion = true }
                 }
                 section("Wishes") {
                     ForEach(person.openWishes, id: \.id) { wish in
@@ -50,7 +65,7 @@ struct PersonView: View {
                     .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 }
                 if !person.ledger.isEmpty {
-                    section("\(person.name)'s years") {
+                    section("Through the years") {
                         ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
                     }
                 }
@@ -63,8 +78,10 @@ struct PersonView: View {
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showRing) { RingSheet(person: person).presentationDetents([.medium]) }
-        .sheet(isPresented: $linking) {
-            ContactPicker { contact in
+        .onChange(of: linking) { _, open in
+            guard open else { return }
+            linking = false
+            ContactPickerPresenter.shared.present { contact in
                 person.contactID = contact.identifier
                 if contact.isKeyAvailable(CNContactGivenNameKey) && contact.isKeyAvailable(CNContactFamilyNameKey) {
                     let full = [contact.givenName, contact.familyName].filter { !$0.isEmpty }.joined(separator: " ")
@@ -72,10 +89,16 @@ struct PersonView: View {
                 }
                 model.commit()
             }
-            .ignoresSafeArea()
         }
         .sheet(isPresented: $editingDate) { BirthdayEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
+        .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
+                            isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
+                            titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { if let o = occasionToEdit { model.removeOccasion(o) } }
+        }
         .onChange(of: photoItem) { _, item in addPhoto(item) }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
                             titleVisibility: .visible) {
@@ -99,19 +122,70 @@ struct PersonView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 16) {
-            Face(person: person, size: 96)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(person.name).textStyle(.title)
+        VStack(alignment: .leading, spacing: Brand.space4) {
+            HeroPhoto(person: person, height: 340)
+                .padding(.horizontal, -Brand.space5)
+            VStack(alignment: .leading, spacing: Brand.space1) {
+                Text(person.name).textStyle(.display)
                 if let next = model.nextMoment(for: person) {
                     let date = next.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
-                    Text(next.turning.map { "Turns \($0) on \(date)" } ?? "Birthday on \(date)")
+                    Text("\(next.occasionLine) on \(date)")
                         .textStyle(.callout, color: Brand.inkMuted)
                 }
-                Button { showRing = true } label: { Tag(text: person.ring.label) }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Changes how early Held Dear reminds you")
             }
+            Button { showRing = true } label: { Tag(text: person.ring.label) }
+                .buttonStyle(.plain)
+                .accessibilityHint("Changes how early Held Dear reminds you")
+            if let next = model.nextMoment(for: person), next.status != .missed {
+                let days = OccasionDates.daysBetween(Date(), next.dueDate)
+                if days >= 6 {
+                    PrimaryButton(title: "Mail \(person.name) a card") { model.route = .moment(next.id, .mailCard) }
+                } else if days >= 0 && !model.state(for: next).greetingDone {
+                    PrimaryButton(title: "Make \(person.name) a card") { model.route = .moment(next.id, .photo) }
+                }
+            }
+        }
+    }
+
+    /// The portrait: what they love, sizes, what they mentioned, and anything good to know.
+    private var portrait: some View {
+        VStack(alignment: .leading, spacing: Brand.space4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("What \(person.name) loves").textStyle(.headline)
+                Spacer()
+                TextLink(title: person.loves.isEmpty && person.sizes == nil ? "Add" : "Edit") { editingPortrait = true }
+            }
+            if person.loves.isEmpty {
+                Text("Things they love, their sizes, what they've mentioned. It makes every idea better.")
+                    .textStyle(.callout, color: Brand.inkMuted)
+            } else {
+                FlowLayout(spacing: Brand.space2) {
+                    ForEach(person.loves, id: \.self) { Tag(text: $0) }
+                }
+            }
+            if let sizes = person.sizes {
+                portraitLine("Sizes", sizes)
+            }
+            if let note = person.goodToKnow {
+                portraitLine("Good to know", note)
+            }
+            if let wish = person.openWishes.first {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Mentioned").textStyle(.eyebrow)
+                    Text("\u{201C}\(wish.text)\u{201D}").font(Brand.serif(20, relativeTo: .title3, italic: true))
+                        .foregroundStyle(Brand.ink)
+                }
+            }
+        }
+        .padding(.vertical, Brand.space4)
+        .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+    }
+
+    private func portraitLine(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Brand.space3) {
+            Text(label).textStyle(.eyebrow).frame(width: 96, alignment: .leading)
+            Text(value).textStyle(.body).frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -132,7 +206,7 @@ struct PersonView: View {
                         ZStack {
                             Circle().fill(past ? Brand.line : Brand.accent).frame(width: 10, height: 10)
                             if past {
-                                Image(systemName: "checkmark").font(.system(size: 7, weight: .heavy)).foregroundStyle(Brand.inkMuted)
+                                Image(systemName: "checkmark").font(.system(size: 7, weight: .semibold)).foregroundStyle(Brand.inkMuted)
                             }
                         }
                         .padding(.top, 6)
@@ -152,7 +226,7 @@ struct PersonView: View {
             }
         }
         .padding(Brand.space4)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+        .overlay(Rectangle().stroke(Brand.line, lineWidth: 1))
     }
 
     private var oneYearAgo: LedgerEntry? {
@@ -175,10 +249,10 @@ struct PersonView: View {
             }
             if let image = Keepsake.image(person: person, entry: entry) {
                 ShareLink(item: Image(uiImage: image), preview: SharePreview("\(person.name), \(entry.year)", image: Image(uiImage: image))) {
-                    Text("Share as keepsake").font(TypeStyle.callout.font.weight(.heavy))
+                    Text("Share as keepsake").font(TypeStyle.callout.strong)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .foregroundStyle(Brand.action)
-                        .background(Brand.page, in: Capsule())
+                        .background(Brand.page, in: Rectangle())
                 }
             }
         }
@@ -190,11 +264,11 @@ struct PersonView: View {
     private var photoNudge: some View {
         PhotosPicker(selection: $photoItem, matching: .images) {
             HStack(spacing: 14) {
-                Image(systemName: "plus").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Brand.ink)
+                Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.ink)
                     .frame(width: 56, height: 56)
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add a photo for \(person.name)'s card").font(TypeStyle.callout.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                    Text("Add a photo for \(person.name)'s card").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
                     Text("It stays on this iPhone").textStyle(.caption, color: Brand.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -211,7 +285,7 @@ struct PersonView: View {
 
     private var phoneRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Phone number, for the message on the day").font(TypeStyle.caption.font.weight(.bold)).foregroundStyle(Brand.inkMuted)
+            Text("Phone number, for the message on the day").font(TypeStyle.caption.strong).foregroundStyle(Brand.inkMuted)
             HStack {
                 TextField("Add a number", text: $phoneText).keyboardType(.phonePad).textStyle(.body)
                 if !phoneText.isEmpty {
@@ -219,7 +293,7 @@ struct PersonView: View {
                         person.manualPhone = phoneText
                         model.commit()
                     }
-                    .font(TypeStyle.callout.font.weight(.bold))
+                    .font(TypeStyle.callout.strong)
                 }
             }
             .padding(.horizontal, Brand.space4).frame(minHeight: 56)
@@ -235,9 +309,26 @@ struct PersonView: View {
         }
     }
 
-    private func birthdayCaption(_ b: Occasion, _ next: Moment) -> String {
+    private var sortedOccasions: [Occasion] {
+        person.occasions.sorted { a, b in
+            if a.type == .birthday { return true }
+            if b.type == .birthday { return false }
+            return (nextDate(a) ?? .distantFuture) < (nextDate(b) ?? .distantFuture)
+        }
+    }
+
+    private func nextDate(_ o: Occasion) -> Date? {
+        let today = Calendar.current.startOfDay(for: Date())
+        return o.moments.filter { $0.dueDate >= today }.map(\.dueDate).min()
+    }
+
+    private func occasionCaption(_ o: Occasion) -> String {
+        let today = Calendar.current.startOfDay(for: Date())
+        guard let next = o.moments.filter({ $0.dueDate >= today }).min(by: { $0.dueDate < $1.dueDate }) else {
+            return o.type.kind == .once ? "Passed" : "Next year"
+        }
         let date = OccasionDates.longDate(next.dueDate)
-        if let t = next.turning { return "\(date) · turning \(t)" }
+        if let count = next.countLine { return "\(date) · \(count.prefix(1).lowercased() + count.dropFirst())" }
         return date
     }
 
@@ -250,7 +341,7 @@ struct PersonView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Image(systemName: "plus").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Brand.action)
+                    Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.action)
                         .frame(width: 88, height: 88)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
                 }
@@ -282,14 +373,14 @@ struct PersonView: View {
                 PhotoTile(image: PhotoStore.load(entry.photoFile), label: "No photo", height: 72, radius: Brand.radiusMd)
                     .frame(width: 72)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(String(entry.year)).textStyle(.eyebrow, color: Brand.inkMuted)
-                    Text(entry.what).font(TypeStyle.body.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                    Text(String(entry.year)).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
+                    Text(entry.what).font(TypeStyle.body.strong).foregroundStyle(Brand.ink)
                     if let line = entry.line { Text(line).textStyle(.callout, color: Brand.ink.opacity(0.85)) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(14)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .padding(.vertical, Brand.space3)
+            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
         }
         .buttonStyle(.plain)
     }
@@ -329,7 +420,7 @@ struct RingSheet: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(ring.label).font(TypeStyle.body.font.weight(.heavy)).foregroundStyle(Brand.ink)
+                                Text(ring.label).font(TypeStyle.body.strong).foregroundStyle(Brand.ink)
                                 Text(ring.promise).textStyle(.caption, color: Brand.inkMuted)
                             }
                             Spacer()
@@ -385,21 +476,261 @@ struct BirthdayEditor: View {
 }
 
 /// The system contact picker. Picking needs no Contacts permission.
-struct ContactPicker: UIViewControllerRepresentable {
-    var onPick: (CNContact) -> Void
+/// It must be presented directly by UIKit: wrapped in a SwiftUI sheet it shows a blank screen
+/// (build 1003 bug, Nov 12). The picker dismisses itself when a contact is chosen or on Cancel.
+@MainActor
+final class ContactPickerPresenter: NSObject, CNContactPickerDelegate {
+    static let shared = ContactPickerPresenter()
+    private var onPick: ((CNContact) -> Void)?
 
-    func makeUIViewController(context: Context) -> CNContactPickerViewController {
-        let vc = CNContactPickerViewController()
-        vc.delegate = context.coordinator
-        return vc
+    func present(onPick: @escaping (CNContact) -> Void) {
+        guard let top = Self.topViewController() else { return }
+        self.onPick = onPick
+        let picker = CNContactPickerViewController()
+        picker.delegate = self
+        top.present(picker, animated: true)
     }
 
-    func updateUIViewController(_ vc: CNContactPickerViewController, context: Context) {}
-    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+    nonisolated func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
+        Task { @MainActor in
+            let callback = self.onPick
+            self.onPick = nil
+            // Let the picker finish dismissing before the app changes screens.
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            callback?(contact)
+        }
+    }
 
-    final class Coordinator: NSObject, CNContactPickerDelegate {
-        let onPick: (CNContact) -> Void
-        init(onPick: @escaping (CNContact) -> Void) { self.onPick = onPick }
-        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) { onPick(contact) }
+    nonisolated func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+        Task { @MainActor in self.onPick = nil }
+    }
+
+    static func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        let window = scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
+        var top = window?.rootViewController
+        while let next = top?.presentedViewController, !next.isBeingDismissed { top = next }
+        return top
+    }
+}
+
+/// Edit the portrait: loves (comma separated), sizes, and one line of good to know.
+struct PortraitEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var loves = ""
+    @State private var sizes = ""
+    @State private var note = ""
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "What does \(person.name) love?",
+                     subtitle: "Your words, kept on this iPhone. Held Dear uses them for ideas and card words.")
+            LineField(label: "Loves, separated by commas", text: $loves, placeholder: "Gardening, dark chocolate, the Cubs")
+            LineField(label: "Sizes", text: $sizes, placeholder: "M tops, 8.5 shoes", showsDictation: false)
+            LineField(label: "Good to know", text: $note, placeholder: "Allergic to lilies")
+        } footer: {
+            PrimaryButton(title: "Save") {
+                person.loves = loves.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                person.sizes = sizes.trimmingCharacters(in: .whitespaces).nilIfEmpty
+                person.goodToKnow = note.trimmingCharacters(in: .whitespaces).nilIfEmpty
+                model.save()
+                dismiss()
+            }
+        }
+        .onAppear {
+            loves = person.loves.joined(separator: ", ")
+            sizes = person.sizes ?? ""
+            note = person.goodToKnow ?? ""
+        }
+    }
+}
+
+/// Wraps chips onto as many lines as they need.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxX: CGFloat = 0
+        for v in subviews {
+            let size = v.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
+            x += size.width + spacing
+            maxX = max(maxX, x - spacing)
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: min(maxX, width), height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for v in subviews {
+            let size = v.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX { x = bounds.minX; y += rowHeight + spacing; rowHeight = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
+/// Photos from past birthdays, found in the Photos library on this iPhone.
+/// Free shows the most recent year; Lifetime shows every year.
+struct BirthdayMemories: View {
+    @EnvironmentObject var model: AppModel
+    @ObservedObject private var photos = PhotoMemories.shared
+    @ObservedObject private var purchases = Purchases.shared
+    let person: Person
+    let month: Int
+    let day: Int
+    var showLifetime: () -> Void
+    @State private var years: [PhotoMemories.Year] = []
+    @State private var picked: PHAsset?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Brand.space3) {
+            if photos.canRead {
+                if !years.isEmpty {
+                    Text("On \(person.name)'s birthdays").textStyle(.headline)
+                    ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
+                    if !purchases.hasLifetime && years.count > 1 {
+                        TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
+                    }
+                }
+            } else if photos.status == .notDetermined {
+                OptionRow(title: "Photos from \(person.name)'s birthdays",
+                          caption: "Held Dear looks in your library on this iPhone") {
+                    Task { await photos.requestAccess(); load() }
+                }
+            }
+        }
+        .onAppear(perform: load)
+        .confirmationDialog("Use this photo on \(person.name)'s card?", isPresented: Binding(get: { picked != nil }, set: { if !$0 { picked = nil } }),
+                            titleVisibility: .visible) {
+            Button("Use for the card") { if let a = picked { use(a) } }
+        }
+    }
+
+    private func yearRow(_ y: PhotoMemories.Year) -> some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Text(String(y.year)).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(y.assets, id: \.localIdentifier) { asset in
+                        Button { picked = asset } label: { AssetThumb(asset: asset, side: 104) }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Photo from \(String(y.year))")
+                    }
+                }
+            }
+        }
+    }
+
+    private func load() {
+        years = photos.years(month: month, day: day)
+    }
+
+    private func use(_ asset: PHAsset) {
+        Task {
+            if let image = await photos.fullImage(asset), let file = PhotoStore.save(image) {
+                person.photoFiles.append(file)
+                model.save()
+            }
+        }
+    }
+}
+
+struct AssetThumb: View {
+    let asset: PHAsset
+    let side: CGFloat
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            Brand.card
+            if let image { Image(uiImage: image).resizable().scaledToFill() }
+        }
+        .frame(width: side, height: side)
+        .clipped()
+        .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.thumbnail(asset, side: side) }
+    }
+}
+
+/// Add an occasion: first what kind (one decision), then the date if it needs one.
+struct AddOccasionView: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var type: OccasionType?
+    @State private var date = Date()
+    @State private var knowsYear = false
+    @State private var partner = ""
+
+    var body: some View {
+        if let type { dateStep(type) } else { pickStep }
+    }
+
+    private var choices: [OccasionType] {
+        OccasionType.allCases.filter { t in
+            t != .birthday && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
+        }
+    }
+
+    private var pickStep: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "What else matters for \(person.name)?")
+            section("Every year", choices.filter { $0.kind == .yearly })
+            section("Holidays", choices.filter { $0.kind == .holiday })
+            section("Life moments", choices.filter { $0.kind == .once })
+        }
+    }
+
+    @ViewBuilder private func section(_ title: String, _ items: [OccasionType]) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: title)
+                ForEach(items) { t in
+                    OptionRow(title: t.label, caption: caption(t)) {
+                        if t.needsDate { type = t } else { save(t) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func caption(_ t: OccasionType) -> String? {
+        switch t {
+        case .christmas: "December 25"
+        case .valentines: "February 14"
+        case .mothersDay: "Second Sunday in May"
+        case .fathersDay: "Third Sunday in June"
+        case .anniversary: "Theirs, or yours together"
+        default: nil
+        }
+    }
+
+    private func dateStep(_ t: OccasionType) -> some View {
+        FlowScreen(onClose: { type = nil }) {
+            Question(title: t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?")
+            DatePicker(t.label, selection: $date, displayedComponents: .date)
+                .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
+            if t == .anniversary {
+                LineField(label: "With (optional)", text: $partner, placeholder: "Dad", showsDictation: false)
+                Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
+            }
+        } footer: {
+            PrimaryButton(title: "Save") { save(t) }
+        }
+    }
+
+    private func save(_ t: OccasionType) {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        let year: Int? = t.kind == .once ? c.year : (t == .anniversary && knowsYear ? c.year : nil)
+        model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
+                          partnerName: t == .anniversary ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
+        dismiss()
     }
 }

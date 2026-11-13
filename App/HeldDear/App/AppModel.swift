@@ -131,7 +131,8 @@ final class AppModel: ObservableObject {
                            dueDate: m.dueDate, status: m.status, planKind: plan?.kind, planTitle: plan?.title, planDone: plan?.isDone ?? false,
                            greetingDone: m.greetingSent,
                            anyActDone: m.anyActDone, openWishCount: person?.openWishes.count ?? 0,
-                           hasPhone: phone(for: person) != nil, turning: m.turning, headsUpAt: m.headsUpAt)
+                           hasPhone: phone(for: person) != nil, turning: m.turning, headsUpAt: m.headsUpAt,
+                           occasion: m.type, partnerName: m.occasion?.partnerName)
     }
 
     func seasons(now: Date = Date()) -> [Season] {
@@ -198,6 +199,23 @@ final class AppModel: ObservableObject {
         }
         setBirthday(person, month: month, day: day, year: year)
         return person
+    }
+
+    /// Adds a non-birthday occasion: an anniversary, a holiday, or a one-time life moment.
+    func addOccasion(_ person: Person, type: OccasionType, month: Int, day: Int, year: Int?, partnerName: String? = nil) {
+        if type.kind == .holiday, person.occasions.contains(where: { $0.type == type }) { return }
+        let occasion = Occasion(type: type, month: month, day: day, birthYear: year)
+        occasion.partnerName = partnerName
+        context.insert(occasion)
+        occasion.person = person
+        MomentEngine.refresh(context)
+        commit()
+    }
+
+    func removeOccasion(_ occasion: Occasion) {
+        guard occasion.type != .birthday else { return }
+        context.delete(occasion)
+        commit()
     }
 
     func setBirthday(_ person: Person, month: Int, day: Int, year: Int?) {
@@ -437,7 +455,7 @@ final class AppModel: ObservableObject {
         AppGroup.write(people, to: AppGroup.peopleURL)
         let next = MomentEngine.visibleMoments(context, now: now).filter { $0.dueDate >= Calendar.current.startOfDay(for: now) }.prefix(3).compactMap { m -> WidgetSnapshot.Entry? in
             guard let p = m.person else { return nil }
-            let detail = m.turning.map { "turning \($0)" }
+            let detail = m.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() }
             var soon: String?
             let days = OccasionDates.daysBetween(now, m.dueDate)
             if days <= 3 {
@@ -448,7 +466,7 @@ final class AppModel: ObservableObject {
                 default: soon = days == 0 ? "Message ready today" : "Message ready \(weekday)"
                 }
             }
-            return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.occasion?.type.label ?? "Birthday",
+            return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.type.label,
                                         dueDate: m.dueDate, detail: detail, soonLine: soon)
         }
         AppGroup.write(WidgetSnapshot(next: Array(next), writtenAt: now), to: AppGroup.widgetURL)
@@ -466,4 +484,5 @@ struct PhotoChoice: Identifiable {
 
 extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }
