@@ -29,7 +29,8 @@ SKU helddear001. iOS 26, iPhone only.
   deleted 30 days after the day (Vercel Blob, daily cleanup cron). Family's notes are untrusted text, always escaped.
 - Mailed cards are paid with Apple Pay through Stripe, never in-app purchase (App Review 3.1.3(e)).
 - No guilt: no streaks, red badges, or "you forgot". A missed birthday gets a way back.
-- Plum (`Brand.action`) is the only color for things you tap. Coral never holds text. Nunito is bundled.
+- Quiet look (v2, Nov 12): `Brand.action` (near-black, ivory in dark mode) is the only color for things you tap.
+  The terracotta accent never holds text. Instrument Sans and Instrument Serif are bundled. Square corners, hairlines.
 - No pronouns for people: the app doesn't know them. Use the name ("Call Mom").
 
 ## Safety
