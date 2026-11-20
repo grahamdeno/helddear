@@ -105,7 +105,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
-- **Go-aheads under playbook 1.4.0:** merge PR #11 and PR #12 (Nov 20). Scope reopened once on Nov 20 (see
+- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12 and PR #14, the data foundation (Nov 20). Scope reopened once on Nov 20 (see
   Decision log).
 
 ## Dated checks
