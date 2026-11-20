@@ -80,6 +80,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | 1.0 scope reopened once to add: readiness per person from their own plan, family step words with the last step as ready, suggested parts by relationship (1.6) and a relationship field | They make the holiday page work as mocked up |
 | Nov 20, 2026 | Core job for 1.0: plan the whole occasion. Each occasion has parts, each part an owner, a status and a date. The gift shelf feeds the Gift part | Fable's strategy review (Go) and Graham's own paper plan |
 | Nov 20, 2026 | Free: reminders, morning-of message and yearly line for everyone; plans for 3 people. Lifetime unlocks plans for everyone | The free version never lets anyone miss a date; plans show the value before paying |
 | Nov 20, 2026 | Lifetime purchase: Product ID `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on | A household app; Family Sharing can't be turned off later |
@@ -99,10 +100,11 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 ## Release scope
 
 - **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.7, R1 to R4),
-  Epic 1 (1.1 to 1.5), then polish of the kept features. New ideas go to 1.1.
+  Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
-- **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
+- **Go-aheads under playbook 1.4.0:** merge PR #11 and PR #12 (Nov 20). Scope reopened once on Nov 20 (see
+  Decision log).
 
 ## Dated checks
 
@@ -133,10 +135,16 @@ As a user, I want each shared holiday to appear once on my timeline so that a bu
 - Given only 1 person with Mother's Day, when I view Home, then it still shows as a holiday marker.
 
 #### 1.2 The holiday page
-As a user, I want one page per holiday listing everyone and where each plan stands so that I can plan the whole
+As a user, I want one page per holiday listing everyone and how ready each person is so that I can plan the whole
 holiday in one place.
-- Given the Christmas page, when I open it, then each person shows one status: no plan, idea picked, ordered,
-  arrived or done.
+- Each person's readiness comes from their own plan for that holiday: ready when every part of it is at its last
+  step. People can have different parts, so each counts their own steps.
+- Given a spouse with 4 parts, 2 ready, then the holiday page shows "2 of 4 ready" as a bar with one segment per part.
+- Given a brother with 1 part, ready, then he shows "Ready".
+- Given I move a part to its last step, then that person's readiness, the holiday page and Home all update.
+- The holiday page shows how many people are ready and how many things are ready, and offers the least-ready person
+  next as its one main action.
+- Approved mockup: https://claude.ai/artifact/4kya3FCLNtXNTjJtr6Hfw5 (Nov 20, 2026).
 - Given I choose a gift for one person there, when I save, then it appears on that person's page and in their yearly
   record, and I return to the holiday page.
 - The holiday page is a browse screen, like Home. Planning one person uses the existing one-decision-per-screen flow.
@@ -155,6 +163,20 @@ As a user, I want to choose which shared holidays Held Dear keeps so that only t
 - Given I chose Christmas and Mother's Day, when I add an occasion to a person, then only those holidays are offered.
 - Given no one has Christmas yet, when I view Home, then there is no Christmas marker.
 - Given I add Christmas to one person, when I view Home, then the Christmas event appears on the timeline.
+
+#### 1.6 Suggested parts by relationship
+As a parent, I want each person's holiday plan to start with what families usually plan for that relationship so that
+I'm not building every list from scratch.
+- Christmas suggestions: spouse or partner: Gift, Stocking, Card, Gift from the kids. Child: Gift, From Santa,
+  Stocking. Parent or grandparent: Gift, Card. Sibling or in-law: Gift. Teacher, coach or neighbor: Small gift or card.
+- Given a person is my daughter, when she joins Christmas, then her plan starts with Gift, From Santa and Stocking.
+- Given a suggestion doesn't fit, when I remove it, then readiness counts only what's left.
+- Birthdays get their own suggested set, settled in Shape.
+
+#### Requirement: relationship on each person
+Each person has a relationship to the user (for example wife, son, mother, brother), read from the Contacts
+relationship label where set, otherwise asked with one tap. Stored data change: Opus reviews the migration, Graham
+approves. Enforced by a unit test on the suggestion rules.
 
 **Out of scope:** group gifts from several givers (stage 4), budgets, holidays beyond the four (Hanukkah, Easter,
 Thanksgiving are a later item).
@@ -192,11 +214,16 @@ As a parent, I want each part to have an owner so that gifts from my kids happen
 - Given a part, when I set its owner, then it shows "You" or a family member's name.
 - Given a part owned by the daughters, then it counts as open until it's marked done.
 
-#### 2.3 Status and date
-As a user, I want each part to show where it stands so that I see what's done at a glance.
-- States: open, idea, scheduled, ordered, arrived, done. Scheduled and ordered carry a date and, optionally, where
-  it came from.
-- Given a gift ordered Oct 1 from a named shop, then it reads "Ordered Oct 1, [shop]".
+#### 2.3 Steps and notes
+As a user, I want each part to show where it stands in words families use so that I see what's ready at a glance.
+- Each kind of part has its own steps; the last step is ready:
+  - Gift, Stocking, From Santa: Not started, Have an idea, Bought, Wrapped.
+  - Card: Not started, Have an idea, Written.
+  - Made by the kids: Not started, Have an idea, Making it, Finished.
+  - The day (an outing, a dinner): Not started, Have an idea, Booked.
+- A part can carry a short note and a date, such as "arrives Dec 12" or where it came from.
+- Given a gift bought from a named shop that arrives Dec 12, then it reads "Bought" with the note
+  "[shop], arrives Dec 12".
 
 #### 2.4 What's still open
 As a user, I want to see unplanned parts so that I act early.
