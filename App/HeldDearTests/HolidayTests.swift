@@ -157,6 +157,35 @@ final class HolidayTests: XCTestCase {
         XCTAssertFalse(Relationship.isHouseholdGiver(relationship: nil, isInner: false))
     }
 
+    // MARK: Finds
+
+    func testFinds_matchTheItemAndTheGiver() {
+        let kids = Finds.matches(kind: .kidsMade, fromKids: true, loves: [], dismissed: [])
+        XCTAssertEqual(kids.map(\.id), ["tamara-silk-scarf-kit", "star-child-special-edition"])
+        let cake = Finds.matches(kind: .cake, fromKids: false, loves: [], dismissed: [])
+        XCTAssertEqual(cake.map(\.id), ["boarderie-dessert-board"])
+        let fromYou = Finds.matches(kind: .gift, fromKids: false, loves: [], dismissed: [])
+        XCTAssertEqual(fromYou.map(\.id), ["cns-watch-bands"], "Kids-only finds don't show for a gift from you")
+        XCTAssertTrue(Finds.matches(kind: .card, fromKids: false, loves: [], dismissed: []).isEmpty)
+    }
+
+    func testFinds_lovesRankAndDismissedNeverReturn() {
+        let ranked = Finds.matches(kind: .kidsMade, fromKids: true, loves: ["Reading books"], dismissed: [])
+        XCTAssertEqual(ranked.first?.id, "star-child-special-edition")
+        let left = Finds.matches(kind: .kidsMade, fromKids: true, loves: [], dismissed: ["tamara-silk-scarf-kit"])
+        XCTAssertEqual(left.map(\.id), ["star-child-special-edition"])
+        let d = UserDefaults(suiteName: "Finds-\(UUID())")!
+        let person = UUID()
+        Finds.dismiss("boarderie-dessert-board", for: person, d)
+        XCTAssertEqual(Finds.dismissed(for: person, d), ["boarderie-dessert-board"])
+    }
+
+    func testFinds_orderByUsesTheLeadTime() {
+        let board = Finds.catalog.first { $0.id == "boarderie-dessert-board" }!
+        XCTAssertEqual(Finds.orderBy(board, due: day(2027, 1, 16), calendar: cal), day(2027, 1, 9))
+        XCTAssertTrue(Finds.meta(board, due: day(2027, 1, 16), calendar: cal).hasPrefix("Boarderie · order by"))
+    }
+
     // MARK: R2, R3 build switches
 
     func testBuildSwitches_offInTestBuilds() {

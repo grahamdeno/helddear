@@ -323,7 +323,9 @@ private struct PartScreen: View {
                 .frame(minHeight: 44, alignment: .topLeading)
                 .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
             standsList
+            linkRow
             shelfList
+            findsList
             ownersList
         } footer: {
             PrimaryButton(title: "Done") { saveNote(); back() }
@@ -395,6 +397,77 @@ private struct PartScreen: View {
                     .tint(Brand.action)
                     .frame(minHeight: 52)
                     .padding(.top, Brand.space2)
+            }
+        }
+    }
+
+    /// The item's link: what was bought, or where to track it. Paste one any time (no clipboard prompt).
+    @ViewBuilder private var linkRow: some View {
+        let link = act.wishID.flatMap { id in person?.wishes.first { $0.id == id } }?.url.flatMap(URL.init(string:))
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Link")
+            if let link {
+                Link(destination: link) {
+                    Text(link.host() ?? link.absoluteString).font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                        .frame(minHeight: 44, alignment: .leading)
+                }
+                .accessibilityLabel("Open the link, \(link.host() ?? "")")
+            } else {
+                Text("Copy a link to what you ordered, or its tracking page, then paste it here.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
+            PasteButton(payloadType: URL.self) { urls in
+                if let url = urls.first { model.attachLink(url, to: act) }
+            }
+            .buttonBorderShape(.capsule)
+            .tint(Brand.action)
+            .labelStyle(.titleAndIcon)
+        }
+    }
+
+    /// Finds (approved Nov 20, 2026): at most two, from the catalog in the app, fitted to the item, the giver and
+    /// what the person loves. Use this makes it the idea; Not for her hides it for good.
+    @ViewBuilder private var findsList: some View {
+        let _ = model.revision
+        if let person, let due = act.moment?.dueDate, act.wishID == nil {
+            let finds = Finds.matches(kind: act.kind, fromKids: act.kind == .kidsMade, loves: person.loves,
+                                      dismissed: Finds.dismissed(for: person.id))
+            if !finds.isEmpty {
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: act.kind == .kidsMade ? "Finds the kids could give" : "A find for \(person.name)")
+                    ForEach(finds) { find in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(find.name).textStyle(.bodyStrong)
+                            Text(Finds.meta(find, due: due)).textStyle(.caption, color: Brand.inkMuted)
+                            Text(find.why).font(Brand.serif(16, relativeTo: .callout)).foregroundStyle(Brand.inkSoft)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: Brand.space3) {
+                                Button { if !model.useFind(find, for: act) { showLifetime = true } } label: {
+                                    Text("Use this").font(.callout.weight(.semibold)).foregroundStyle(Brand.ink)
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .overlay { RoundedRectangle(cornerRadius: Brand.radiusLg).strokeBorder(Brand.ink, lineWidth: 1) }
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(PressStyle())
+                                .accessibilityLabel("Use \(find.name)")
+                                Button { model.dismissFind(find, for: person) } label: {
+                                    Text("Not for \(person.name)").font(.callout).foregroundStyle(Brand.action)
+                                        .frame(minHeight: 44)
+                                }
+                                .buttonStyle(PressStyle())
+                                .accessibilityLabel("Hide \(find.name) for \(person.name)")
+                            }
+                            .padding(.top, 4)
+                            if let url = URL(string: find.url) {
+                                Link("See it at \(find.maker)", destination: url)
+                                    .font(.callout).foregroundStyle(Brand.action).frame(minHeight: 44)
+                            }
+                        }
+                        .padding(Brand.space4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+                    }
+                }
             }
         }
     }

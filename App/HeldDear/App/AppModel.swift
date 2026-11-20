@@ -423,6 +423,40 @@ final class AppModel: ObservableObject {
         return true
     }
 
+    /// A find becomes the item's idea: saved to the person's shelf with its link, then chosen for the item, with a
+    /// note naming the maker and the order-by date when the item has no note yet.
+    @discardableResult
+    func useFind(_ find: Find, for act: Act) -> Bool {
+        guard let person = act.moment?.person else { return false }
+        addWish(to: person, text: find.name, url: find.url)
+        guard let wish = person.wishes.first(where: { $0.text == find.name && $0.url == find.url && $0.status == .open }) else { return false }
+        if act.note == nil, let due = act.moment?.dueDate { act.note = Finds.meta(find, due: due) }
+        return pickWish(wish, for: act)
+    }
+
+    func dismissFind(_ find: Find, for person: Person) {
+        Finds.dismiss(find.id, for: person.id)
+        revision += 1
+    }
+
+    /// A link for an item (what was bought, tracking): kept with the item through a shelf entry, so nothing new is
+    /// stored. Replaces the item's link if it had one from a shelf entry.
+    func attachLink(_ url: URL, to act: Act) {
+        guard let person = act.moment?.person else { return }
+        let text = act.title ?? PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)
+        if let id = act.wishID, let wish = person.wishes.first(where: { $0.id == id }) {
+            wish.url = url.absoluteString
+        } else {
+            let wish = Wish(text: text, url: url.absoluteString)
+            wish.status = .used   // a link for this item, not an idea for the shelf
+            context.insert(wish)
+            wish.person = person
+            act.wishID = wish.id
+            if act.title == nil { act.title = text }
+        }
+        commit()
+    }
+
     func setRelationship(_ person: Person, _ relationship: String?) {
         person.relationship = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         commit()
