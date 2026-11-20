@@ -130,7 +130,7 @@ struct ChooseStep: View {
                 ForEach(wishes.dropFirst(), id: \.id) { wish in
                     PlanTile(title: wish.text, caption: "Saved idea") { pick(.gift, wish: wish) }
                 }
-                if days >= 6 {
+                if days >= 6 && AppFeatures.serverFeatures {
                     PlanTile(title: "Mail a real card", caption: "Pen-written, mailed for you · $6.99", filled: wishes.isEmpty) { go(.mailCard) }
                 }
                 PlanTile(title: "Find a gift", caption: "Ideas for \(name), and your shelf") { model.route = .ideas(moment.id) }

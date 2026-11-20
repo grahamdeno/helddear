@@ -114,7 +114,7 @@ struct SettingsView: View {
                         showLifetime = true
                     }
                 }
-                if purchases.isTestBuild {
+                if purchases.isTestBuild && AppFeatures.testFlightTools {
                     VStack(alignment: .leading, spacing: Brand.space2) {
                         Eyebrow(text: "TestFlight only")
                         Toggle(isOn: Binding(get: { purchases.hasLifetime },
@@ -124,6 +124,18 @@ struct SettingsView: View {
                                 Text("Turns the paid features on without buying. Not in the App Store version. A sandbox purchase also works and is free.")
                                     .textStyle(.caption, color: Brand.inkMuted)
                             }
+                        }
+                        .tint(Brand.action)
+                        .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    }
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Holidays you celebrate")
+                    ForEach(Holidays.offeredIn1_0) { type in
+                        Toggle(isOn: Binding(get: { Holidays.enabled().contains(type) },
+                                             set: { on in Holidays.setEnabled(type, on); model.save() })) {
+                            Text(type.label).textStyle(.body)
                         }
                         .tint(Brand.action)
                         .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)

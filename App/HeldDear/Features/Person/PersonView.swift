@@ -34,7 +34,7 @@ struct PersonView: View {
                 PersonYears(person: person)
                     .padding(.horizontal, -Brand.space5)
                 if let next = model.nextMoment(for: person) {
-                    FamilyPageSection(person: person, moment: next)
+                    if AppFeatures.serverFeatures { FamilyPageSection(person: person, moment: next) }
                     scheduleCard(next)
                 }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
@@ -189,11 +189,11 @@ struct PersonView: View {
                     .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
             }
             if let next = model.nextMoment(for: person), next.status != .missed {
-                PrimaryButton(title: "Plan \(person.name)'s day") { model.route = .moment(next.id, .auto) }
+                PrimaryButton(title: "Plan \(person.name)'s day") { model.route = .plan(next.id) }
                     .padding(.top, Brand.space2)
                 let days = OccasionDates.daysBetween(Date(), next.dueDate)
                 HStack(spacing: Brand.space4) {
-                    if days >= 6 {
+                    if days >= 6 && AppFeatures.serverFeatures {
                         TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
                     }
                     TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
@@ -717,6 +717,7 @@ struct AddOccasionView: View {
     private var choices: [OccasionType] {
         OccasionType.allCases.filter { t in
             t != .birthday && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
+                && (t.kind != .holiday || Holidays.enabled().contains(t))
         }
     }
 

@@ -34,7 +34,8 @@ final class Purchases: ObservableObject {
 
     func refresh() async {
         if let result = try? await AppTransaction.shared, case .verified(let t) = result {
-            isTestBuild = t.environment != .production
+            // The TestFlight-only switch needs both a TestFlight build (roadmap R3) and Apple's sandbox.
+            isTestBuild = AppFeatures.testFlightTools && t.environment != .production
         }
         if product == nil {
             product = try? await Product.products(for: [Self.lifetimeID]).first

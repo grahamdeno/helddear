@@ -32,6 +32,8 @@ enum Route: Identifiable, Equatable {
     case ideas(UUID)
     /// The occasion plan for a Moment (its id).
     case plan(UUID)
+    /// A shared holiday's page: the occasion type's raw value and the year.
+    case holiday(String, Int)
 
     var id: String {
         switch self {
@@ -45,6 +47,7 @@ enum Route: Identifiable, Equatable {
         case .lifetime: "lifetime"
         case .ideas(let id): "ideas-\(id)"
         case .plan(let id): "plan-\(id)"
+        case .holiday(let type, let year): "holiday-\(type)-\(year)"
         }
     }
 }
@@ -368,8 +371,74 @@ final class AppModel: ObservableObject {
     // MARK: Occasion plan (roadmap Epic 2)
 
     /// The user picked a step for a part. Reaching the ready step completes it; leaving it undoes that.
-    func setStep(_ act: Act, _ step: String) {
+    /// Returns false, changing nothing, when the free plan limit stops it (roadmap 2.7); the screen offers Lifetime.
+    @discardableResult
+    func setStep(_ act: Act, _ step: String) -> Bool {
+        if step != "open", let person = act.moment?.person,
+           !PlanLimit.allows(personID: person.id, plannedPeople: plannedPeople(), hasLifetime: Purchases.shared.hasLifetime) {
+            return false
+        }
         PlanStore.setStep(act, to: step)
+        commit()
+        return true
+    }
+
+    /// People with a plan: any part moved past Not started (roadmap 2.7).
+    func plannedPeople() -> Set<UUID> {
+        var ids = Set<UUID>()
+        for m in allMoments() {
+            guard let p = m.person else { continue }
+            if m.planParts.contains(where: { ($0.step ?? "open") != "open" }) { ids.insert(p.id) }
+        }
+        return ids
+    }
+
+    /// The shelf feeds the gift (roadmap 2.5): a saved wish becomes the part's idea.
+    @discardableResult
+    func pickWish(_ wish: Wish, for act: Act) -> Bool {
+        act.title = wish.text
+        act.wishID = wish.id
+        if (act.currentStep ?? "open") == "open" {
+            return setStep(act, "idea")
+        }
+        commit()
+        return true
+    }
+
+    func setRelationship(_ person: Person, _ relationship: String?) {
+        person.relationship = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        commit()
+    }
+
+    // MARK: Shared holidays (roadmap Epic 1)
+
+    /// Every person's moment for one holiday in one year, by name.
+    func holidayMembers(type: OccasionType, year: Int) -> [Moment] {
+        allMoments().filter { $0.type == type && $0.year == year && $0.person != nil }
+            .sorted { ($0.person?.name ?? "").localizedCaseInsensitiveCompare($1.person?.name ?? "") == .orderedAscending }
+    }
+
+    /// A person joining a shared holiday starts with what families usually plan for them (roadmap 1.6). Only a plan
+    /// with nothing in it is started; nothing else is ever changed here.
+    func startHolidayPlan(_ m: Moment) {
+        guard m.type.kind == .holiday, !m.acts.contains(where: { $0.role == .plan }) else { return }
+        for s in PartSuggestions.holidayStart(for: m.type, relationship: m.person?.relationship) {
+            PlanStore.addPart(to: m, kind: s.kind, label: s.label, in: context)
+        }
+        commit()
+    }
+
+    /// Adds a person to a shared holiday and starts their plan.
+    func addToHoliday(_ person: Person, type: OccasionType, year: Int) {
+        if !person.occasions.contains(where: { $0.type == type }) {
+            let occasion = Occasion(type: type, month: type.fixedHoliday?.month ?? 1, day: type.fixedHoliday?.day ?? 1)
+            context.insert(occasion)
+            occasion.person = person
+            MomentEngine.refresh(context)
+        }
+        if let m = holidayMembers(type: type, year: year).first(where: { $0.person?.id == person.id }) {
+            startHolidayPlan(m)
+        }
         commit()
     }
 

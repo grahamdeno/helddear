@@ -6,8 +6,10 @@ import SwiftUI
 struct PlanView: View {
     @EnvironmentObject var model: AppModel
     let moment: Moment
+    /// Where the close control goes: a holiday page passes its own; otherwise the plan closes its cover.
+    var onClose: (() -> Void)? = nil
 
-    private enum Screen: Equatable { case plan, part(UUID), add, name }
+    private enum Screen: Equatable { case plan, part(UUID), add, name, relationship }
     @State private var screen: Screen = .plan
     @State private var newName = ""
 
@@ -22,15 +24,21 @@ struct PlanView: View {
 
     var body: some View {
         switch screen {
-        case .plan: planScreen
+        case .plan: planScreen.onAppear { model.startHolidayPlan(moment) }
         case .part(let id):
             if let act = parts.first(where: { $0.id == id }) {
-                PartScreen(act: act, household: household, personName: personName) { screen = .plan }
+                PartScreen(act: act, household: household, personName: personName, person: person) { screen = .plan }
             } else {
                 Color.clear.onAppear { screen = .plan }
             }
         case .add: addScreen
         case .name: nameScreen
+        case .relationship:
+            if let person {
+                RelationshipPicker(person: person) { screen = .plan }
+            } else {
+                Color.clear.onAppear { screen = .plan }
+            }
         }
     }
 
@@ -65,7 +73,7 @@ struct PlanView: View {
     private var planScreen: some View {
         let readiness = PlanReadiness.counts(parts.map { (family: family($0), step: step($0)) })
         let nudge = self.nudge
-        return FlowScreen(onClose: { model.route = nil }) {
+        return FlowScreen(onClose: onClose ?? { model.route = nil }) {
             Eyebrow(text: eyebrow)
             Text(personName)
                 .font(Brand.display(72, relativeTo: .largeTitle)).tracking(-1.5)
@@ -75,6 +83,9 @@ struct PlanView: View {
                 .accessibilityAddTraits(.isHeader)
             if let line = PlanReadiness.relationLine(relationship: person?.relationship, turning: moment.turning) {
                 Text(line).textStyle(.callout, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
+            }
+            if person != nil && person?.relationship == nil {
+                TextLink(title: "Who is \(personName) to you?") { screen = .relationship }
             }
             VStack(alignment: .leading, spacing: Brand.space2) {
                 readinessBar
@@ -234,10 +245,12 @@ private struct PartScreen: View {
     let act: Act
     let household: [Person]
     let personName: String
+    let person: Person?
     let back: () -> Void
 
     @State private var note = ""
     @State private var loaded = false
+    @State private var showLifetime = false
     @FocusState private var noteFocused: Bool
 
     private var family: PartSteps.Family { PartSteps.family(forKindRaw: act.kindRaw) }
@@ -261,10 +274,12 @@ private struct PartScreen: View {
                 .frame(minHeight: 44, alignment: .topLeading)
                 .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
             standsList
+            shelfList
             ownersList
         } footer: {
             PrimaryButton(title: "Done") { saveNote(); back() }
         }
+        .sheet(isPresented: $showLifetime) { LifetimeView() }
         .onAppear {
             guard !loaded else { return }
             note = act.note ?? ""
@@ -282,7 +297,7 @@ private struct PartScreen: View {
             Eyebrow(text: "Where it stands").padding(.bottom, Brand.space2)
             ForEach(PartSteps.steps(for: family), id: \.self) { step in
                 let selected = step == current
-                Button { model.setStep(act, step) } label: {
+                Button { if !model.setStep(act, step) { showLifetime = true } } label: {
                     HStack(spacing: Brand.space3) {
                         Image(systemName: selected ? "largecircle.fill.circle" : "circle")
                             .font(.system(size: 22)).foregroundStyle(selected ? Brand.ink : Brand.inkMuted)
@@ -299,6 +314,37 @@ private struct PartScreen: View {
                 .accessibilityValue(selected ? "Selected" : "Not selected")
                 .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
                 .accessibilityHint("Where it stands. One choice.")
+            }
+        }
+    }
+
+    /// The shelf feeds the gift (roadmap 2.5): saved wishes for this person, one tap to make one the idea.
+    @ViewBuilder private var shelfList: some View {
+        let wishes = person?.openWishes ?? []
+        if family == .buy && (act.kind == .gift || act.kind == .fromSanta || act.kind == .stocking) && !wishes.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "From your saved ideas").padding(.bottom, Brand.space2)
+                ForEach(wishes, id: \.id) { wish in
+                    let chosen = act.wishID == wish.id
+                    Button { if !model.pickWish(wish, for: act) { showLifetime = true } } label: {
+                        HStack(spacing: Brand.space3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(wish.text).textStyle(chosen ? .bodyStrong : .body).multilineTextAlignment(.leading)
+                                Text(wish.savedLine).textStyle(.caption, color: Brand.inkMuted)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(chosen ? "Chosen" : "Use this").font(.callout.weight(.semibold))
+                                .foregroundStyle(chosen ? Brand.inkMuted : Brand.action)
+                        }
+                        .padding(.vertical, Brand.space3)
+                        .frame(minHeight: 56)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle())
+                    .disabled(chosen)
+                    .accessibilityLabel(chosen ? "\(wish.text), chosen" : "Use \(wish.text)")
+                }
             }
         }
     }
@@ -335,5 +381,40 @@ private struct PartScreen: View {
         .buttonStyle(PressStyle())
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+
+/// "Who is Ben to you?" One tap sets the relationship, which shapes suggestions (roadmap 1.6).
+struct RelationshipPicker: View {
+    @EnvironmentObject var model: AppModel
+    let person: Person
+    let done: () -> Void
+
+    var body: some View {
+        FlowScreen {
+            TextLink(title: "‹ \(person.name)'s plan") { done() }
+            Question(title: "Who is \(person.name) to you?", subtitle: "It helps Held Dear suggest what families usually plan.")
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: Brand.space2)], alignment: .leading,
+                      spacing: Brand.space2) {
+                ForEach(Relationship.choices, id: \.self) { word in
+                    let selected = person.relationship?.caseInsensitiveCompare(word) == .orderedSame
+                    Button {
+                        model.setRelationship(person, word)
+                        done()
+                    } label: {
+                        Text(word).font(.callout.weight(.semibold))
+                            .foregroundStyle(selected ? Brand.page : Brand.ink)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background {
+                                if selected { Capsule().fill(Brand.ink) } else { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) }
+                            }
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+                }
+            }
+        }
     }
 }
