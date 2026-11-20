@@ -131,15 +131,22 @@ struct PlanView: View {
     }
 
     private func row(_ act: Act) -> some View {
-        let name = info(act).text
-        let owner = ownerText(act)
+        let ownerNames = household.filter { PartOwners.existing(act.ownerIDs, among: household.map(\.id)).contains($0.id) }.map(\.name)
+        let kidsName = act.kind == .kidsMade && act.label == nil ? PartOwners.kidsGiftName(names: ownerNames) : nil
+        let name = kidsName ?? info(act).text
         let s = step(act)
+        let owner: String = {
+            if act.kind == .kidsMade && ownerNames.isEmpty { return "Choose who it's from" }
+            return ownerText(act)
+        }()
         return Button { screen = .part(act.id) } label: {
             HStack(alignment: .center, spacing: Brand.space3) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).textStyle(.bodyStrong).multilineTextAlignment(.leading)
-                    Text(PartOwners.rowSubtitle(owner: owner, note: act.note))
-                        .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.leading)
+                    let subtitle = kidsName != nil ? (act.note ?? "") : PartOwners.rowSubtitle(owner: owner, note: act.note)
+                    if !subtitle.isEmpty {
+                        Text(subtitle).textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.leading)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 StepPill(step: s, family: family(act))
@@ -181,7 +188,9 @@ struct PlanView: View {
     }
 
     @ViewBuilder private func suggestionRow(_ s: PartSuggestions.Suggestion) -> some View {
-        let added = PartSuggestions.isAdded(s, parts: parts.map { (kindRaw: $0.kindRaw, label: $0.label) })
+        let existing = parts.map { (kindRaw: $0.kindRaw, label: $0.label) }
+        let added = PartSuggestions.isAdded(s, parts: existing) && !PartSuggestions.canAddAgain(s)
+        let already = PartSuggestions.canAddAgain(s) ? PartSuggestions.count(s, parts: existing) : 0
         if added {
             suggestionLabel(s.title, trailing: "Added", color: Brand.inkMuted)
                 .accessibilityElement(children: .ignore)
@@ -192,8 +201,13 @@ struct PlanView: View {
                 if on { picked.remove(s.title) } else { picked.insert(s.title) }
             } label: {
                 HStack(spacing: Brand.space3) {
-                    Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
+                        if already > 0 {
+                            Text("\(already) in the plan. Add another").textStyle(.caption, color: Brand.inkMuted)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: on ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 24))
                         .foregroundStyle(on ? Brand.action : Brand.inkMuted)

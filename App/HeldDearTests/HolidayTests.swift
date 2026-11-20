@@ -127,6 +127,28 @@ final class HolidayTests: XCTestCase {
         XCTAssertTrue(PlanLimit.allows(personID: d, plannedPeople: [a, b, c], hasLifetime: true))
     }
 
+    // MARK: Repeatable parts (feedback on build 1010)
+
+    func testSuggestions_giftsAndKidsGiftsCanBeAddedAgain() {
+        let list = PartSuggestions.suggestions(for: .birthday, relationship: "Wife")
+        let kids = list.first { $0.kind == .kidsMade }!
+        let gift = list.first { $0.kind == .gift }!
+        let cake = list.first { $0.kind == .cake }!
+        let breakfast = list.first { $0.label == "Breakfast in bed" }!
+        XCTAssertTrue(PartSuggestions.canAddAgain(kids))
+        XCTAssertTrue(PartSuggestions.canAddAgain(gift))
+        XCTAssertFalse(PartSuggestions.canAddAgain(cake))
+        XCTAssertFalse(PartSuggestions.canAddAgain(breakfast))
+        let parts: [(kindRaw: String, label: String?)] = [("kidsMade", nil), ("kidsMade", nil), ("cake", nil)]
+        XCTAssertEqual(PartSuggestions.count(kids, parts: parts), 2)
+    }
+
+    func testOwners_kidsGiftNamesWhoItsFrom() {
+        XCTAssertNil(PartOwners.kidsGiftName(names: []))
+        XCTAssertEqual(PartOwners.kidsGiftName(names: ["Sam"]), "Gift from Sam")
+        XCTAssertEqual(PartOwners.kidsGiftName(names: ["Lily", "Rose"]), "Gift from Lily and Rose")
+    }
+
     // MARK: R2, R3 build switches
 
     func testBuildSwitches_offInTestBuilds() {

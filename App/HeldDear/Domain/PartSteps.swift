@@ -187,6 +187,13 @@ enum PartOwners {
     }
 
     /// The row's second line: owner, then " · note" when there's a note.
+    /// A gift from the kids names who it's from once that's set: "Gift from Sam", "Gift from Lily and Rose".
+    /// Nil when nobody is chosen yet (the row keeps "Gift from the kids").
+    static func kidsGiftName(names: [String]) -> String? {
+        guard !names.isEmpty else { return nil }
+        return "Gift " + text(names: names).replacingOccurrences(of: "From ", with: "from ", options: .anchored)
+    }
+
     static func rowSubtitle(owner: String, note: String?) -> String {
         guard let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty else { return owner }
         return "\(owner) · \(note)"
