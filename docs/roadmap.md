@@ -80,6 +80,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | Migration review approved: added fields only, versioned schema, a migration test, never crash on open, no bulk rewrite (M1 to M4) | Protects existing test data and every future update |
 | Nov 20, 2026 | Birthday plan mockup approved: parts with family step words, who it's from (a person or a group), relationship-based suggestions, a calm time-aware note, and the first part not started as the main action | Graham's paper plan, as an app screen |
 | Nov 20, 2026 | 1.0 scope reopened once to add: readiness per person from their own plan, family step words with the last step as ready, suggested parts by relationship (1.6) and a relationship field | They make the holiday page work as mocked up |
 | Nov 20, 2026 | Core job for 1.0: plan the whole occasion. Each occasion has parts, each part an owner, a status and a date. The gift shelf feeds the Gift part | Fable's strategy review (Go) and Graham's own paper plan |
@@ -264,8 +265,23 @@ As a user, I want plans for my 3 closest people free so that I can try the full 
 - **R4. No remote switches:** no feature is turned on from the server. Turning on mailed cards or family pages means
   a new, reviewed app update (App Review guideline 2.3.1). Enforced in review.
 
-**Data:** parts, owners, statuses and dates add stored fields. That's a migration: Opus reviews it and Graham approves
-it before any build, because his own test data is in the TestFlight builds.
+**Data (migration review approved Nov 20, 2026):** all changes are added fields with defaults; nothing is renamed or
+removed.
+- Act (a plan part) gains `label`, `step`, `ownerIDs` (empty means "You"), `note` and `sortOrder` (default 0).
+- Person gains `relationship` (from the Contacts relationship label, otherwise asked with one tap).
+- No stored change for grouped holidays, the single holiday heads-up, several recipients (already stored) or the
+  chosen holidays (a setting).
+- Existing parts get their step when read: a completed gift is Wrapped, a gift with an arrival date is Bought, a gift
+  with a title or shelf item is Have an idea, otherwise Not started; a completed card is Written; a dinner with a date
+  or completed is Booked; call and message plans use Not started and Done and still close on their own. Greetings
+  are not parts.
+- **M1. Versioned schema:** today's model is version 1 and 1.0 is version 2, with a declared lightweight migration.
+- **M2. Migration test:** a test opens a version 1 database with sample data from current builds, migrates it, and
+  checks that every person, occasion, part, shelf item and yearly line survives with the right step.
+- **M3. Never crash on open:** if the database can't be opened, the old file is kept untouched, the app opens empty
+  and says so calmly, and it never crashes in a loop.
+- **M4. No bulk rewrite:** steps for existing parts are worked out when read and stored only when the user changes
+  one.
 
 **Out of scope:** mailed cards and family pages for customers, Valentine's Day, ongoing gifts such as a weekly note,
 budgets, group gifts from several givers.
