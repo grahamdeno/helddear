@@ -32,8 +32,11 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
 - **1.0 scope:** planned Nov 20 after Fable's strategy review (Go). Core job: plan the whole occasion. See
   "Release scope" and Epics 1 and 2.
 - **Christmas hand test** runs Nov 21 to Dec 26 on paper (see "Dated checks").
-- **Next:** words and Horizon mockups for the occasion plan (Epic 2, S1 to S4), then the holiday page (Epic 1)
-  (Held Dear Product, Opus).
+- **Built Nov 20 (PRs #14, #15, #16):** data foundation, occasion plan, holiday page with readiness per person,
+  suggested parts by relationship, shelf to gift, free plan limit, build switches (R2, R3). Test build 1010 from
+  `main` at 04b3527, uploaded under Graham's one-time exemption.
+- **Next:** Graham tests build 1010 (including the device check: his data survives the upgrade), then the UX audit
+  and the 1.0 remainder (Held Dear Product, Opus).
 
 ### Open decisions (carried from the plan doc, not yet decided)
 
@@ -80,6 +83,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | One-time playbook exemption: Opus built, self-reviewed and merged PR #16 and uploaded test build 1010 the same day | Get 1.0 into Graham's hands fast |
 | Nov 20, 2026 | A part's step and its completion agree: reaching the ready step completes it, leaving it undoes that. A plan with several parts, or any part set on the plan screen, drives Home and the occasion's status by readiness; single plans from the older flow keep today's behavior | One answer to "is this done" everywhere |
 | Nov 20, 2026 | Migration review approved: added fields only, versioned schema, a migration test, never crash on open, no bulk rewrite (M1 to M4) | Protects existing test data and every future update |
 | Nov 20, 2026 | Birthday plan mockup approved: parts with family step words, who it's from (a person or a group), relationship-based suggestions, a calm time-aware note, and the first part not started as the main action | Graham's paper plan, as an app screen |
@@ -106,7 +110,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
-- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation) and PR #15 (occasion plan) (Nov 20). Scope reopened once on Nov 20 (see
+- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation), PR #15 (occasion plan) and PR #16 (exemption) (Nov 20); test build 1010 at 04b3527 (Nov 20, exemption). Scope reopened once on Nov 20 (see
   Decision log).
 
 ## Dated checks
