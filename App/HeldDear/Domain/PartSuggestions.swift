@@ -65,6 +65,17 @@ enum PartSuggestions {
         }
     }
 
+    /// Kinds a plan can hold more than once: several gifts, and gifts from different children.
+    static let repeatableKinds: Set<ActKind> = [.gift, .kidsMade]
+
+    /// True when this suggestion can be added again even though the plan already has one.
+    static func canAddAgain(_ s: Suggestion) -> Bool { s.label == nil && repeatableKinds.contains(s.kind) }
+
+    /// How many parts of this suggestion's kind the plan already has.
+    static func count(_ s: Suggestion, parts: [(kindRaw: String, label: String?)]) -> Int {
+        parts.filter { $0.kindRaw == s.kind.rawValue && (s.label == nil || $0.label?.caseInsensitiveCompare(s.label!) == .orderedSame) }.count
+    }
+
     /// True when the plan already has a part like this suggestion ("Added"). A part counts when its kind matches and,
     /// for a suggestion with its own label, the label matches too.
     static func isAdded(_ s: Suggestion, parts: [(kindRaw: String, label: String?)]) -> Bool {

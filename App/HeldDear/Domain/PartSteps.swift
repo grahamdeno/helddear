@@ -28,13 +28,36 @@ enum PartSteps {
         case .day: ["open", "idea", "booked"]
         case .orderAhead: ["open", "idea", "ordered", "ready"]
         case .callOrMessage: ["open", "done"]
-        case .other: ["open", "idea", "ready"]
+        case .other: ["open", "idea", "ordered", "scheduled", "bought", "ready"]
         }
     }
 
+    /// Every status an item can have (feedback on build 1010): each kind shows its own list first (`steps(for:)`),
+    /// and any of these is one tap away under "More".
+    static let allSteps = ["open", "idea", "ordered", "scheduled", "bought", "making", "arrived", "booked", "written",
+                           "wrapped", "finished", "ready"]
+
+    /// Statuses that mean the item is ready for the day.
+    static let readySteps: Set<String> = ["wrapped", "written", "booked", "finished", "ready", "done"]
+
+    /// Statuses that carry a date ("Scheduled Oct 1").
+    static let datedSteps: Set<String> = ["ordered", "scheduled"]
+
+    /// The kind's own last status, used when an item is completed from elsewhere.
     static func readyStep(for family: Family) -> String { steps(for: family).last! }
 
-    static func isReady(step: String, family: Family) -> Bool { step == readyStep(for: family) }
+    static func isReady(step: String, family: Family) -> Bool { readySteps.contains(step) }
+
+    /// True for any status this item may hold: the full list, plus its kind's own (Done for calls and messages).
+    static func isValid(_ step: String, family: Family) -> Bool {
+        allSteps.contains(step) || steps(for: family).contains(step)
+    }
+
+    /// The statuses under "More" for this kind, in the full list's order.
+    static func moreSteps(for family: Family) -> [String] {
+        let own = Set(steps(for: family))
+        return allSteps.filter { !own.contains($0) }
+    }
 
     /// The family for a stored kind. A kind this build doesn't know reads as other, the same way `ActKind` reads it.
     static func family(forKindRaw raw: String) -> Family {
@@ -69,7 +92,7 @@ enum PartSteps {
     static func currentStep(_ f: Facts) -> String? {
         guard f.role == .plan else { return nil }
         let family = family(forKindRaw: f.kindRaw)
-        if let stored = f.storedStep, steps(for: family).contains(stored) { return stored }
+        if let stored = f.storedStep, isValid(stored, family: family) { return stored }
         switch family {
         case .buy:
             if f.completed { return "wrapped" }
@@ -107,7 +130,9 @@ extension PartSteps {
         case "making": "Making it"
         case "finished": "Finished"
         case "booked": "Booked"
-        case "ordered": "Ordered or baking"
+        case "ordered": "Ordered"
+        case "scheduled": "Scheduled"
+        case "arrived": "Arrived"
         case "ready": "Ready"
         case "done": "Done"
         default: "Not started"
@@ -187,6 +212,13 @@ enum PartOwners {
     }
 
     /// The row's second line: owner, then " · note" when there's a note.
+    /// A gift from the kids names who it's from once that's set: "Gift from Sam", "Gift from Lily and Rose".
+    /// Nil when nobody is chosen yet (the row keeps "Gift from the kids").
+    static func kidsGiftName(names: [String]) -> String? {
+        guard !names.isEmpty else { return nil }
+        return "Gift " + text(names: names).replacingOccurrences(of: "From ", with: "from ", options: .anchored)
+    }
+
     static func rowSubtitle(owner: String, note: String?) -> String {
         guard let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty else { return owner }
         return "\(owner) · \(note)"

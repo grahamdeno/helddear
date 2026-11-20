@@ -32,7 +32,7 @@ final class DataFoundationTests: XCTestCase {
         XCTAssertEqual(PartSteps.steps(for: .day), ["open", "idea", "booked"])
         XCTAssertEqual(PartSteps.steps(for: .orderAhead), ["open", "idea", "ordered", "ready"])
         XCTAssertEqual(PartSteps.steps(for: .callOrMessage), ["open", "done"])
-        XCTAssertEqual(PartSteps.steps(for: .other), ["open", "idea", "ready"])
+        XCTAssertEqual(PartSteps.steps(for: .other), ["open", "idea", "ordered", "scheduled", "bought", "ready"])
         for family in PartSteps.Family.allCases {
             XCTAssertEqual(PartSteps.steps(for: family).first, "open")
             XCTAssertEqual(PartSteps.readyStep(for: family), PartSteps.steps(for: family).last)
@@ -100,8 +100,9 @@ final class DataFoundationTests: XCTestCase {
     func testSteps_userPickedStepWins() {
         XCTAssertEqual(PartSteps.currentStep(facts(.gift, step: "idea", completed: true)), "idea")
         XCTAssertEqual(PartSteps.currentStep(facts(.card, step: "idea")), "idea")
-        // A stored step that isn't in the kind's list is ignored and the step is worked out instead.
-        XCTAssertEqual(PartSteps.currentStep(facts(.card, step: "wrapped", completed: true)), "written")
+        // Any status from the full list is kept, even outside the kind's own list; an unknown one is ignored.
+        XCTAssertEqual(PartSteps.currentStep(facts(.card, step: "wrapped", completed: true)), "wrapped")
+        XCTAssertEqual(PartSteps.currentStep(facts(.card, step: "nonsense", completed: true)), "written")
     }
 
     func testSteps_actReadsItsStepAndReadiness() {

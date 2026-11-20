@@ -153,7 +153,7 @@ final class PlanTests: XCTestCase {
         let expected: [String: String] = [
             "open": "Not started", "idea": "Have an idea", "bought": "Bought", "wrapped": "Wrapped",
             "written": "Written", "making": "Making it", "finished": "Finished", "booked": "Booked",
-            "ordered": "Ordered or baking", "ready": "Ready", "done": "Done",
+            "ordered": "Ordered", "ready": "Ready", "done": "Done", "scheduled": "Scheduled", "arrived": "Arrived",
         ]
         for (step, word) in expected { XCTAssertEqual(PartSteps.word(for: step), word, step) }
         for family in PartSteps.Family.allCases {
@@ -189,8 +189,10 @@ final class PlanTests: XCTestCase {
         PlanStore.setStep(act, to: "bought")
         XCTAssertEqual(act.step, "bought")
         XCTAssertEqual(act.currentStep, "bought")
-        PlanStore.setStep(act, to: "ready")
-        XCTAssertEqual(act.step, "bought", "A step that is not in the kind's list is ignored")
+        PlanStore.setStep(act, to: "scheduled")
+        XCTAssertEqual(act.step, "scheduled", "Any status from the full list can be chosen")
+        PlanStore.setStep(act, to: "nonsense")
+        XCTAssertEqual(act.step, "scheduled", "An unknown status is ignored")
     }
 
     // MARK: Nudge (2.4)

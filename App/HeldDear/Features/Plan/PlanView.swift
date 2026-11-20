@@ -12,6 +12,8 @@ struct PlanView: View {
     private enum Screen: Equatable { case plan, part(UUID), add, name, relationship }
     @State private var screen: Screen = .plan
     @State private var newName = ""
+    /// Suggestions ticked on "Add something", by title, added together.
+    @State private var picked: Set<String> = []
 
     private var person: Person? { moment.person }
     private var personName: String { person?.name ?? "Someone" }
@@ -19,7 +21,9 @@ struct PlanView: View {
 
     /// The household an owner can be picked from: inner-ring people, other than the person the plan is for.
     private var household: [Person] {
-        model.allPeople().filter { $0.ring == .inner && $0.id != person?.id }
+        model.allPeople().filter {
+            $0.id != person?.id && Relationship.isHouseholdGiver(relationship: $0.relationship, isInner: $0.ring == .inner)
+        }
     }
 
     var body: some View {
@@ -129,18 +133,25 @@ struct PlanView: View {
     }
 
     private func row(_ act: Act) -> some View {
-        let name = info(act).text
-        let owner = ownerText(act)
+        let ownerNames = household.filter { PartOwners.existing(act.ownerIDs, among: household.map(\.id)).contains($0.id) }.map(\.name)
+        let kidsName = act.kind == .kidsMade && act.label == nil ? PartOwners.kidsGiftName(names: ownerNames) : nil
+        let name = kidsName ?? info(act).text
         let s = step(act)
+        let owner: String = {
+            if act.kind == .kidsMade && ownerNames.isEmpty { return "Choose who it's from" }
+            return ownerText(act)
+        }()
         return Button { screen = .part(act.id) } label: {
             HStack(alignment: .center, spacing: Brand.space3) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).textStyle(.bodyStrong).multilineTextAlignment(.leading)
-                    Text(PartOwners.rowSubtitle(owner: owner, note: act.note))
-                        .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.leading)
+                    let subtitle = kidsName != nil ? (act.note ?? "") : PartOwners.rowSubtitle(owner: owner, note: act.note)
+                    if !subtitle.isEmpty {
+                        Text(subtitle).textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.leading)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                StepPill(step: s, family: family(act))
+                StepPill(step: s, family: family(act), date: PartSteps.datedSteps.contains(s) ? act.arrivesBy : nil)
             }
             .padding(.vertical, Brand.space4)
             .frame(minHeight: 64)
@@ -159,31 +170,60 @@ struct PlanView: View {
     }
 
     private var addScreen: some View {
-        FlowScreen {
-            TextLink(title: "‹ \(personName)'s plan") { screen = .plan }
-            Question(title: "Add something")
+        let chosen = suggestions.filter { picked.contains($0.title) }
+        return FlowScreen {
+            TextLink(title: "‹ \(personName)'s plan") { picked = []; screen = .plan }
+            Question(title: "Add something", subtitle: "Pick as many as you like.")
             VStack(spacing: 0) {
                 ForEach(suggestions, id: \.title) { s in suggestionRow(s) }
                 OptionRow(title: "Something else…") { newName = ""; screen = .name }
             }
+        } footer: {
+            PrimaryButton(title: chosen.isEmpty ? "Add" : "Add \(chosen.count)") {
+                for s in chosen { model.addPart(to: moment, kind: s.kind, label: s.label) }
+                picked = []
+                screen = .plan
+            }
+            .disabled(chosen.isEmpty)
+            .opacity(chosen.isEmpty ? 0.45 : 1)
         }
     }
 
     @ViewBuilder private func suggestionRow(_ s: PartSuggestions.Suggestion) -> some View {
-        let added = PartSuggestions.isAdded(s, parts: parts.map { (kindRaw: $0.kindRaw, label: $0.label) })
+        let existing = parts.map { (kindRaw: $0.kindRaw, label: $0.label) }
+        let added = PartSuggestions.isAdded(s, parts: existing) && !PartSuggestions.canAddAgain(s)
+        let already = PartSuggestions.canAddAgain(s) ? PartSuggestions.count(s, parts: existing) : 0
         if added {
             suggestionLabel(s.title, trailing: "Added", color: Brand.inkMuted)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(s.title), added")
         } else {
+            let on = picked.contains(s.title)
             Button {
-                model.addPart(to: moment, kind: s.kind, label: s.label)
-                screen = .plan
+                if on { picked.remove(s.title) } else { picked.insert(s.title) }
             } label: {
-                suggestionLabel(s.title, trailing: "Add", color: Brand.action)
+                HStack(spacing: Brand.space3) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
+                        if already > 0 {
+                            Text("\(already) in the plan. Add another").textStyle(.caption, color: Brand.inkMuted)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 24))
+                        .foregroundStyle(on ? Brand.action : Brand.inkMuted)
+                        .accessibilityHidden(true)
+                }
+                .padding(.vertical, Brand.space4)
+                .frame(minHeight: 64)
+                .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle())
-            .accessibilityLabel("Add \(s.title)")
+            .accessibilityLabel(s.title)
+            .accessibilityValue(on ? "Selected" : "Not selected")
+            .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
         }
     }
 
@@ -220,10 +260,11 @@ struct PlanView: View {
 struct StepPill: View {
     let step: String
     let family: PartSteps.Family
+    var date: Date? = nil
 
     var body: some View {
         let progress = PartSteps.progress(step: step, family: family)
-        let word = PartSteps.pillWord(for: step)
+        let word = PartSteps.pillWord(for: step) + (date.map { " " + $0.formatted(.dateTime.month(.abbreviated).day()) } ?? "")
         Text(word)
             .font(.footnote.weight(.semibold))
             .foregroundStyle(progress == .ready ? Brand.page : (progress == .started ? Brand.ink : Brand.inkMuted))
@@ -251,16 +292,24 @@ private struct PartScreen: View {
     @State private var note = ""
     @State private var loaded = false
     @State private var showLifetime = false
+    @State private var showMore = false
     @FocusState private var noteFocused: Bool
 
     private var family: PartSteps.Family { PartSteps.family(forKindRaw: act.kindRaw) }
+
+    /// "Gift from Heidi and Nora" once who it's from is set; otherwise the item's own name.
+    private var titleText: String {
+        let names = household.filter { ownerIDs.contains($0.id) }.map(\.name)
+        if act.kind == .kidsMade, act.label == nil, let n = PartOwners.kidsGiftName(names: names) { return n }
+        return PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)
+    }
     private var current: String { act.currentStep ?? "open" }
     private var ownerIDs: [UUID] { PartOwners.existing(act.ownerIDs, among: household.map(\.id)) }
 
     var body: some View {
         FlowScreen {
             TextLink(title: "‹ \(personName)'s plan") { saveNote(); back() }
-            Text(PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title))
+            Text(titleText)
                 .font(Brand.display(52, relativeTo: .largeTitle)).tracking(-1)
                 .foregroundStyle(Brand.ink)
                 .lineLimit(3).minimumScaleFactor(0.6)
@@ -274,7 +323,9 @@ private struct PartScreen: View {
                 .frame(minHeight: 44, alignment: .topLeading)
                 .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
             standsList
+            linkRow
             shelfList
+            findsList
             ownersList
         } footer: {
             PrimaryButton(title: "Done") { saveNote(); back() }
@@ -292,12 +343,33 @@ private struct PartScreen: View {
         if trimmed != (act.note ?? "") { model.setNote(act, trimmed) }
     }
 
+    /// The kind's own statuses, then the rest of the full list under "More" (open by itself when the current status
+    /// is one of those).
+    private var shownSteps: [String] {
+        let more = PartSteps.moreSteps(for: family)
+        let expanded = showMore || more.contains(current)
+        return PartSteps.steps(for: family) + (expanded ? more : [])
+    }
+
+    private var dateBinding: Binding<Date> {
+        Binding(get: { act.arrivesBy ?? Calendar.current.startOfDay(for: Date()) },
+                set: { act.arrivesBy = Calendar.current.startOfDay(for: $0); model.commit() })
+    }
+
+    private func pick(_ step: String) {
+        guard model.setStep(act, step) else { showLifetime = true; return }
+        if PartSteps.datedSteps.contains(step) && act.arrivesBy == nil {
+            act.arrivesBy = Calendar.current.startOfDay(for: Date())
+            model.commit()
+        }
+    }
+
     private var standsList: some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Where it stands").padding(.bottom, Brand.space2)
-            ForEach(PartSteps.steps(for: family), id: \.self) { step in
+            ForEach(shownSteps, id: \.self) { step in
                 let selected = step == current
-                Button { if !model.setStep(act, step) { showLifetime = true } } label: {
+                Button { pick(step) } label: {
                     HStack(spacing: Brand.space3) {
                         Image(systemName: selected ? "largecircle.fill.circle" : "circle")
                             .font(.system(size: 22)).foregroundStyle(selected ? Brand.ink : Brand.inkMuted)
@@ -314,6 +386,88 @@ private struct PartScreen: View {
                 .accessibilityValue(selected ? "Selected" : "Not selected")
                 .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
                 .accessibilityHint("Where it stands. One choice.")
+            }
+            if !showMore && !PartSteps.moreSteps(for: family).contains(current) {
+                TextLink(title: "More statuses") { showMore = true }
+                    .padding(.top, Brand.space2)
+            }
+            if PartSteps.datedSteps.contains(current) {
+                DatePicker("\(PartSteps.word(for: current)) on", selection: dateBinding, displayedComponents: .date)
+                    .textStyle(.body)
+                    .tint(Brand.action)
+                    .frame(minHeight: 52)
+                    .padding(.top, Brand.space2)
+            }
+        }
+    }
+
+    /// The item's link: what was bought, or where to track it. Paste one any time (no clipboard prompt).
+    @ViewBuilder private var linkRow: some View {
+        let link = act.wishID.flatMap { id in person?.wishes.first { $0.id == id } }?.url.flatMap(URL.init(string:))
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Link")
+            if let link {
+                Link(destination: link) {
+                    Text(link.host() ?? link.absoluteString).font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                        .frame(minHeight: 44, alignment: .leading)
+                }
+                .accessibilityLabel("Open the link, \(link.host() ?? "")")
+            } else {
+                Text("Copy a link to what you ordered, or its tracking page, then paste it here.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
+            PasteButton(payloadType: URL.self) { urls in
+                if let url = urls.first { model.attachLink(url, to: act) }
+            }
+            .buttonBorderShape(.capsule)
+            .tint(Brand.action)
+            .labelStyle(.titleAndIcon)
+        }
+    }
+
+    /// Finds (approved Nov 20, 2026): at most two, from the catalog in the app, fitted to the item, the giver and
+    /// what the person loves. Use this makes it the idea; Not for her hides it for good.
+    @ViewBuilder private var findsList: some View {
+        let _ = model.revision
+        if let person, let due = act.moment?.dueDate, act.wishID == nil {
+            let finds = Finds.matches(kind: act.kind, fromKids: act.kind == .kidsMade, loves: person.loves,
+                                      dismissed: Finds.dismissed(for: person.id))
+            if !finds.isEmpty {
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: act.kind == .kidsMade ? "Finds the kids could give" : "A find for \(person.name)")
+                    ForEach(finds) { find in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(find.name).textStyle(.bodyStrong)
+                            Text(Finds.meta(find, due: due)).textStyle(.caption, color: Brand.inkMuted)
+                            Text(find.why).font(Brand.serif(16, relativeTo: .callout)).foregroundStyle(Brand.inkSoft)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: Brand.space3) {
+                                Button { if !model.useFind(find, for: act) { showLifetime = true } } label: {
+                                    Text("Use this").font(.callout.weight(.semibold)).foregroundStyle(Brand.ink)
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .overlay { RoundedRectangle(cornerRadius: Brand.radiusLg).strokeBorder(Brand.ink, lineWidth: 1) }
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(PressStyle())
+                                .accessibilityLabel("Use \(find.name)")
+                                Button { model.dismissFind(find, for: person) } label: {
+                                    Text("Not for \(person.name)").font(.callout).foregroundStyle(Brand.action)
+                                        .frame(minHeight: 44)
+                                }
+                                .buttonStyle(PressStyle())
+                                .accessibilityLabel("Hide \(find.name) for \(person.name)")
+                            }
+                            .padding(.top, 4)
+                            if let url = URL(string: find.url) {
+                                Link("See it at \(find.maker)", destination: url)
+                                    .font(.callout).foregroundStyle(Brand.action).frame(minHeight: 44)
+                            }
+                        }
+                        .padding(Brand.space4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+                    }
+                }
             }
         }
     }
@@ -389,11 +543,12 @@ private struct PartScreen: View {
 struct RelationshipPicker: View {
     @EnvironmentObject var model: AppModel
     let person: Person
+    var backTitle: String? = nil
     let done: () -> Void
 
     var body: some View {
         FlowScreen {
-            TextLink(title: "‹ \(person.name)'s plan") { done() }
+            TextLink(title: "‹ " + (backTitle ?? "\(person.name)'s plan")) { done() }
             Question(title: "Who is \(person.name) to you?", subtitle: "It helps Held Dear suggest what families usually plan.")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: Brand.space2)], alignment: .leading,
                       spacing: Brand.space2) {
