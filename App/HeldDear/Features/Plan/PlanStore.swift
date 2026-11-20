@@ -50,7 +50,7 @@ enum PlanStore {
     static func setStep(_ act: Act, to step: String, now: Date = Date()) {
         guard act.role == .plan else { return }
         let family = PartSteps.family(forKindRaw: act.kindRaw)
-        guard PartSteps.steps(for: family).contains(step) else { return }
+        guard PartSteps.isValid(step, family: family) else { return }
         act.step = step
         let m = act.moment
         if PartSteps.isReady(step: step, family: family) {

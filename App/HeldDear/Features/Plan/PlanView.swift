@@ -149,7 +149,7 @@ struct PlanView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                StepPill(step: s, family: family(act))
+                StepPill(step: s, family: family(act), date: PartSteps.datedSteps.contains(s) ? act.arrivesBy : nil)
             }
             .padding(.vertical, Brand.space4)
             .frame(minHeight: 64)
@@ -258,10 +258,11 @@ struct PlanView: View {
 struct StepPill: View {
     let step: String
     let family: PartSteps.Family
+    var date: Date? = nil
 
     var body: some View {
         let progress = PartSteps.progress(step: step, family: family)
-        let word = PartSteps.pillWord(for: step)
+        let word = PartSteps.pillWord(for: step) + (date.map { " " + $0.formatted(.dateTime.month(.abbreviated).day()) } ?? "")
         Text(word)
             .font(.footnote.weight(.semibold))
             .foregroundStyle(progress == .ready ? Brand.page : (progress == .started ? Brand.ink : Brand.inkMuted))
@@ -289,6 +290,7 @@ private struct PartScreen: View {
     @State private var note = ""
     @State private var loaded = false
     @State private var showLifetime = false
+    @State private var showMore = false
     @FocusState private var noteFocused: Bool
 
     private var family: PartSteps.Family { PartSteps.family(forKindRaw: act.kindRaw) }
@@ -330,12 +332,33 @@ private struct PartScreen: View {
         if trimmed != (act.note ?? "") { model.setNote(act, trimmed) }
     }
 
+    /// The kind's own statuses, then the rest of the full list under "More" (open by itself when the current status
+    /// is one of those).
+    private var shownSteps: [String] {
+        let more = PartSteps.moreSteps(for: family)
+        let expanded = showMore || more.contains(current)
+        return PartSteps.steps(for: family) + (expanded ? more : [])
+    }
+
+    private var dateBinding: Binding<Date> {
+        Binding(get: { act.arrivesBy ?? Calendar.current.startOfDay(for: Date()) },
+                set: { act.arrivesBy = Calendar.current.startOfDay(for: $0); model.commit() })
+    }
+
+    private func pick(_ step: String) {
+        guard model.setStep(act, step) else { showLifetime = true; return }
+        if PartSteps.datedSteps.contains(step) && act.arrivesBy == nil {
+            act.arrivesBy = Calendar.current.startOfDay(for: Date())
+            model.commit()
+        }
+    }
+
     private var standsList: some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Where it stands").padding(.bottom, Brand.space2)
-            ForEach(PartSteps.steps(for: family), id: \.self) { step in
+            ForEach(shownSteps, id: \.self) { step in
                 let selected = step == current
-                Button { if !model.setStep(act, step) { showLifetime = true } } label: {
+                Button { pick(step) } label: {
                     HStack(spacing: Brand.space3) {
                         Image(systemName: selected ? "largecircle.fill.circle" : "circle")
                             .font(.system(size: 22)).foregroundStyle(selected ? Brand.ink : Brand.inkMuted)
@@ -352,6 +375,17 @@ private struct PartScreen: View {
                 .accessibilityValue(selected ? "Selected" : "Not selected")
                 .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
                 .accessibilityHint("Where it stands. One choice.")
+            }
+            if !showMore && !PartSteps.moreSteps(for: family).contains(current) {
+                TextLink(title: "More statuses") { showMore = true }
+                    .padding(.top, Brand.space2)
+            }
+            if PartSteps.datedSteps.contains(current) {
+                DatePicker("\(PartSteps.word(for: current)) on", selection: dateBinding, displayedComponents: .date)
+                    .textStyle(.body)
+                    .tint(Brand.action)
+                    .frame(minHeight: 52)
+                    .padding(.top, Brand.space2)
             }
         }
     }

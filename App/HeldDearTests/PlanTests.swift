@@ -153,7 +153,7 @@ final class PlanTests: XCTestCase {
         let expected: [String: String] = [
             "open": "Not started", "idea": "Have an idea", "bought": "Bought", "wrapped": "Wrapped",
             "written": "Written", "making": "Making it", "finished": "Finished", "booked": "Booked",
-            "ordered": "Ordered or baking", "ready": "Ready", "done": "Done",
+            "ordered": "Ordered", "ready": "Ready", "done": "Done", "scheduled": "Scheduled", "arrived": "Arrived",
         ]
         for (step, word) in expected { XCTAssertEqual(PartSteps.word(for: step), word, step) }
         for family in PartSteps.Family.allCases {
