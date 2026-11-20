@@ -80,6 +80,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | A part's step and its completion agree: reaching the ready step completes it, leaving it undoes that. A plan with several parts, or any part set on the plan screen, drives Home and the occasion's status by readiness; single plans from the older flow keep today's behavior | One answer to "is this done" everywhere |
 | Nov 20, 2026 | Migration review approved: added fields only, versioned schema, a migration test, never crash on open, no bulk rewrite (M1 to M4) | Protects existing test data and every future update |
 | Nov 20, 2026 | Birthday plan mockup approved: parts with family step words, who it's from (a person or a group), relationship-based suggestions, a calm time-aware note, and the first part not started as the main action | Graham's paper plan, as an app screen |
 | Nov 20, 2026 | 1.0 scope reopened once to add: readiness per person from their own plan, family step words with the last step as ready, suggested parts by relationship (1.6) and a relationship field | They make the holiday page work as mocked up |
