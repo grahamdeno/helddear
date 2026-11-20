@@ -29,15 +29,17 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
   1008 and 1009, proves the gift workflow with no new APIs or server setup. Graham is testing it.
 - **This file:** created Nov 20, 2026, when Held Dear moved onto playbook 1.4.0. Earlier work was done under the
   repo's own working agreement and isn't counted in docs/sonnet-log.md.
-- **Next:** Graham's verdict on the gift workflow in build 1009, then shape the 1.0 release scope (Held Dear Product,
-  Opus).
+- **1.0 scope:** planned Nov 20 after Fable's strategy review (Go). Core job: plan the whole occasion. See
+  "Release scope" and Epics 1 and 2.
+- **Christmas hand test** runs Nov 21 to Dec 26 on paper (see "Dated checks").
+- **Next:** words and Horizon mockups for the occasion plan (Epic 2, S1 to S4), then the holiday page (Epic 1)
+  (Held Dear Product, Opus).
 
 ### Open decisions (carried from the plan doc, not yet decided)
 
-- Lifetime in-app purchase: the price is decided ($9.99); the Product ID is not yet approved and the purchase isn't
-  created in App Store Connect. The code uses `com.grahamdeno.helddear.lifetime`.
-- Mailed card price: $6.99 proposed for the beta, not approved.
-- Going live on payments: Stripe live mode and a Handwrytten payment card, at launch.
+- Mailed card price: $6.99 proposed, not approved. Mailed cards are off in 1.0.
+- Going live on payments (Stripe live mode, a Handwrytten payment card), server rate limits and the Fable security
+  review: needed before mailed cards or family pages are turned on in a later update.
 - Gift workflow phase 2: shop feeds, server search (interests only, never names, with a consent screen) and
   affiliate revenue. Decided only after phase 1 feels right.
 - Whether Vercel deploys helddear-mail from `main` on its own (Grok to confirm).
@@ -78,6 +80,12 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | Core job for 1.0: plan the whole occasion. Each occasion has parts, each part an owner, a status and a date. The gift shelf feeds the Gift part | Fable's strategy review (Go) and Graham's own paper plan |
+| Nov 20, 2026 | Free: reminders, morning-of message and yearly line for everyone; plans for 3 people. Lifetime unlocks plans for everyone | The free version never lets anyone miss a date; plans show the value before paying |
+| Nov 20, 2026 | Lifetime purchase: Product ID `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on | A household app; Family Sharing can't be turned off later |
+| Nov 20, 2026 | 1.0 includes grouped Christmas, Mother's Day and Father's Day (Epic 1), AI ideas, keepsakes, photo memories and life moments | Graham wants these in the first release |
+| Nov 20, 2026 | Mailed cards and family pages ship built in and switched off at build time; the server stays in test mode | Keeps the foundation in place without live payments or shared data in 1.0 |
+| Nov 20, 2026 | Shared holidays become one timeline event with a holiday page; plans still save per person; one heads-up six weeks ahead; the user chooses which holidays to keep (Epic 1) | A busy date should read as one event, and planning everyone happens in one place |
 | Nov 20, 2026 | Held Dear follows playbook 1.4.0. docs/roadmap.md is the running plan; the plan doc stays the concept and spec reference | One process across all of Graham's apps |
 | Nov 13, 2026 | Direction: "Never stuck on what to give." A gift shelf filled all year, ideas about six weeks out, pick, buy, and Home shows the arrival. Phase 1 uses no new APIs or server setup | The real problem was not knowing what to give, not forgetting the date |
 | Nov 13, 2026 | Graham does not curate a gift collection. Any server gift search later sends interests only, never names, behind a consent screen | Keeps the work and the privacy promise small |
@@ -90,19 +98,151 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 ## Release scope
 
-- **1.0:** not yet planned. Builds 1001 to 1009 are test builds, not a frozen scope.
-- **Purchases approved:** Held Dear Lifetime price $9.99 (Nov 12, 2026). Product ID, type and Family Sharing not yet
-  approved.
-- **Go-aheads under playbook 1.4.0:** none yet.
+- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.7, R1 to R4),
+  Epic 1 (1.1 to 1.5), then polish of the kept features. New ideas go to 1.1.
+- **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
+  2026). Grok creates it after the first 1.0 test build.
+- **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
 
 ## Dated checks
 
-- None yet.
+- **Nov 21 to Dec 26, 2026, Christmas hand test (Graham):** plan the household's Christmas on one sheet, a row per
+  person, with parts, owner, status and date, noting when each was first planned and anything that fell through.
+- **Dec 27, 2026, hand test review (Opus with Graham).** Decision rules, set before the test:
+  1. Updated at least weekly and useful: the core job is confirmed; build Epic 2 as approved.
+  2. Stopped updating within 2 weeks: plans are too heavy; cut 1.0 plans to the Gift part plus owners.
+  3. Parts owned by others are where things fell through, or where the sheet helped most: owners stay in the core.
+  4. Most planning started more than 21 days out: the inner-ring heads-up moves to the recorded median start.
+  5. Planning worked by holiday rather than by person: confirms grouped holidays (Epic 1).
 
 ## Backlog
 
-Items in the playbook's item format (items.md). Unordered until Graham ranks them. None approved under the playbook
-yet.
+Items in the playbook's item format (items.md). Unordered until Graham ranks them.
+
+### 1. Epic: Shared holidays as one event (approved Nov 20, 2026; in 1.0 scope)
+**Goal:** Christmas, Valentine's Day, Mother's Day and Father's Day each show as one event on the timeline. The user
+plans everyone for that holiday in one place, and each plan saves to that person.
+
+**Context:** each person's holiday is stored as its own occasion, so six people make six Christmas rows on one date.
+Plans already save per person; what's missing is grouping on screen and in alerts. This is the plan doc's stage 3,
+"one date, many people". The holiday page reuses the occasion plan (Epic 2, once approved) with a row per person.
+
+#### 1.1 One marker on the timeline
+As a user, I want each shared holiday to appear once on my timeline so that a busy date reads as one event.
+- Given 6 people with Christmas, when I view Home, then I see one Christmas marker showing how many people, not 6 rows.
+- Given only 1 person with Mother's Day, when I view Home, then it still shows as a holiday marker.
+
+#### 1.2 The holiday page
+As a user, I want one page per holiday listing everyone and where each plan stands so that I can plan the whole
+holiday in one place.
+- Given the Christmas page, when I open it, then each person shows one status: no plan, idea picked, ordered,
+  arrived or done.
+- Given I choose a gift for one person there, when I save, then it appears on that person's page and in their yearly
+  record, and I return to the holiday page.
+- The holiday page is a browse screen, like Home. Planning one person uses the existing one-decision-per-screen flow.
+
+#### 1.3 Add people from the holiday
+As a user, I want to add people to a holiday from its page so that I don't have to visit each person.
+- Given the Christmas page, when I tap Add people and pick 3, then each of them gets Christmas.
+
+#### 1.4 One heads-up per holiday
+As a user, I want one alert per holiday, six weeks ahead, so that I'm not sent a notification per person.
+- Given 6 people with Christmas, when it's six weeks before Christmas, then I get one notification for Christmas
+  covering all 6 people.
+
+#### 1.5 Choose your holidays
+As a user, I want to choose which shared holidays Held Dear keeps so that only the ones I celebrate appear.
+- Given I chose Christmas and Mother's Day, when I add an occasion to a person, then only those holidays are offered.
+- Given no one has Christmas yet, when I view Home, then there is no Christmas marker.
+- Given I add Christmas to one person, when I view Home, then the Christmas event appears on the timeline.
+
+**Out of scope:** group gifts from several givers (stage 4), budgets, holidays beyond the four (Hanukkah, Easter,
+Thanksgiving are a later item).
+
+**Open:** where the user chooses holidays (setup, Settings, or both), settled in Shape.
+
+**Steps:**
+1. Words and a Horizon mockup of the timeline marker, the holiday page and choosing holidays (Opus). Graham picks.
+2. Confirm stored data doesn't change, or review the migration if it does (Opus; Graham approves a migration).
+3. Handoff (Opus).
+4. Build (Sonnet).
+5. Review the build (Opus).
+6. Test build on Graham's go.
+
+### 2. Epic: Held Dear 1.0, plan the whole occasion (approved Nov 20, 2026; in 1.0 scope)
+**Goal:** a first release worth $9.99 that does one job well: planning each occasion for your closest people,
+including gifts from family.
+
+**Context:** Fable's strategy review (Nov 20) recommended Go with this core job. The evidence is a household's paper
+plan for a spouse's birthday: cake (open); card (the daughters color a bouquet); an activity, scheduled with a date; a
+gift, ordered from a vendor with a date; a gift from the daughters; a gift from the son. Each occasion already holds
+several acts with a "from", so the data model is close.
+
+**Kept from current builds (regression list, no new story):** people from Contacts, birthdays and anniversaries,
+heads-ups by ring, the gift shelf through the share sheet, the morning-of message, the yearly line, the way back after
+a miss, AI ideas and card words, keepsakes, photo memories, life moments. Each is polished and tested for 1.0.
+
+#### 2.1 Parts
+As a user, I want an occasion's plan to hold several parts so that the whole day lives in one place.
+- Given a birthday plan, when I add parts, then I can pick from Gift, Card, Cake and The day, or type my own, one tap
+  each.
+
+#### 2.2 Owners
+As a parent, I want each part to have an owner so that gifts from my kids happen too.
+- Given a part, when I set its owner, then it shows "You" or a family member's name.
+- Given a part owned by the daughters, then it counts as open until it's marked done.
+
+#### 2.3 Status and date
+As a user, I want each part to show where it stands so that I see what's done at a glance.
+- States: open, idea, scheduled, ordered, arrived, done. Scheduled and ordered carry a date and, optionally, where
+  it came from.
+- Given a gift ordered Oct 1 from a named shop, then it reads "Ordered Oct 1, [shop]".
+
+#### 2.4 What's still open
+As a user, I want to see unplanned parts so that I act early.
+- Given the cake is open 10 days out, then the plan and Home show "Cake not planned". Calm wording, no red badges.
+
+#### 2.5 The shelf feeds the gift
+As a user, I want to pick a gift from the shelf so that saved ideas get used.
+- Given 3 shelf items for a person, when I open their Gift part, then I can pick one and the part becomes "idea".
+
+#### 2.6 Holidays in 1.0
+As a user, I want Christmas, Mother's Day and Father's Day in 1.0 so that I can plan them like any occasion.
+- Christmas is grouped as Epic 1 describes. Valentine's Day is hidden in 1.0.
+
+#### 2.7 Free and Lifetime
+As a user, I want plans for my 3 closest people free so that I can try the full job before paying.
+- Given plans for 3 people, when I start a plan for a 4th, then the Lifetime offer appears; it closes at once and
+  appears only there.
+- Reminders, the morning-of message and the yearly line stay free for everyone.
+- Lifetime adds plans for everyone, all card designs, the Lock Screen widget, AI ideas and keepsakes.
+
+#### Requirements
+- **R1. Several recipients:** an occasion can hold several people. Enforced by a unit test on the data model.
+- **R2. Mailed cards and family pages off in 1.0:** the code ships, switched off by a build setting. No 1.0 build
+  sends anything to the server. Enforced by a CI check on the App Store configuration and the privacy guard.
+- **R3. TestFlight-only Lifetime switch:** compiled only into TestFlight builds through a build setting, never into
+  an App Store build, never decided by the purchase environment. Enforced by a CI check.
+- **R4. No remote switches:** no feature is turned on from the server. Turning on mailed cards or family pages means
+  a new, reviewed app update (App Review guideline 2.3.1). Enforced in review.
+
+**Data:** parts, owners, statuses and dates add stored fields. That's a migration: Opus reviews it and Graham approves
+it before any build, because his own test data is in the TestFlight builds.
+
+**Out of scope:** mailed cards and family pages for customers, Valentine's Day, ongoing gifts such as a weekly note,
+budgets, group gifts from several givers.
+
+**Open:** how early the inner-ring heads-up arrives (the hand test decides; today 21 days).
+
+**Steps:**
+1. Words and Horizon mockups of the plan screen (Opus). Graham picks.
+2. Migration review (Opus). Graham approves.
+3. Handoffs, one per story (Opus).
+4. Build (Sonnet).
+5. Review the build (Opus).
+6. UX audit (Opus).
+7. Test build on Graham's go.
+8. Stage 6 prep and the Fable go-live assessment.
 
 ## Small follow-ups
 
