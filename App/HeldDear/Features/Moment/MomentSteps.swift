@@ -48,7 +48,7 @@ struct NextStepView: View {
         case .card: cardView
         case .dinner: dinnerView
         case .call, .message: morningOfView(plan)
-        case .other: otherView(plan)
+        case .other, .stocking, .fromSanta, .cake, .flowers, .theDay, .kidsMade: otherView(plan)
         }
     }
 
@@ -154,7 +154,10 @@ struct NextStepView: View {
     private func otherView(_ plan: Act) -> some View {
         FlowScreen(onClose: close) {
             Spacer(minLength: 40)
-            Question(tag: "Plan", title: plan.title ?? "Something special",
+            Question(tag: "Plan",
+                     title: plan.kind == .other
+                        ? (plan.title ?? "Something special")
+                        : PartSteps.displayName(kindRaw: plan.kindRaw, label: plan.label, title: plan.title),
                      subtitle: "Tap Done when it's taken care of. Held Dear checks in before \(OccasionDates.longDate(moment.dueDate)).")
         } footer: {
             SecondaryButton(title: "Done") { finish() }

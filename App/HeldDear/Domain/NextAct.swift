@@ -13,6 +13,7 @@ enum NextAct: Equatable {
     case readyOnTheDay(Date)      // call or message, set up for the morning of
     case finishOther(String)      // "something else" not done
     case allSet                   // plan done before the day
+    case openPlan(ready: Int, total: Int)  // a plan with parts, not all ready
 
     /// Far enough away that the hero shows months and a gentle secondary button.
     static let farDays = 99
@@ -24,15 +25,19 @@ enum NextAct: Equatable {
             if m.planKind == .call && !m.planDone && m.hasPhone { return .dayOfCall }
             return .dayOfMessage
         }
+        if m.isPlanMoment {
+            return m.partsTotal > 0 && m.partsReady == m.partsTotal ? .allSet : .openPlan(ready: m.partsReady, total: m.partsTotal)
+        }
         if m.planDone || m.status == .done { return .allSet }
         let cutoff = OccasionDates.adding(days: -OccasionDates.cutoffDays, to: m.dueDate, calendar: calendar)
         if m.status == .planning, let kind = m.planKind {
             switch kind {
-            case .gift: return .orderBy(cutoff)
+            case .gift, .stocking, .fromSanta, .cake, .flowers: return .orderBy(cutoff)
             case .card: return .mailBy(cutoff)
             case .dinner: return .addDinner
             case .call, .message: return .readyOnTheDay(m.dueDate)
             case .other: return .finishOther(m.planTitle ?? "Something special")
+            case .theDay, .kidsMade: return .finishOther(m.planTitle ?? PartSteps.defaultName(forKindRaw: kind.rawValue))
             }
         }
         return days > farDays ? .saveWish : .pick
@@ -51,6 +56,7 @@ enum NextAct: Equatable {
         case .readyOnTheDay(let d): return "Ready on \(d.formatted(.dateTime.month(.abbreviated).day()))"
         case .finishOther(let t): return t
         case .allSet: return "All set"
+        case .openPlan: return "Open \(name)'s plan"
         }
     }
 

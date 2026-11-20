@@ -91,6 +91,8 @@ struct RouteView: View {
             AddWishView(preselected: personID.flatMap { model.person($0) })
         case .ideas(let id):
             if let m = model.moment(id) { IdeasFlow(moment: m) } else { Color.clear.onAppear { model.route = nil } }
+        case .plan(let id):
+            if let m = model.moment(id) { PlanView(moment: m) } else { Color.clear.onAppear { model.route = nil } }
         case .rings:
             NavigationStack { RingsView().toolbar { CloseToolbar { model.route = nil } } }
         case .lifetime:

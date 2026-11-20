@@ -83,7 +83,12 @@ enum MomentEngine {
     /// One line for the ledger: "Blue gardening gloves, and a photo message".
     static func whatWasDone(_ m: Moment) -> String {
         var parts: [String] = []
-        if let plan = m.plan, plan.isDone {
+        if m.isPlanMoment {
+            let ready = m.planParts.filter(\.isReady).map {
+                PlanReadiness.doneText(kindRaw: $0.kindRaw, label: $0.label, title: $0.title)
+            }
+            if !ready.isEmpty { parts.append(PlanReadiness.doneList(ready)) }
+        } else if let plan = m.plan, plan.isDone {
             switch plan.kind {
             case .gift: parts.append(plan.title ?? "A gift")
             case .card: parts.append("A card")
@@ -91,6 +96,12 @@ enum MomentEngine {
             case .message: parts.append("A message")
             case .dinner: parts.append("Dinner together")
             case .other: parts.append(plan.title ?? "Something special")
+            case .stocking: parts.append("A stocking")
+            case .fromSanta: parts.append("A gift from Santa")
+            case .cake: parts.append("A cake")
+            case .flowers: parts.append("Flowers")
+            case .theDay, .kidsMade:
+                parts.append(PartSteps.displayName(kindRaw: plan.kindRaw, label: plan.label, title: plan.title))
             }
         }
         if let g = m.greeting, g.isDone {

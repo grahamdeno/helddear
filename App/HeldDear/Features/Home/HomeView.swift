@@ -147,16 +147,25 @@ struct FeaturedView: View {
         switch act {
         case .allSet:
             VStack(spacing: Brand.space2) {
-                Text(plannedLine(name: name)).font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
+                Text(state.isPlanMoment ? "Everything for \(name) is ready." : plannedLine(name: name))
+                    .font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
                     .multilineTextAlignment(.center).frame(maxWidth: 320)
                 Text("Nothing to do until the day.").textStyle(.callout, color: Brand.inkMuted)
-                TextLink(title: "Change the plan") { model.route = .moment(moment.id, .choose) }
+                TextLink(title: "Change the plan") {
+                    model.route = state.isPlanMoment ? .plan(moment.id) : .moment(moment.id, .choose)
+                }
+            }
+        case .openPlan(let ready, let total):
+            VStack(spacing: Brand.space3) {
+                Text("\(ready) of \(total) ready.").textStyle(.callout, color: Brand.inkMuted)
+                PrimaryButton(title: act.title(name: name)) { tap(act) }
             }
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
             VStack(spacing: Brand.space4) {
                 Text(ideaLine(name: name)).font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
                     .multilineTextAlignment(.center).frame(maxWidth: 330)
                 PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
+                TextLink(title: "Plan \(name)'s day in parts") { model.route = .plan(moment.id) }
                 secondary(days: days, missed: missed, name: name)
             }
         case .pick, .saveWish:
@@ -165,6 +174,7 @@ struct FeaturedView: View {
                     .font(Brand.serif(19, relativeTo: .body, italic: true)).foregroundStyle(Brand.inkSoft)
                     .multilineTextAlignment(.center).frame(maxWidth: 320)
                 SecondaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
+                TextLink(title: "Plan \(name)'s day in parts") { model.route = .plan(moment.id) }
             }
         default:
             VStack(spacing: 0) {
@@ -181,6 +191,14 @@ struct FeaturedView: View {
         }
         switch plan.kind {
         case .gift: return "\(plan.title ?? "The gift") is taken care of."
+        case .stocking: return "The stocking is taken care of."
+        case .fromSanta: return "Santa's gift is taken care of."
+        case .cake: return "The cake is taken care of."
+        case .flowers: return "The flowers are taken care of."
+        case .theDay:
+            return "\(PartSteps.displayName(kindRaw: plan.kindRaw, label: plan.label, title: plan.title)) is planned."
+        case .kidsMade:
+            return "\(PartSteps.displayName(kindRaw: plan.kindRaw, label: plan.label, title: plan.title)) is taken care of."
         case .card: return "The card is on its way."
         case .dinner: return "Dinner is on your calendar."
         case .call: return "You'll call \(name) on the day."
@@ -247,6 +265,7 @@ struct FeaturedView: View {
         case .dayOfMessage: model.route = .moment(moment.id, model.phone(for: moment.person) == nil ? .dayOf : .photo)
         case .pick: model.route = .moment(moment.id, .choose)
         case .saveWish: model.route = .addWish(moment.person?.id)
+        case .openPlan: model.route = .plan(moment.id)
         default: model.route = .moment(moment.id, .nextStep)
         }
     }

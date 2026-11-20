@@ -36,9 +36,7 @@ enum PartSteps {
 
     static func isReady(step: String, family: Family) -> Bool { step == readyStep(for: family) }
 
-    /// The family for a stored kind. Kinds stored today: gift, card, dinner, call, message, other. A kind this build
-    /// doesn't know reads as other, the same way `ActKind` reads it. New kinds join their family in the story that
-    /// adds them.
+    /// The family for a stored kind. A kind this build doesn't know reads as other, the same way `ActKind` reads it.
     static func family(forKindRaw raw: String) -> Family {
         switch ActKind(rawValue: raw) ?? .other {
         case .gift: .buy
@@ -46,6 +44,10 @@ enum PartSteps {
         case .dinner: .day
         case .call, .message: .callOrMessage
         case .other: .other
+        case .stocking, .fromSanta: .buy
+        case .cake, .flowers: .orderAhead
+        case .theDay: .day
+        case .kidsMade: .make
         }
     }
 
@@ -85,8 +87,202 @@ enum PartSteps {
             if f.hasTitle { return "idea" }
             return "open"
         case .make, .orderAhead:
-            // No stored kind maps here yet. When one does: done means its ready step.
+            // Cake, flowers and kids' gifts: done means the ready step, otherwise nothing is known yet.
             return f.completed ? readyStep(for: family) : "open"
+        }
+    }
+}
+
+// MARK: Words, names and owners (roadmap stories 2.1 to 2.3)
+
+extension PartSteps {
+    /// The words for a step, as the "Where it stands" list shows them.
+    static func word(for step: String) -> String {
+        switch step {
+        case "open": "Not started"
+        case "idea": "Have an idea"
+        case "bought": "Bought"
+        case "wrapped": "Wrapped"
+        case "written": "Written"
+        case "making": "Making it"
+        case "finished": "Finished"
+        case "booked": "Booked"
+        case "ordered": "Ordered or baking"
+        case "ready": "Ready"
+        case "done": "Done"
+        default: "Not started"
+        }
+    }
+
+    /// The same, as the short pill on a plan row. Only "ordered" is shorter.
+    static func pillWord(for step: String) -> String {
+        step == "ordered" ? "Ordered" : word(for: step)
+    }
+
+    /// How a step pill is drawn: filled for ready, outline for not started, soft fill in between.
+    enum Progress: Equatable { case notStarted, started, ready }
+
+    static func progress(step: String, family: Family) -> Progress {
+        if isReady(step: step, family: family) { return .ready }
+        return step == "open" ? .notStarted : .started
+    }
+
+    /// What a kind is called when the part has no label of its own.
+    static func defaultName(forKindRaw raw: String) -> String {
+        switch ActKind(rawValue: raw) ?? .other {
+        case .gift: "Gift"
+        case .card: "Card"
+        case .call: "Call"
+        case .message: "Message"
+        case .dinner: "Dinner out"
+        case .other: "Something else"
+        case .stocking: "Stocking"
+        case .fromSanta: "From Santa"
+        case .cake: "Cake"
+        case .flowers: "Flowers"
+        case .theDay: "The day"
+        case .kidsMade: "Gift from the kids"
+        }
+    }
+
+    /// The name shown for a part: its label if it has one; for a gift or something else, the title if it has one;
+    /// otherwise the kind's own name. `typed` is true when the words came from the user, so they stay as typed.
+    static func displayInfo(kindRaw: String, label: String?, title: String?) -> (text: String, typed: Bool) {
+        if let label = label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty { return (label, true) }
+        let kind = ActKind(rawValue: kindRaw) ?? .other
+        if kind == .gift || kind == .other,
+           let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty { return (title, true) }
+        return (defaultName(forKindRaw: kindRaw), false)
+    }
+
+    static func displayName(kindRaw: String, label: String?, title: String?) -> String {
+        displayInfo(kindRaw: kindRaw, label: label, title: title).text
+    }
+}
+
+/// Who a part is from (story 2.2). Empty means "You". No pronouns.
+enum PartOwners {
+    /// "You", "From Sam", "From Lily and Rose", "From Lily, Rose and Sam".
+    static func text(names: [String]) -> String {
+        switch names.count {
+        case 0: return "You"
+        case 1: return "From \(names[0])"
+        case 2: return "From \(names[0]) and \(names[1])"
+        default: return "From \(names.dropLast().joined(separator: ", ")) and \(names[names.count - 1])"
+        }
+    }
+
+    /// Tapping a person adds them, or takes them out when already chosen.
+    static func toggled(_ current: [UUID], tapping id: UUID) -> [UUID] {
+        current.contains(id) ? current.filter { $0 != id } : current + [id]
+    }
+
+    /// Tapping You clears everyone: You is exclusive.
+    static func you() -> [UUID] { [] }
+
+    /// Keeps only owners that still exist, in the order of the household list, so a removed person never leaves a
+    /// blank behind. If none remain the part reads as You.
+    static func existing(_ ids: [UUID], among household: [UUID]) -> [UUID] {
+        household.filter { ids.contains($0) }
+    }
+
+    /// The row's second line: owner, then " · note" when there's a note.
+    static func rowSubtitle(owner: String, note: String?) -> String {
+        guard let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty else { return owner }
+        return "\(owner) · \(note)"
+    }
+
+    /// What VoiceOver reads for a row: "Cake, You, Not started".
+    static func rowLabel(name: String, owner: String, step: String) -> String {
+        "\(name), \(owner), \(PartSteps.word(for: step))"
+    }
+}
+
+/// How ready a plan is, and the words for it (stories 2.1 and Home).
+enum PlanReadiness {
+    /// "2 of 6 ready", or "Ready for Anna's birthday" when every part is ready. `subject` is e.g. "Anna's birthday".
+    static func summary(ready: Int, total: Int, subject: String) -> String {
+        total > 0 && ready == total ? "Ready for \(subject)" : "\(ready) of \(total) ready"
+    }
+
+    /// Parts ready, parts in all.
+    static func counts(_ steps: [(family: PartSteps.Family, step: String)]) -> (ready: Int, total: Int) {
+        (steps.filter { PartSteps.isReady(step: $0.step, family: $0.family) }.count, steps.count)
+    }
+
+    /// "Your wife, turning 40". Unknown pieces are left out; nil when neither is known. No pronouns.
+    static func relationLine(relationship: String?, turning: Int?) -> String? {
+        let rel = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmptyString
+        switch (rel, turning) {
+        case let (r?, t?): return "Your \(r), turning \(t)"
+        case let (r?, nil): return "Your \(r)"
+        case let (nil, t?): return "Turning \(t)"
+        case (nil, nil): return nil
+        }
+    }
+
+    /// The finished parts for the yearly record: "Pajamas, a card and a cake"; four or more:
+    /// "Pajamas, a card, a cake and 2 more". The first word is capitalized; the others are lowercased, except a
+    /// name the user typed, which stays as typed. `items` are (text, isTyped) in plan order.
+    static func doneList(_ items: [(text: String, typed: Bool)]) -> String {
+        func lower(_ i: (text: String, typed: Bool)) -> String {
+            guard !i.typed, let f = i.text.first else { return i.text }
+            return f.lowercased() + i.text.dropFirst()
+        }
+        func upper(_ i: (text: String, typed: Bool)) -> String {
+            guard let f = i.text.first else { return i.text }
+            return f.uppercased() + i.text.dropFirst()
+        }
+        switch items.count {
+        case 0: return ""
+        case 1: return upper(items[0])
+        case 2: return "\(upper(items[0])) and \(lower(items[1]))"
+        case 3: return "\(upper(items[0])), \(lower(items[1])) and \(lower(items[2]))"
+        default:
+            let rest = items.count - 3
+            return "\(upper(items[0])), \(lower(items[1])), \(lower(items[2])) and \(rest) more"
+        }
+    }
+
+    /// Yearly-record words for a ready part. A gift or something else keeps its typed name; a card is "A card".
+    static func doneText(kindRaw: String, label: String?, title: String?) -> (text: String, typed: Bool) {
+        let kind = ActKind(rawValue: kindRaw) ?? .other
+        if let label = label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty { return (label, true) }
+        if kind == .gift || kind == .other,
+           let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty { return (title, true) }
+        switch kind {
+        case .gift: return ("A gift", false)
+        case .card: return ("A card", false)
+        case .call: return ("A call", false)
+        case .message: return ("A message", false)
+        case .dinner: return ("Dinner together", false)
+        case .other: return ("Something special", false)
+        case .stocking: return ("A stocking", false)
+        case .fromSanta: return ("A gift from Santa", false)
+        case .cake: return ("A cake", false)
+        case .flowers: return ("Flowers", false)
+        case .theDay: return ("The day", false)
+        case .kidsMade: return ("Gift from the kids", false)
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmptyString: String? { isEmpty ? nil : self }
+}
+
+/// Moments planned on the plan screen (amendment C). Plain rules.
+enum PlanMoment {
+    /// A plan moment has more than one plan part, or any plan part with a stored step. A single older plan with no
+    /// stored step is not one, and behaves exactly as before.
+    static func isPlanMoment(planParts: Int, anyStoredStep: Bool) -> Bool { planParts > 1 || anyStoredStep }
+
+    /// The status a plan moment takes after a step changes or a part is added: done when every part is ready,
+    /// otherwise planning. Nil means leave the status alone: missed, late, let go and closed never change here.
+    static func status(current: MomentStatus, ready: Int, total: Int) -> MomentStatus? {
+        switch current {
+        case .missed, .lateSent, .letGo, .closed: return nil
+        case .upcoming, .planning, .done: return total > 0 && ready == total ? .done : .planning
         }
     }
 }

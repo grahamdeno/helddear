@@ -48,6 +48,8 @@ enum ActRole: String, Codable { case plan, greeting }
 
 enum ActKind: String, Codable {
     case gift, card, call, message, dinner, other
+    /// Version 1.0 plan parts (roadmap story 2.3). Stored as plain strings, so these are new values only.
+    case stocking, fromSanta, cake, flowers, theDay, kidsMade
 
     /// Plans that need doing before the day, with an order-by or mail-by date.
     var hasCutoff: Bool { self == .gift || self == .card }
