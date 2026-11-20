@@ -50,6 +50,12 @@ enum Route: Identifiable, Equatable {
 final class AppModel: ObservableObject {
     let container: ModelContainer
     var context: ModelContext { container.mainContext }
+    /// What happened when the saved store was opened at launch. A screen shows one calm line for each failure case
+    /// (worded later): `.freshStoreOldKeptAside` (old file kept on this phone, new plans are saved) and
+    /// `.inMemoryThisLaunch` (nothing added this launch is saved).
+    let storeOutcome: OpenedStore.Outcome
+    var couldNotOpenSavedPlans: Bool { storeOutcome != .opened }
+    var runningInMemoryThisLaunch: Bool { storeOutcome == .inMemoryThisLaunch }
 
     @Published var route: Route?
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
@@ -65,7 +71,9 @@ final class AppModel: ObservableObject {
     static weak var current: AppModel?
 
     init(inMemory: Bool = false) {
-        container = Store.makeContainer(inMemory: inMemory)
+        let opened = Store.open(inMemory: inMemory)
+        container = opened.container
+        storeOutcome = opened.outcome
         onboarded = UserDefaults.standard.bool(forKey: "onboarded")
         firstVisitCardDismissed = UserDefaults.standard.bool(forKey: "firstVisitCardDismissed")
 
