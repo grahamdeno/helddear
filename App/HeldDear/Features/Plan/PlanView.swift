@@ -12,6 +12,8 @@ struct PlanView: View {
     private enum Screen: Equatable { case plan, part(UUID), add, name, relationship }
     @State private var screen: Screen = .plan
     @State private var newName = ""
+    /// Suggestions ticked on "Add something", by title, added together.
+    @State private var picked: Set<String> = []
 
     private var person: Person? { moment.person }
     private var personName: String { person?.name ?? "Someone" }
@@ -159,13 +161,22 @@ struct PlanView: View {
     }
 
     private var addScreen: some View {
-        FlowScreen {
-            TextLink(title: "‹ \(personName)'s plan") { screen = .plan }
-            Question(title: "Add something")
+        let chosen = suggestions.filter { picked.contains($0.title) }
+        return FlowScreen {
+            TextLink(title: "‹ \(personName)'s plan") { picked = []; screen = .plan }
+            Question(title: "Add something", subtitle: "Pick as many as you like.")
             VStack(spacing: 0) {
                 ForEach(suggestions, id: \.title) { s in suggestionRow(s) }
                 OptionRow(title: "Something else…") { newName = ""; screen = .name }
             }
+        } footer: {
+            PrimaryButton(title: chosen.isEmpty ? "Add" : "Add \(chosen.count)") {
+                for s in chosen { model.addPart(to: moment, kind: s.kind, label: s.label) }
+                picked = []
+                screen = .plan
+            }
+            .disabled(chosen.isEmpty)
+            .opacity(chosen.isEmpty ? 0.45 : 1)
         }
     }
 
@@ -176,14 +187,27 @@ struct PlanView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(s.title), added")
         } else {
+            let on = picked.contains(s.title)
             Button {
-                model.addPart(to: moment, kind: s.kind, label: s.label)
-                screen = .plan
+                if on { picked.remove(s.title) } else { picked.insert(s.title) }
             } label: {
-                suggestionLabel(s.title, trailing: "Add", color: Brand.action)
+                HStack(spacing: Brand.space3) {
+                    Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 24))
+                        .foregroundStyle(on ? Brand.action : Brand.inkMuted)
+                        .accessibilityHidden(true)
+                }
+                .padding(.vertical, Brand.space4)
+                .frame(minHeight: 64)
+                .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle())
-            .accessibilityLabel("Add \(s.title)")
+            .accessibilityLabel(s.title)
+            .accessibilityValue(on ? "Selected" : "Not selected")
+            .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
         }
     }
 
