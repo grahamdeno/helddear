@@ -229,6 +229,7 @@ As a user, I want each part to show where it stands in words families use so tha
   - Made by the kids: Not started, Have an idea, Making it, Finished.
   - The day (an outing, a dinner): Not started, Have an idea, Booked.
   - Cake, Flowers: Not started, Have an idea, Ordered or baking, Ready.
+  - Something else (typed by the user): Not started, Have an idea, Ready.
 - Tapping a part opens it: one list of its steps to pick from, and who it's from.
 - A part can carry a short note and a date, such as "arrives Dec 12" or where it came from.
 - Given a gift bought from a named shop that arrives Dec 12, then it reads "Bought" with the note
