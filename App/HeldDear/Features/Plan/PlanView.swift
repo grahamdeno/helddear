@@ -21,7 +21,9 @@ struct PlanView: View {
 
     /// The household an owner can be picked from: inner-ring people, other than the person the plan is for.
     private var household: [Person] {
-        model.allPeople().filter { $0.ring == .inner && $0.id != person?.id }
+        model.allPeople().filter {
+            $0.id != person?.id && Relationship.isHouseholdGiver(relationship: $0.relationship, isInner: $0.ring == .inner)
+        }
     }
 
     var body: some View {
@@ -294,13 +296,20 @@ private struct PartScreen: View {
     @FocusState private var noteFocused: Bool
 
     private var family: PartSteps.Family { PartSteps.family(forKindRaw: act.kindRaw) }
+
+    /// "Gift from Heidi and Nora" once who it's from is set; otherwise the item's own name.
+    private var titleText: String {
+        let names = household.filter { ownerIDs.contains($0.id) }.map(\.name)
+        if act.kind == .kidsMade, act.label == nil, let n = PartOwners.kidsGiftName(names: names) { return n }
+        return PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)
+    }
     private var current: String { act.currentStep ?? "open" }
     private var ownerIDs: [UUID] { PartOwners.existing(act.ownerIDs, among: household.map(\.id)) }
 
     var body: some View {
         FlowScreen {
             TextLink(title: "‹ \(personName)'s plan") { saveNote(); back() }
-            Text(PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title))
+            Text(titleText)
                 .font(Brand.display(52, relativeTo: .largeTitle)).tracking(-1)
                 .foregroundStyle(Brand.ink)
                 .lineLimit(3).minimumScaleFactor(0.6)
@@ -461,11 +470,12 @@ private struct PartScreen: View {
 struct RelationshipPicker: View {
     @EnvironmentObject var model: AppModel
     let person: Person
+    var backTitle: String? = nil
     let done: () -> Void
 
     var body: some View {
         FlowScreen {
-            TextLink(title: "‹ \(person.name)'s plan") { done() }
+            TextLink(title: "‹ " + (backTitle ?? "\(person.name)'s plan")) { done() }
             Question(title: "Who is \(person.name) to you?", subtitle: "It helps Held Dear suggest what families usually plan.")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: Brand.space2)], alignment: .leading,
                       spacing: Brand.space2) {

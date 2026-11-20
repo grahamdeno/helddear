@@ -149,6 +149,14 @@ final class HolidayTests: XCTestCase {
         XCTAssertEqual(PartOwners.kidsGiftName(names: ["Lily", "Rose"]), "Gift from Lily and Rose")
     }
 
+    func testOwners_householdIsPartnerAndChildrenNotParents() {
+        XCTAssertTrue(Relationship.isHouseholdGiver(relationship: "Wife", isInner: false))
+        XCTAssertTrue(Relationship.isHouseholdGiver(relationship: "Daughter", isInner: true))
+        XCTAssertFalse(Relationship.isHouseholdGiver(relationship: "Mother", isInner: true), "Inner ring, but not household")
+        XCTAssertTrue(Relationship.isHouseholdGiver(relationship: nil, isInner: true), "Unknown and inner: offered until set")
+        XCTAssertFalse(Relationship.isHouseholdGiver(relationship: nil, isInner: false))
+    }
+
     // MARK: R2, R3 build switches
 
     func testBuildSwitches_offInTestBuilds() {

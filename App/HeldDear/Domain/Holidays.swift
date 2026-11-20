@@ -77,6 +77,17 @@ enum Relationship {
 
     enum Group: Equatable { case partner, child, parent, sibling, extended, community, unknown }
 
+    /// Who "Who it's from" offers (feedback on build 1010): the household, meaning a partner and the children.
+    /// People whose relationship isn't set yet are offered when they're in the inner ring; anyone set as another
+    /// relationship (a mother, a brother, a friend) isn't, whatever their ring.
+    static func isHouseholdGiver(relationship: String?, isInner: Bool) -> Bool {
+        switch group(relationship) {
+        case .partner, .child: return true
+        case .unknown: return isInner
+        default: return false
+        }
+    }
+
     static func group(_ relationship: String?) -> Group {
         guard let r = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !r.isEmpty else {
             return .unknown

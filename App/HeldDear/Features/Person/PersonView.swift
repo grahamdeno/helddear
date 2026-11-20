@@ -23,6 +23,7 @@ struct PersonView: View {
     @State private var addingOccasion = false
     @State private var occasionToEdit: Occasion?
     @State private var showIdeas = false
+    @State private var settingRelationship = false
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -44,6 +45,9 @@ struct PersonView: View {
                 if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
+                OptionRow(title: "Relationship", caption: person.relationship ?? "Not set yet. Helps with suggestions and who gives what") {
+                    settingRelationship = true
+                }
                 section("Occasions") {
                     if let next = model.nextMoment(for: person) {
                         OptionRow(title: PlanReadiness.planRowTitle(for: next.type), caption: planCaption(next)) {
@@ -107,6 +111,9 @@ struct PersonView: View {
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .sheet(isPresented: $settingRelationship) {
+            RelationshipPicker(person: person, backTitle: person.name) { settingRelationship = false }
+        }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
