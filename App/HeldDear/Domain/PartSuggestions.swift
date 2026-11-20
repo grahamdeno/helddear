@@ -25,6 +25,14 @@ enum PartSuggestions {
 
     /// A spouse or partner's birthday has the long list; any other occasion or an unknown relationship has the short one.
     static func suggestions(for occasion: OccasionType, relationship: String?) -> [Suggestion] {
+        if occasion == .christmas {
+            return [make("Gift", .gift), make("Stocking", .stocking), make("From Santa", .fromSanta), make("Card", .card),
+                    make("Gift from the kids", .kidsMade), make("The day", .theDay)]
+        }
+        if occasion.kind == .holiday {
+            return [make("Gift", .gift), make("Card", .card), make("Flowers", .flowers),
+                    make("Breakfast in bed", .theDay, label: "Breakfast in bed"), make("The day", .theDay)]
+        }
         if occasion == .birthday && isPartner(relationship: relationship) {
             return [
                 make("Gift", .gift), make("Card", .card), make("Cake", .cake), make("Flowers", .flowers),
@@ -33,6 +41,28 @@ enum PartSuggestions {
             ]
         }
         return [make("Gift", .gift), make("Card", .card), make("Cake", .cake), make("The day", .theDay)]
+    }
+
+    /// What a person's plan starts with when they join a shared holiday (roadmap 1.6), by relationship.
+    /// Christmas: partner Gift, Stocking, Card, Gift from the kids; child Gift, From Santa, Stocking; parent or
+    /// grandparent Gift, Card; sibling or in-law Gift; teacher, coach, neighbor or friend a card; unknown Gift, Card.
+    /// Mother's Day and Father's Day: Gift, Card.
+    static func holidayStart(for occasion: OccasionType, relationship: String?) -> [Suggestion] {
+        guard occasion == .christmas else { return [make("Gift", .gift), make("Card", .card)] }
+        switch Relationship.group(relationship) {
+        case .partner:
+            return [make("Gift", .gift), make("Stocking", .stocking), make("Card", .card), make("Gift from the kids", .kidsMade)]
+        case .child:
+            return [make("Gift", .gift), make("From Santa", .fromSanta), make("Stocking", .stocking)]
+        case .parent:
+            return [make("Gift", .gift), make("Card", .card)]
+        case .sibling, .extended:
+            return [make("Gift", .gift)]
+        case .community:
+            return [make("Card", .card)]
+        case .unknown:
+            return [make("Gift", .gift), make("Card", .card)]
+        }
     }
 
     /// True when the plan already has a part like this suggestion ("Added"). A part counts when its kind matches and,

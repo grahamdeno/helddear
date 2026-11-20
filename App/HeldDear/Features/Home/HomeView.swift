@@ -41,7 +41,9 @@ struct HomeView: View {
     @ViewBuilder private var content: some View {
         let _ = model.revision
         let now = Date()
-        let moments = MomentEngine.visibleMoments(model.context, now: now)
+        let allVisible = MomentEngine.visibleMoments(model.context, now: now)
+        // A shared holiday is one event on Home, not a row per person (roadmap 1.1).
+        let moments = HolidayCollapse.collapse(allVisible)
         let states = moments.map(model.state(for:))
         let heroState = HeroPicker.pick(states, now: now)
         let featured = moments.first { $0.id == selectedID } ?? heroState.flatMap { s in moments.first { $0.id == s.id } }
@@ -49,9 +51,16 @@ struct HomeView: View {
         if let featured {
             VStack(spacing: 0) {
                 Spacer(minLength: Brand.space3)
-                FeaturedView(moment: featured, state: model.state(for: featured), now: now,
-                             openPerson: { if let p = featured.person { path.append(p.id) } })
-                    .padding(.horizontal, Brand.space5)
+                Group {
+                    if featured.type.kind == .holiday {
+                        HolidayFeaturedView(type: featured.type,
+                                            members: model.holidayMembers(type: featured.type, year: featured.year), now: now)
+                    } else {
+                        FeaturedView(moment: featured, state: model.state(for: featured), now: now,
+                                     openPerson: { if let p = featured.person { path.append(p.id) } })
+                    }
+                }
+                .padding(.horizontal, Brand.space5)
                 otherReady(moments, featured: featured, now: now)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
@@ -64,7 +73,7 @@ struct HomeView: View {
 
     /// Others waiting on the user right now, as one quiet line. Tapping features the first.
     @ViewBuilder private func otherReady(_ moments: [Moment], featured: Moment, now: Date) -> some View {
-        let ready = moments.filter { $0.id != featured.id && MomentEngine.needsAction($0, now: now) }
+        let ready = moments.filter { $0.id != featured.id && $0.type.kind != .holiday && MomentEngine.needsAction($0, now: now) }
         if let first = ready.first {
             let names = ready.prefix(3).compactMap { $0.person?.name }.joined(separator: ", ")
             Button { selectedID = first.id } label: {
@@ -248,7 +257,7 @@ struct FeaturedView: View {
                     .frame(minHeight: 44)
             }
             .padding(.top, Brand.space2)
-        } else if !missed && days >= 6 {
+        } else if !missed && days >= 6 && AppFeatures.serverFeatures {
             TextLink(title: "Or mail \(name) a card") { model.route = .moment(moment.id, .mailCard) }
                 .padding(.top, Brand.space2)
         } else if !missed && days > 0 && !state.greetingDone {
@@ -407,6 +416,7 @@ struct HorizonBand: View {
     }
 
     private func label(_ m: Moment) -> String {
+        if m.type.kind == .holiday { return m.type.label }
         let name = m.person?.name ?? ""
         if m.type == .anniversary, let p = m.occasion?.partnerName { return "\(name) & \(p)" }
         return name
@@ -463,5 +473,26 @@ struct HeroPhoto: View {
         .frame(height: height)
         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
         .accessibilityHidden(true)
+    }
+}
+
+
+/// Shared holidays on Home: one moment stands for everyone's (roadmap 1.1). The first one that still needs
+/// something stands in; the holiday page shows them all.
+enum HolidayCollapse {
+    static func collapse(_ moments: [Moment]) -> [Moment] {
+        var chosen: [String: Moment] = [:]
+        for m in moments {
+            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { continue }
+            if let current = chosen[key] {
+                if current.status.isSettled && !m.status.isSettled { chosen[key] = m }
+            } else {
+                chosen[key] = m
+            }
+        }
+        return moments.filter { m in
+            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { return true }
+            return chosen[key]?.id == m.id
+        }
     }
 }

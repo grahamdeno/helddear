@@ -78,6 +78,8 @@ enum AlertPlanner {
 
         for m in moments {
             if m.status.isSettled { continue }
+            // Shared holidays get one heads-up and one morning-of alert for everyone (roadmap 1.4), below.
+            if m.occasion.kind == .holiday { continue }
             let due9 = D.alertTime(on: m.dueDate, calendar: calendar)
             let name = m.personName
 
@@ -139,6 +141,25 @@ enum AlertPlanner {
                     alerts.append(PlannedAlert(id: "missed-\(m.id)", kind: .missed, fireDate: fire,
                                                body: "\(m.subject.prefix(1).uppercased() + m.subject.dropFirst()) was yesterday. A late note still counts.", momentID: m.id))
                 }
+            }
+        }
+
+        // Shared holidays (roadmap 1.4): one heads-up six weeks out, and one alert on the morning, for everyone.
+        let holidayMoments = moments.filter { $0.occasion.kind == .holiday && !$0.status.isSettled }
+        let holidayGroups = Dictionary(grouping: holidayMoments) { m in
+            "\(m.occasion.rawValue)-\(calendar.component(.year, from: m.dueDate))"
+        }
+        for (key, group) in holidayGroups {
+            guard let first = group.first else { continue }
+            let due9 = D.alertTime(on: first.dueDate, calendar: calendar)
+            let fire = D.alertTime(on: D.adding(days: -Holidays.headsUpDays, to: first.dueDate, calendar: calendar), calendar: calendar)
+            if fire > now {
+                alerts.append(PlannedAlert(id: "holiday-\(key)", kind: .grouped, fireDate: fire,
+                                           body: Holidays.headsUpText(type: first.occasion, people: group.count), momentID: nil))
+            }
+            if due9 > now, group.contains(where: { !$0.greetingDone && $0.status != .missed }) {
+                alerts.append(PlannedAlert(id: "holiday-dayof-\(key)", kind: .grouped, fireDate: due9,
+                                           body: Holidays.dayOfText(type: first.occasion, people: group.count), momentID: nil))
             }
         }
 
@@ -217,7 +238,9 @@ enum AlertPlanner {
 
     /// Months in the next year with several inner- or middle-ring birthdays.
     static func seasons(from moments: [MomentState], now: Date, calendar: Calendar = .current) -> [Season] {
-        let candidates = moments.filter { $0.ring != .outer && !$0.status.isSettled && $0.dueDate >= calendar.startOfDay(for: now) }
+        let candidates = moments.filter {
+            $0.ring != .outer && !$0.status.isSettled && $0.dueDate >= calendar.startOfDay(for: now) && $0.occasion.kind != .holiday
+        }
         let byMonth = Dictionary(grouping: candidates) { m -> Date in
             calendar.date(from: calendar.dateComponents([.year, .month], from: m.dueDate))!
         }

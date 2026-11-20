@@ -93,6 +93,8 @@ struct RouteView: View {
             if let m = model.moment(id) { IdeasFlow(moment: m) } else { Color.clear.onAppear { model.route = nil } }
         case .plan(let id):
             if let m = model.moment(id) { PlanView(moment: m) } else { Color.clear.onAppear { model.route = nil } }
+        case .holiday(let raw, let year):
+            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear.onAppear { model.route = nil } }
         case .rings:
             NavigationStack { RingsView().toolbar { CloseToolbar { model.route = nil } } }
         case .lifetime:
