@@ -193,9 +193,25 @@ final class DataFoundationTests: XCTestCase {
 
     func testM1_storeOpensThroughTheMigrationPlan() throws {
         let opened = Store.open(url: dir.appending(path: "default.store"))
-        XCTAssertFalse(opened.couldNotOpenSavedStore)
+        XCTAssertEqual(opened.outcome, .opened)
         XCTAssertNil(opened.keptStoreURL)
         XCTAssertEqual(opened.container.schema.entities.count, 6)
+    }
+
+    func testM1_productionStoreLivesWhereMainOpenedIt() {
+        // Main opened the store with ModelConfiguration(schema:isStoredInMemoryOnly:), which leaves the group container
+        // on .automatic, so a signed install keeps the store in the App Group container. Version 2 must resolve to the
+        // same file, or an upgrade would open an empty store. (CI is unsigned and resolves both to Application Support;
+        // the equality is what matters. A signed device is the other check.)
+        let theWayMainOpenedIt = ModelConfiguration(schema: Schema(versionedSchema: SchemaV1.self), isStoredInMemoryOnly: false)
+        XCTAssertEqual(Store.productionConfiguration().url, theWayMainOpenedIt.url)
+        XCTAssertEqual(Store.configuration(url: nil).url, theWayMainOpenedIt.url)
+        XCTAssertEqual(Store.productionConfiguration().url,
+                       ModelConfiguration(schema: Store.schema).url,
+                       "Same place as the plain configuration for the current schema")
+        XCTAssertEqual(Store.productionConfiguration().url.lastPathComponent, "default.store")
+        let custom = dir.appending(path: "elsewhere.store")
+        XCTAssertEqual(Store.configuration(url: custom).url, custom, "A url is honored for tests")
     }
 
     // MARK: M2. Migration from version 1
@@ -286,7 +302,7 @@ final class DataFoundationTests: XCTestCase {
         let fx = try writeV1Store(at: url)
 
         let opened = Store.open(url: url)
-        XCTAssertFalse(opened.couldNotOpenSavedStore, "A version 1 store must migrate, not be kept aside")
+        XCTAssertEqual(opened.outcome, .opened, "A version 1 store must migrate, not be kept aside")
         let context = ModelContext(opened.container)
 
         let people = try context.fetch(FetchDescriptor<Person>())
@@ -344,6 +360,7 @@ final class DataFoundationTests: XCTestCase {
 
         let opened = Store.open(url: url, now: now)
 
+        XCTAssertEqual(opened.outcome, .freshStoreOldKeptAside)
         XCTAssertTrue(opened.couldNotOpenSavedStore)
         let kept = try XCTUnwrap(opened.keptStoreURL)
         XCTAssertEqual(kept.deletingLastPathComponent().standardizedFileURL, dir.standardizedFileURL, "Kept next to the original")
@@ -359,7 +376,7 @@ final class DataFoundationTests: XCTestCase {
 
         // Opening again uses the fresh store and keeps nothing else aside.
         let second = Store.open(url: url, now: now)
-        XCTAssertFalse(second.couldNotOpenSavedStore)
+        XCTAssertEqual(second.outcome, .opened)
         XCTAssertEqual(try ModelContext(second.container).fetchCount(FetchDescriptor<Person>()), 1)
     }
 
@@ -373,6 +390,27 @@ final class DataFoundationTests: XCTestCase {
         XCTAssertNotEqual(first, second)
         XCTAssertEqual(try Data(contentsOf: first), Data("first".utf8))
         XCTAssertEqual(try Data(contentsOf: second), Data("second".utf8))
+    }
+
+    func testM3_whenNoFreshFileCanBeOpenedTheAppRunsInMemoryForThisLaunch() throws {
+        // A regular file where the store's folder should be: the folder can't be made, and there is no store file to
+        // move aside, so neither a kept file nor a fresh file is possible.
+        let blocker = dir.appending(path: "blocker")
+        try Data("not a folder".utf8).write(to: blocker)
+        let url = blocker.appending(path: "default.store")
+
+        let opened = Store.open(url: url)
+
+        XCTAssertEqual(opened.outcome, .inMemoryThisLaunch)
+        XCTAssertTrue(opened.couldNotOpenSavedStore)
+        XCTAssertNil(opened.keptStoreURL)
+        XCTAssertEqual(try Data(contentsOf: blocker), Data("not a folder".utf8), "Nothing else was touched")
+        // It still runs: this launch can read and write, in memory only.
+        let context = ModelContext(opened.container)
+        context.insert(Person(name: "Mom"))
+        try context.save()
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Person>()), 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "Nothing was written to disk")
     }
 
     // MARK: M4. No bulk rewrite

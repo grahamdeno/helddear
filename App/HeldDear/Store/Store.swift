@@ -26,43 +26,65 @@ enum HeldDearMigrationPlan: SchemaMigrationPlan {
     }
 }
 
-/// The opened store, and whether the saved one couldn't be opened.
+/// The opened store, and what happened when opening it.
 struct OpenedStore {
+    enum Outcome: Equatable {
+        /// The saved store opened (or was migrated), or an in-memory store was asked for.
+        case opened
+        /// The saved store couldn't be opened. The old file was kept aside, untouched, and a fresh store opened in
+        /// its place; new plans are saved.
+        case freshStoreOldKeptAside
+        /// The saved store couldn't be opened and no fresh file could be opened either. The app runs on a store held
+        /// in memory for this launch only: nothing added is saved. The old file is left where it is, or kept aside.
+        case inMemoryThisLaunch
+    }
+
     let container: ModelContainer
-    /// True when the saved store couldn't be opened and the app started fresh. The app shows one calm line.
-    let couldNotOpenSavedStore: Bool
+    let outcome: Outcome
     /// Where the old store was kept, untouched, if it could be moved aside.
     let keptStoreURL: URL?
+
+    /// True for both failure cases. The app shows one calm line.
+    var couldNotOpenSavedStore: Bool { outcome != .opened }
 }
 
 enum Store {
     static let schema = Schema(versionedSchema: SchemaV2.self)
 
-    /// The same place SwiftData uses by default, so existing stores are found where they already are.
-    static var defaultURL: URL { URL.applicationSupportDirectory.appending(path: "default.store") }
+    /// Where the store lives on a phone: built the way main built it, with no `url` and the default group container
+    /// (`.automatic`). With the App Group entitlement that is the shared container, so a signed install finds the
+    /// store that builds before 1.0 already made. Unsigned runs (CI) fall back to Application Support.
+    static func productionConfiguration() -> ModelConfiguration {
+        ModelConfiguration(schema: schema)
+    }
+
+    /// The production configuration, or one at `url`. A `url` is for tests only.
+    static func configuration(url: URL?) -> ModelConfiguration {
+        url.map { ModelConfiguration(schema: schema, url: $0) } ?? productionConfiguration()
+    }
 
     /// Opens the store through the migration plan. Never crashes: if the saved store can't be opened, it's moved
-    /// aside under a dated name, untouched, and a fresh store opens in its place. If even that fails, the app runs
-    /// on an in-memory store for this launch, so it never crashes in a loop.
+    /// aside under a dated name, untouched, and a fresh store opens in its place. If that isn't possible either, the
+    /// app runs on an in-memory store for this launch, so it never crashes in a loop. `outcome` says which happened.
+    /// `url` is for tests only; the app passes nothing and gets the production location.
     static func open(inMemory: Bool = false, url: URL? = nil, now: Date = Date()) -> OpenedStore {
         if inMemory {
-            return OpenedStore(container: memoryContainer(), couldNotOpenSavedStore: false, keptStoreURL: nil)
+            return OpenedStore(container: memoryContainer(), outcome: .opened, keptStoreURL: nil)
         }
-        let url = url ?? defaultURL
+        let storeURL = configuration(url: url).url
         do {
-            return OpenedStore(container: try container(at: url), couldNotOpenSavedStore: false, keptStoreURL: nil)
+            return OpenedStore(container: try container(configuration(url: url)), outcome: .opened, keptStoreURL: nil)
         } catch {
-            let kept = try? keepAside(url, now: now)
-            if kept != nil, let fresh = try? container(at: url) {
-                return OpenedStore(container: fresh, couldNotOpenSavedStore: true, keptStoreURL: kept)
+            let kept = try? keepAside(storeURL, now: now)
+            if kept != nil, let fresh = try? container(configuration(url: url)) {
+                return OpenedStore(container: fresh, outcome: .freshStoreOldKeptAside, keptStoreURL: kept)
             }
-            return OpenedStore(container: memoryContainer(), couldNotOpenSavedStore: true, keptStoreURL: kept)
+            return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: kept)
         }
     }
 
-    static func container(at url: URL) throws -> ModelContainer {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let config = ModelConfiguration(schema: schema, url: url)
+    static func container(_ config: ModelConfiguration) throws -> ModelContainer {
+        try FileManager.default.createDirectory(at: config.url.deletingLastPathComponent(), withIntermediateDirectories: true)
         return try ModelContainer(for: schema, migrationPlan: HeldDearMigrationPlan.self, configurations: [config])
     }
 
