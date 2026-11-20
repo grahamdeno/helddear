@@ -171,6 +171,24 @@ final class AppModel: ObservableObject {
     func moment(_ id: UUID) -> Moment? { allMoments().first { $0.id == id } }
     func person(_ id: UUID) -> Person? { allPeople().first { $0.id == id } }
 
+    /// A person's own next day (birthday, anniversary, life moment), leaving out shared holidays.
+    func nextPersonalMoment(for person: Person, now: Date = Date()) -> Moment? {
+        let today = Calendar.current.startOfDay(for: now)
+        return person.occasions.filter { $0.type.kind != .holiday }.flatMap(\.moments)
+            .filter { $0.dueDate >= today }.sorted { $0.dueDate < $1.dueDate }.first
+    }
+
+    /// Upcoming shared holidays, one each: the type, its date and how many people are in it.
+    func upcomingHolidays(now: Date = Date()) -> [(type: OccasionType, year: Int, date: Date, people: Int)] {
+        let today = Calendar.current.startOfDay(for: now)
+        let moments = allMoments().filter { $0.type.kind == .holiday && $0.person != nil && $0.dueDate >= today }
+        let groups = Dictionary(grouping: moments) { "\($0.type.rawValue)-\($0.year)" }
+        return groups.values.compactMap { g in
+            guard let f = g.first else { return nil }
+            return (f.type, f.year, f.dueDate, g.count)
+        }.sorted { $0.date < $1.date }
+    }
+
     /// The next open Moment for a person (their upcoming birthday).
     func nextMoment(for person: Person, now: Date = Date()) -> Moment? {
         let today = Calendar.current.startOfDay(for: now)

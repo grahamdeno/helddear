@@ -9,9 +9,12 @@ struct RingsView: View {
 
     var body: some View {
         let _ = model.revision
-        let rows = model.allPeople().map { p in (person: p, next: model.nextMoment(for: p)) }
-            .sorted { ($0.next?.dueDate ?? .distantFuture) < ($1.next?.dueDate ?? .distantFuture) }
+        // Each person by their own next day; shared holidays are one row each (feedback on build 1010).
+        let rows = model.allPeople().map { p in (person: p, next: model.nextPersonalMoment(for: p)) }
         let early = rows.filter { $0.person.ring == .inner }.count
+        let holidays = model.upcomingHolidays()
+        let items: [Item] = (rows.map { Item.person($0.person, $0.next) } + holidays.map { Item.holiday($0.type, $0.year, $0.date, $0.people) })
+            .sorted { $0.sortDate < $1.sortDate }
 
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -20,8 +23,11 @@ struct RingsView: View {
                     .font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
                     .padding(.top, Brand.space1)
                     .padding(.bottom, Brand.space5)
-                ForEach(rows, id: \.person.id) { row in
-                    personRow(row.person, next: row.next)
+                ForEach(items) { item in
+                    switch item {
+                    case .person(let p, let next): personRow(p, next: next)
+                    case .holiday(let type, let year, let date, let people): holidayRow(type, year: year, date: date, people: people)
+                    }
                 }
                 SecondaryButton(title: "Add from Contacts") { addingFromContacts = true }
                     .padding(.top, Brand.space5)
@@ -39,6 +45,49 @@ struct RingsView: View {
         }
         .sheet(item: $sheetPerson) { p in RingSheet(person: p).presentationDetents([.medium]) }
         .addFromContacts(isPresented: $addingFromContacts)
+    }
+
+    private enum Item: Identifiable {
+        case person(Person, Moment?)
+        case holiday(OccasionType, Int, Date, Int)
+
+        var id: String {
+            switch self {
+            case .person(let p, _): "p-\(p.id)"
+            case .holiday(let t, let y, _, _): "h-\(t.rawValue)-\(y)"
+            }
+        }
+
+        var sortDate: Date {
+            switch self {
+            case .person(_, let next): next?.dueDate ?? .distantFuture
+            case .holiday(_, _, let date, _): date
+            }
+        }
+    }
+
+    private func holidayRow(_ type: OccasionType, year: Int, date: Date, people: Int) -> some View {
+        Button { model.route = .holiday(type.rawValue, year) } label: {
+            HStack(spacing: Brand.space4) {
+                Text(String(Calendar.current.component(.day, from: date)))
+                    .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
+                    .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(type.label).textStyle(.bodyStrong).lineLimit(1)
+                    Text("\(date.formatted(.dateTime.month(.abbreviated).day())) · \(people) \(people == 1 ? "person" : "people")")
+                        .textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, Brand.space2)
+        .accessibilityLabel("\(type.label), \(OccasionDates.longDate(date)), \(people) people")
+        .accessibilityHint("Opens \(type.label)")
     }
 
     private func summary(total: Int, early: Int) -> String {
@@ -76,7 +125,7 @@ struct RingsView: View {
     }
 
     private func caption(_ next: Moment?) -> String {
-        guard let next else { return "No date yet" }
+        guard let next else { return "No birthday yet" }
         return "\(next.dueDate.formatted(.dateTime.month(.abbreviated).day())) · \(next.occasionLine)"
     }
 
