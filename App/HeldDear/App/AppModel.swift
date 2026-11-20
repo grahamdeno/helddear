@@ -392,11 +392,7 @@ final class AppModel: ObservableObject {
     }
 
     func completePlan(_ m: Moment, how: ConfirmedBy = .user) {
-        m.plan?.complete(how)
-        if let wishID = m.plan?.wishID, let wish = m.person?.wishes.first(where: { $0.id == wishID }) {
-            wish.status = .used
-        }
-        m.status = .done
+        PlanStore.completePlan(m, how: how)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         commit()
     }

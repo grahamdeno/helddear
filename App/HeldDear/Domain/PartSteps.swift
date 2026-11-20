@@ -210,6 +210,22 @@ enum PlanReadiness {
         (steps.filter { PartSteps.isReady(step: $0.step, family: $0.family) }.count, steps.count)
     }
 
+    /// The Person page's row that opens the plan.
+    static func planRowTitle(for type: OccasionType) -> String {
+        switch type {
+        case .birthday: "Plan the birthday"
+        case .anniversary: "Plan the anniversary"
+        case .christmas: "Plan Christmas"
+        case .valentines: "Plan Valentine's Day"
+        case .mothersDay: "Plan Mother's Day"
+        case .fathersDay: "Plan Father's Day"
+        case .newBaby: "Plan the new baby"
+        case .graduation: "Plan the graduation"
+        case .newHome: "Plan the new home"
+        case .retirement: "Plan the retirement"
+        }
+    }
+
     /// "Your wife, turning 40". Unknown pieces are left out; nil when neither is known. No pronouns.
     static func relationLine(relationship: String?, turning: Int?) -> String? {
         let rel = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().nilIfEmptyString

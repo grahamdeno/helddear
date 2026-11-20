@@ -165,7 +165,7 @@ struct FeaturedView: View {
                 Text(ideaLine(name: name)).font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
                     .multilineTextAlignment(.center).frame(maxWidth: 330)
                 PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
-                TextLink(title: "Plan \(name)'s day in parts") { model.route = .plan(moment.id) }
+                TextLink(title: "Plan \(name)'s day") { model.route = .plan(moment.id) }
                 secondary(days: days, missed: missed, name: name)
             }
         case .pick, .saveWish:
@@ -174,7 +174,7 @@ struct FeaturedView: View {
                     .font(Brand.serif(19, relativeTo: .body, italic: true)).foregroundStyle(Brand.inkSoft)
                     .multilineTextAlignment(.center).frame(maxWidth: 320)
                 SecondaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
-                TextLink(title: "Plan \(name)'s day in parts") { model.route = .plan(moment.id) }
+                TextLink(title: "Plan \(name)'s day") { model.route = .plan(moment.id) }
             }
         default:
             VStack(spacing: 0) {

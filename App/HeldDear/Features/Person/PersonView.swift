@@ -46,7 +46,7 @@ struct PersonView: View {
                 if model.phone(for: person) == nil { phoneRow }
                 section("Occasions") {
                     if let next = model.nextMoment(for: person) {
-                        OptionRow(title: "Plan for \(next.type.label.lowercased())", caption: planCaption(next)) {
+                        OptionRow(title: PlanReadiness.planRowTitle(for: next.type), caption: planCaption(next)) {
                             model.route = .plan(next.id)
                         }
                     }

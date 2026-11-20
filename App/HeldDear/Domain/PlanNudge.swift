@@ -42,7 +42,7 @@ enum PlanNudge {
         case .orderAhead: "Usually ordered about a week ahead,"
         case .buy: "Gifts usually take a week or two to arrive,"
         case .card: "Cards go in the mail about five days ahead,"
-        case .make, .day, .other, .callOrMessage: "There's usually a week of planning,"
+        case .make, .day, .other, .callOrMessage: "It usually takes about a week,"
         }
     }
 
@@ -57,14 +57,21 @@ enum PlanNudge {
     }
 
     /// `parts` are in plan order. `daysLeft` is whole days from today to the day (0 on the day).
-    /// Everything keys off the first part that isn't started.
+    /// Everything starts from the not-started part with the least slack (days left minus its lead days; no lead time
+    /// is infinite slack). Equal slack keeps plan order. The other not-started parts follow in plan order.
     static func make(parts: [Part], daysLeft: Int) -> Result {
         let open = parts.enumerated().filter { $0.element.isNotStarted }
-        guard let first = open.first else {
+        func slack(_ p: Part) -> Int { leadDays(for: p.family).map { daysLeft - $0 } ?? Int.max }
+        let first = open.min { a, b in
+            let sa = slack(a.element), sb = slack(b.element)
+            return sa == sb ? a.offset < b.offset : sa < sb
+        }
+        guard let first else {
             return Result(note: nil, buttonTitle: "Everything is planned", target: nil)
         }
         let part = first.element
-        let button = "Plan the \(inSentence(part))"
+        let others = open.filter { $0.offset != first.offset }.map { inSentence($0.element) }
+        let button = part.typed ? "Plan next: \(part.name)" : "Plan the \(inSentence(part))"
         let inside = leadDays(for: part.family).map { daysLeft <= $0 } ?? false
         if inside {
             return Result(note: "\(part.name) needs \(needsWord(for: part.family)) this week.",
@@ -72,10 +79,10 @@ enum PlanNudge {
         }
         let usual = "\(usualLine(for: part.family)) so there's time."
         let lead: String
-        switch open.count {
-        case 1: lead = "\(part.name) isn't started yet."
-        case 2: lead = "\(part.name) and \(open[1].element.name) aren't started yet."
-        default: lead = "\(part.name), \(open[1].element.name) and \(open.count - 2) more aren't started yet."
+        switch others.count {
+        case 0: lead = "\(part.name) isn't started yet."
+        case 1: lead = "\(part.name) and \(others[0]) aren't started yet."
+        default: lead = "\(part.name), \(others[0]) and \(others.count - 1) more aren't started yet."
         }
         return Result(note: "\(lead) \(usual)", buttonTitle: button, target: first.offset)
     }

@@ -224,7 +224,7 @@ final class PlanTests: XCTestCase {
             XCTAssertEqual(outside.note?.hasSuffix(" so there's time."), true)
         }
         let call = PlanNudge.make(parts: [part("Call", .callOrMessage)], daysLeft: 1)
-        XCTAssertEqual(call.note, "Call isn't started yet. There's usually a week of planning, so there's time.",
+        XCTAssertEqual(call.note, "Call isn't started yet. It usually takes about a week, so there's time.",
                        "A call has no lead time, so it is never this week")
     }
 
@@ -236,19 +236,19 @@ final class PlanTests: XCTestCase {
         XCTAssertEqual(note(.orderAhead, "Flowers"), "Flowers isn't started yet. Usually ordered about a week ahead, so there's time.")
         XCTAssertEqual(note(.buy, "Gift"), "Gift isn't started yet. Gifts usually take a week or two to arrive, so there's time.")
         XCTAssertEqual(note(.card, "Card"), "Card isn't started yet. Cards go in the mail about five days ahead, so there's time.")
-        XCTAssertEqual(note(.day, "The day"), "The day isn't started yet. There's usually a week of planning, so there's time.")
+        XCTAssertEqual(note(.day, "The day"), "The day isn't started yet. It usually takes about a week, so there's time.")
         XCTAssertEqual(note(.make, "Gift from the kids"),
-                       "Gift from the kids isn't started yet. There's usually a week of planning, so there's time.")
+                       "Gift from the kids isn't started yet. It usually takes about a week, so there's time.")
     }
 
     func testNudge_severalNotStarted() {
         let two = PlanNudge.make(parts: [part("Gift", .buy), part("Card", .card)], daysLeft: 60)
-        XCTAssertEqual(two.note, "Gift and Card aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
+        XCTAssertEqual(two.note, "Gift and card aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
         let three = PlanNudge.make(parts: [part("Gift", .buy), part("Card", .card), part("Cake", .orderAhead)], daysLeft: 60)
-        XCTAssertEqual(three.note, "Gift, Card and 1 more aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
+        XCTAssertEqual(three.note, "Gift, card and 1 more aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
         let four = PlanNudge.make(parts: [part("Gift", .buy), part("Card", .card), part("Cake", .orderAhead),
                                           part("Flowers", .orderAhead)], daysLeft: 60)
-        XCTAssertEqual(four.note, "Gift, Card and 2 more aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
+        XCTAssertEqual(four.note, "Gift, card and 2 more aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
     }
 
     func testNudge_startedPartsAreNotCountedAndTheButtonOpensTheFirstNotStarted() {
@@ -256,13 +256,14 @@ final class PlanTests: XCTestCase {
         let r = PlanNudge.make(parts: parts, daysLeft: 60)
         XCTAssertEqual(r.target, 1)
         XCTAssertEqual(r.buttonTitle, "Plan the card")
-        XCTAssertEqual(r.note, "Card and Cake aren't started yet. Cards go in the mail about five days ahead, so there's time.")
+        XCTAssertEqual(r.note, "Card and cake aren't started yet. Cards go in the mail about five days ahead, so there's time.")
         XCTAssertTrue(r.isEnabled)
     }
 
     func testNudge_typedNamesKeepTheirCapitals() {
         let r = PlanNudge.make(parts: [part("Sam's mug", .buy, typed: true)], daysLeft: 60)
-        XCTAssertEqual(r.buttonTitle, "Plan the Sam's mug")
+        XCTAssertEqual(r.buttonTitle, "Plan next: Sam's mug")
+        XCTAssertEqual(PlanNudge.make(parts: [part("Cake", .orderAhead)], daysLeft: 60).buttonTitle, "Plan the cake")
     }
 
     func testNudge_nothingOpen() {
@@ -272,6 +273,36 @@ final class PlanTests: XCTestCase {
         XCTAssertNil(r.target)
         XCTAssertFalse(r.isEnabled)
         XCTAssertEqual(PlanNudge.make(parts: [], daysLeft: 3).buttonTitle, "Everything is planned")
+    }
+
+    func testNudge_leastSlackComesFirst() {
+        // At 10 days: cake slack 3 (lead 7), gift slack -4 (lead 14). The gift is listed second.
+        let r = PlanNudge.make(parts: [part("Cake", .orderAhead), part("Gift", .buy)], daysLeft: 10)
+        XCTAssertEqual(r.target, 1)
+        XCTAssertEqual(r.buttonTitle, "Plan the gift")
+        XCTAssertEqual(r.note, "Gift needs buying this week.")
+        let outside = PlanNudge.make(parts: [part("Cake", .orderAhead), part("Gift", .buy), part("Card", .card)], daysLeft: 40)
+        XCTAssertEqual(outside.target, 1, "Gift has slack 26, cake 33, card 35")
+        XCTAssertEqual(outside.note, "Gift, cake and 1 more aren't started yet. Gifts usually take a week or two to arrive, so there's time.",
+                       "The others follow in plan order")
+    }
+
+    func testNudge_equalSlackKeepsPlanOrderAndNoLeadTimeIsLast() {
+        let r = PlanNudge.make(parts: [part("Cake", .orderAhead), part("Flowers", .orderAhead)], daysLeft: 30)
+        XCTAssertEqual(r.target, 0)
+        XCTAssertEqual(r.note, "Cake and flowers aren't started yet. Usually ordered about a week ahead, so there's time.")
+        let call = PlanNudge.make(parts: [part("Call", .callOrMessage), part("The day", .day)], daysLeft: 30)
+        XCTAssertEqual(call.target, 1, "A call has infinite slack")
+    }
+
+    func testNudge_planRowTitleForEveryOccasion() {
+        let expected: [OccasionType: String] = [
+            .birthday: "Plan the birthday", .anniversary: "Plan the anniversary", .christmas: "Plan Christmas",
+            .valentines: "Plan Valentine's Day", .mothersDay: "Plan Mother's Day", .fathersDay: "Plan Father's Day",
+            .newBaby: "Plan the new baby", .graduation: "Plan the graduation", .newHome: "Plan the new home",
+            .retirement: "Plan the retirement",
+        ]
+        for type in OccasionType.allCases { XCTAssertEqual(PlanReadiness.planRowTitle(for: type), expected[type], "\(type)") }
     }
 
     // MARK: A (new kinds in the older switches)
@@ -513,6 +544,38 @@ final class PlanTests: XCTestCase {
         XCTAssertEqual(a.note, "arrives Friday")
         PlanStore.setNote(a, to: "  ")
         XCTAssertNil(a.note)
+    }
+
+    func testC_olderFlowDoneCompletesAPlanScreenPartThroughItsSteps() {
+        let w = makeWorld()
+        let first = PlanStore.addPart(to: w.moment, kind: .gift, label: nil, in: w.context)
+        let newest = PlanStore.addPart(to: w.moment, kind: .cake, label: nil, in: w.context)
+        newest.createdAt = first.createdAt.addingTimeInterval(1)
+        XCTAssertEqual(newest.step, "open")
+        PlanStore.completePlan(w.moment)
+        XCTAssertEqual(newest.step, "ready")
+        XCTAssertNotNil(newest.completedAt)
+        XCTAssertTrue(newest.isReady)
+        XCTAssertFalse(first.isReady)
+        XCTAssertEqual(w.moment.status, .planning, "Another part is not ready")
+        PlanStore.setStep(first, to: "wrapped")
+        XCTAssertEqual(w.moment.status, .done)
+    }
+
+    func testC_olderFlowDoneOnAnOlderSinglePlanIsAsBefore() {
+        let w = makeWorld(status: .planning)
+        let wish = Wish(text: "Blue gloves")
+        w.context.insert(wish)
+        wish.person = w.person
+        let old = Act(role: .plan, kind: .gift, title: "Blue gloves", wishID: wish.id)
+        w.context.insert(old)
+        old.moment = w.moment
+        PlanStore.completePlan(w.moment, how: .mailed)
+        XCTAssertNotNil(old.completedAt)
+        XCTAssertEqual(old.confirmedRaw, ConfirmedBy.mailed.rawValue)
+        XCTAssertNil(old.step, "Nothing is stored that the user did not choose")
+        XCTAssertEqual(wish.status, .used)
+        XCTAssertEqual(w.moment.status, .done)
     }
 
     // MARK: D (Home and the yearly line)

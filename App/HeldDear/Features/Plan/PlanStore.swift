@@ -69,6 +69,22 @@ enum PlanStore {
         if let m { syncStatus(m) }
     }
 
+    /// The older flow's Done. A plan act with a stored step is completed through `setStep` at its kind's ready step,
+    /// so its step, completed date, wish and the moment's status agree. Any other plan act is completed as before.
+    /// Either way the status of a plan moment is then brought in step with its parts.
+    static func completePlan(_ m: Moment, how: ConfirmedBy = .user) {
+        if let plan = m.plan, plan.step != nil {
+            setStep(plan, to: PartSteps.readyStep(for: PartSteps.family(forKindRaw: plan.kindRaw)))
+        } else {
+            m.plan?.complete(how)
+            if let wishID = m.plan?.wishID, let wish = m.person?.wishes.first(where: { $0.id == wishID }) {
+                wish.status = .used
+            }
+            m.status = .done
+        }
+        syncStatus(m)
+    }
+
     /// Adds a part at the end: step not started, from You. The moment becomes a plan moment.
     @discardableResult
     static func addPart(to m: Moment, kind: ActKind, label: String?, in context: ModelContext) -> Act {
