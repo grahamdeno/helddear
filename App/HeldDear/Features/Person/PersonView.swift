@@ -45,6 +45,11 @@ struct PersonView: View {
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
                 section("Occasions") {
+                    if let next = model.nextMoment(for: person) {
+                        OptionRow(title: PlanReadiness.planRowTitle(for: next.type), caption: planCaption(next)) {
+                            model.route = .plan(next.id)
+                        }
+                    }
                     ForEach(sortedOccasions, id: \.id) { o in
                         if o.type == .birthday {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
@@ -349,6 +354,13 @@ struct PersonView: View {
     private func nextDate(_ o: Occasion) -> Date? {
         let today = Calendar.current.startOfDay(for: Date())
         return o.moments.filter { $0.dueDate >= today }.map(\.dueDate).min()
+    }
+
+    /// The plan row's second line: how many parts are ready, or an invitation when there is no plan yet.
+    private func planCaption(_ m: Moment) -> String {
+        m.isPlanMoment
+            ? PlanReadiness.summary(ready: m.partsReady, total: m.planParts.count, subject: m.subject)
+            : "Parts, steps and who it's from"
     }
 
     private func occasionCaption(_ o: Occasion) -> String {

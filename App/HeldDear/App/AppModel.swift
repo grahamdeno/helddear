@@ -30,6 +30,8 @@ enum Route: Identifiable, Equatable {
     case settings
     case lifetime
     case ideas(UUID)
+    /// The occasion plan for a Moment (its id).
+    case plan(UUID)
 
     var id: String {
         switch self {
@@ -42,6 +44,7 @@ enum Route: Identifiable, Equatable {
         case .settings: "settings"
         case .lifetime: "lifetime"
         case .ideas(let id): "ideas-\(id)"
+        case .plan(let id): "plan-\(id)"
         }
     }
 }
@@ -137,12 +140,17 @@ final class AppModel: ObservableObject {
     func state(for m: Moment) -> MomentState {
         let person = m.person
         let plan = m.plan
+        let isPlanMoment = m.isPlanMoment
         return MomentState(id: m.id, personName: person?.name ?? "Someone", ring: m.occasion?.effectiveRing ?? .outer,
-                           dueDate: m.dueDate, status: m.status, planKind: plan?.kind, planTitle: plan?.title, planDone: plan?.isDone ?? false,
+                           dueDate: m.dueDate, status: m.status, planKind: plan?.kind, planTitle: plan?.label ?? plan?.title,
+                           planDone: plan?.isDone ?? false,
                            greetingDone: m.greetingSent,
                            anyActDone: m.anyActDone, openWishCount: person?.openWishes.count ?? 0,
                            hasPhone: phone(for: person) != nil, turning: m.turning, headsUpAt: m.headsUpAt,
-                           occasion: m.type, partnerName: m.occasion?.partnerName)
+                           occasion: m.type, partnerName: m.occasion?.partnerName,
+                           partsReady: isPlanMoment ? m.partsReady : 0,
+                           partsTotal: isPlanMoment ? m.planParts.count : 0,
+                           isPlanMoment: isPlanMoment)
     }
 
     func seasons(now: Date = Date()) -> [Season] {
@@ -326,7 +334,7 @@ final class AppModel: ObservableObject {
 
     /// C2: the user picked one thing. Replaces any earlier unfinished plan.
     func choosePlan(_ m: Moment, kind: ActKind, title: String? = nil, wish: Wish? = nil) {
-        for act in m.acts where act.role == .plan && !act.isDone { context.delete(act) }
+        PlanStore.removeOldFlowPlans(of: m, in: context)
         let act = Act(role: .plan, kind: kind, title: title ?? wish?.text, wishID: wish?.id)
         context.insert(act)
         act.moment = m
@@ -336,7 +344,7 @@ final class AppModel: ObservableObject {
 
     /// A Handwrytten card was paid for and placed: the plan is a card, and it's done.
     func mailedCard(_ m: Moment, cardName: String) {
-        for act in m.acts where act.role == .plan && !act.isDone { context.delete(act) }
+        PlanStore.removeOldFlowPlans(of: m, in: context)
         let act = Act(role: .plan, kind: .card, title: "A handwritten card, mailed (\(cardName))")
         context.insert(act)
         act.moment = m
@@ -357,12 +365,34 @@ final class AppModel: ObservableObject {
         completePlan(m)
     }
 
+    // MARK: Occasion plan (roadmap Epic 2)
+
+    /// The user picked a step for a part. Reaching the ready step completes it; leaving it undoes that.
+    func setStep(_ act: Act, _ step: String) {
+        PlanStore.setStep(act, to: step)
+        commit()
+    }
+
+    /// Adds a part to the end of a plan: not started, from You.
+    @discardableResult
+    func addPart(to m: Moment, kind: ActKind, label: String?) -> Act {
+        let act = PlanStore.addPart(to: m, kind: kind, label: label, in: context)
+        commit()
+        return act
+    }
+
+    func setOwners(_ act: Act, _ ids: [UUID]) {
+        PlanStore.setOwners(act, to: ids)
+        commit()
+    }
+
+    func setNote(_ act: Act, _ text: String) {
+        PlanStore.setNote(act, to: text)
+        commit()
+    }
+
     func completePlan(_ m: Moment, how: ConfirmedBy = .user) {
-        m.plan?.complete(how)
-        if let wishID = m.plan?.wishID, let wish = m.person?.wishes.first(where: { $0.id == wishID }) {
-            wish.status = .used
-        }
-        m.status = .done
+        PlanStore.completePlan(m, how: how)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         commit()
     }

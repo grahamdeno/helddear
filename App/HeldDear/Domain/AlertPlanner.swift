@@ -20,6 +20,11 @@ struct MomentState: Equatable {
     var headsUpAt: Date?
     var occasion: OccasionType = .birthday
     var partnerName: String? = nil
+    /// A moment planned on the plan screen (more than one plan part, or a part with a stored step), and how many of
+    /// its parts are ready. Older single-plan moments leave these at their defaults.
+    var partsReady: Int = 0
+    var partsTotal: Int = 0
+    var isPlanMoment: Bool = false
 
     /// "Mom's birthday", "Christmas for Mom".
     var subject: String { occasion.subject(name: personName, partner: partnerName) }
