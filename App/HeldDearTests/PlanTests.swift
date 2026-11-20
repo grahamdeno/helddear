@@ -251,12 +251,13 @@ final class PlanTests: XCTestCase {
         XCTAssertEqual(four.note, "Gift, card and 2 more aren't started yet. Gifts usually take a week or two to arrive, so there's time.")
     }
 
-    func testNudge_startedPartsAreNotCountedAndTheButtonOpensTheFirstNotStarted() {
+    func testNudge_startedPartsAreNotCountedAndTheButtonOpensTheLeastSlackPart() {
+        // Gift is started. Card (lead 5) has slack 55 at 60 days, cake (lead 7) has 53, so the cake comes first.
         let parts = [part("Gift", .buy, "bought"), part("Card", .card), part("Cake", .orderAhead)]
         let r = PlanNudge.make(parts: parts, daysLeft: 60)
-        XCTAssertEqual(r.target, 1)
-        XCTAssertEqual(r.buttonTitle, "Plan the card")
-        XCTAssertEqual(r.note, "Card and cake aren't started yet. Cards go in the mail about five days ahead, so there's time.")
+        XCTAssertEqual(r.target, 2)
+        XCTAssertEqual(r.buttonTitle, "Plan the cake")
+        XCTAssertEqual(r.note, "Cake and card aren't started yet. Usually ordered about a week ahead, so there's time.")
         XCTAssertTrue(r.isEnabled)
     }
 
