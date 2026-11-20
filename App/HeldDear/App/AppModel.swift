@@ -50,6 +50,9 @@ enum Route: Identifiable, Equatable {
 final class AppModel: ObservableObject {
     let container: ModelContainer
     var context: ModelContext { container.mainContext }
+    /// The saved store couldn't be opened at launch, so the app started fresh and kept the old file on this phone.
+    /// A screen shows one calm line about it (worded later).
+    let couldNotOpenSavedPlans: Bool
 
     @Published var route: Route?
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
@@ -65,7 +68,9 @@ final class AppModel: ObservableObject {
     static weak var current: AppModel?
 
     init(inMemory: Bool = false) {
-        container = Store.makeContainer(inMemory: inMemory)
+        let opened = Store.open(inMemory: inMemory)
+        container = opened.container
+        couldNotOpenSavedPlans = opened.couldNotOpenSavedStore
         onboarded = UserDefaults.standard.bool(forKey: "onboarded")
         firstVisitCardDismissed = UserDefaults.standard.bool(forKey: "firstVisitCardDismissed")
 
