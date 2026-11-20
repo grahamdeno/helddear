@@ -78,6 +78,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | Shared holidays become one timeline event with a holiday page; plans still save per person; one heads-up six weeks ahead; the user chooses which holidays to keep (Epic 1) | A busy date should read as one event, and planning everyone happens in one place |
 | Nov 20, 2026 | Held Dear follows playbook 1.4.0. docs/roadmap.md is the running plan; the plan doc stays the concept and spec reference | One process across all of Graham's apps |
 | Nov 13, 2026 | Direction: "Never stuck on what to give." A gift shelf filled all year, ideas about six weeks out, pick, buy, and Home shows the arrival. Phase 1 uses no new APIs or server setup | The real problem was not knowing what to give, not forgetting the date |
 | Nov 13, 2026 | Graham does not curate a gift collection. Any server gift search later sends interests only, never names, behind a consent screen | Keeps the work and the privacy promise small |
@@ -101,8 +102,57 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 ## Backlog
 
-Items in the playbook's item format (items.md). Unordered until Graham ranks them. None approved under the playbook
-yet.
+Items in the playbook's item format (items.md). Unordered until Graham ranks them.
+
+### 1. Epic: Shared holidays as one event (approved Nov 20, 2026)
+**Goal:** Christmas, Valentine's Day, Mother's Day and Father's Day each show as one event on the timeline. The user
+plans everyone for that holiday in one place, and each plan saves to that person.
+
+**Context:** each person's holiday is stored as its own occasion, so six people make six Christmas rows on one date.
+Plans already save per person; what's missing is grouping on screen and in alerts. This is the plan doc's stage 3,
+"one date, many people". The holiday page reuses the occasion plan (Epic 2, once approved) with a row per person.
+
+#### 1.1 One marker on the timeline
+As a user, I want each shared holiday to appear once on my timeline so that a busy date reads as one event.
+- Given 6 people with Christmas, when I view Home, then I see one Christmas marker showing how many people, not 6 rows.
+- Given only 1 person with Mother's Day, when I view Home, then it still shows as a holiday marker.
+
+#### 1.2 The holiday page
+As a user, I want one page per holiday listing everyone and where each plan stands so that I can plan the whole
+holiday in one place.
+- Given the Christmas page, when I open it, then each person shows one status: no plan, idea picked, ordered,
+  arrived or done.
+- Given I choose a gift for one person there, when I save, then it appears on that person's page and in their yearly
+  record, and I return to the holiday page.
+- The holiday page is a browse screen, like Home. Planning one person uses the existing one-decision-per-screen flow.
+
+#### 1.3 Add people from the holiday
+As a user, I want to add people to a holiday from its page so that I don't have to visit each person.
+- Given the Christmas page, when I tap Add people and pick 3, then each of them gets Christmas.
+
+#### 1.4 One heads-up per holiday
+As a user, I want one alert per holiday, six weeks ahead, so that I'm not sent a notification per person.
+- Given 6 people with Christmas, when it's six weeks before Christmas, then I get one notification for Christmas
+  covering all 6 people.
+
+#### 1.5 Choose your holidays
+As a user, I want to choose which shared holidays Held Dear keeps so that only the ones I celebrate appear.
+- Given I chose Christmas and Mother's Day, when I add an occasion to a person, then only those holidays are offered.
+- Given no one has Christmas yet, when I view Home, then there is no Christmas marker.
+- Given I add Christmas to one person, when I view Home, then the Christmas event appears on the timeline.
+
+**Out of scope:** group gifts from several givers (stage 4), budgets, holidays beyond the four (Hanukkah, Easter,
+Thanksgiving are a later item).
+
+**Open:** where the user chooses holidays (setup, Settings, or both), settled in Shape.
+
+**Steps:**
+1. Words and a Horizon mockup of the timeline marker, the holiday page and choosing holidays (Opus). Graham picks.
+2. Confirm stored data doesn't change, or review the migration if it does (Opus; Graham approves a migration).
+3. Handoff (Opus).
+4. Build (Sonnet).
+5. Review the build (Opus).
+6. Test build on Graham's go.
 
 ## Small follow-ups
 
