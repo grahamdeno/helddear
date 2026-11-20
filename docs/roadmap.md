@@ -80,6 +80,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | Birthday plan mockup approved: parts with family step words, who it's from (a person or a group), relationship-based suggestions, a calm time-aware note, and the first part not started as the main action | Graham's paper plan, as an app screen |
 | Nov 20, 2026 | 1.0 scope reopened once to add: readiness per person from their own plan, family step words with the last step as ready, suggested parts by relationship (1.6) and a relationship field | They make the holiday page work as mocked up |
 | Nov 20, 2026 | Core job for 1.0: plan the whole occasion. Each occasion has parts, each part an owner, a status and a date. The gift shelf feeds the Gift part | Fable's strategy review (Go) and Graham's own paper plan |
 | Nov 20, 2026 | Free: reminders, morning-of message and yearly line for everyone; plans for 3 people. Lifetime unlocks plans for everyone | The free version never lets anyone miss a date; plans show the value before paying |
@@ -206,12 +207,17 @@ a miss, AI ideas and card words, keepsakes, photo memories, life moments. Each i
 
 #### 2.1 Parts
 As a user, I want an occasion's plan to hold several parts so that the whole day lives in one place.
-- Given a birthday plan, when I add parts, then I can pick from Gift, Card, Cake and The day, or type my own, one tap
-  each.
+- Given a birthday plan, when I tap Add something, then I see what families often plan for that relationship (for a
+  spouse's birthday: Gift, Card, Cake, Flowers, Dinner out, Gift from the kids, Breakfast in bed), with parts already
+  in the plan marked Added, plus Something else to type my own.
+- The plan shows the name large, the relationship and age, a readiness bar with one segment per part, and
+  "2 of 6 ready".
+- Approved mockup: https://claude.ai/artifact/4kya3FCLNtXNTjJtr6Hfw5, Birthday plan (Nov 20, 2026).
 
 #### 2.2 Owners
 As a parent, I want each part to have an owner so that gifts from my kids happen too.
-- Given a part, when I set its owner, then it shows "You" or a family member's name.
+- Given a part, when I set who it's from, then I can pick You, one household member, or a group of them (for
+  example two daughters together, or The kids), and the plan shows "From [names]".
 - Given a part owned by the daughters, then it counts as open until it's marked done.
 
 #### 2.3 Steps and notes
@@ -221,13 +227,18 @@ As a user, I want each part to show where it stands in words families use so tha
   - Card: Not started, Have an idea, Written.
   - Made by the kids: Not started, Have an idea, Making it, Finished.
   - The day (an outing, a dinner): Not started, Have an idea, Booked.
+  - Cake, Flowers: Not started, Have an idea, Ordered or baking, Ready.
+- Tapping a part opens it: one list of its steps to pick from, and who it's from.
 - A part can carry a short note and a date, such as "arrives Dec 12" or where it came from.
 - Given a gift bought from a named shop that arrives Dec 12, then it reads "Bought" with the note
   "[shop], arrives Dec 12".
 
 #### 2.4 What's still open
 As a user, I want to see unplanned parts so that I act early.
-- Given the cake is open 10 days out, then the plan and Home show "Cake not planned". Calm wording, no red badges.
+- Given the cake is not started, then the plan shows a calm note, such as "Cake isn't started yet. Cakes are usually
+  ordered about a week ahead, so there's time." No red, no badges. The note grows more direct only as that kind's
+  usual lead time gets close.
+- The plan's one main action offers the first part not started ("Plan the cake").
 
 #### 2.5 The shelf feeds the gift
 As a user, I want to pick a gift from the shelf so that saved ideas get used.
