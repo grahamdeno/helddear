@@ -34,7 +34,7 @@ struct PersonPlanSection: View {
     private var days: Int { OccasionDates.daysBetween(Date(), moment.dueDate) }
 
     private var head: String {
-        var bits = [moment.type.label, moment.dueDate.formatted(.dateTime.month(.abbreviated).day())]
+        var bits = [moment.label, moment.dueDate.formatted(.dateTime.month(.abbreviated).day())]
         if days == 0 { bits.append("Today") } else if days == 1 { bits.append("1 day") } else if days > 1 { bits.append("\(days) days") }
         return bits.joined(separator: " · ").uppercased()
     }
@@ -80,7 +80,7 @@ struct PersonPlanSection: View {
                     TextLink(title: nudge.buttonTitle) { model.push(.item(target)) }
                 }
             }
-            TextLink(title: "+ Add to \(moment.type.label)", action: add)
+            TextLink(title: "+ Add to \(moment.label)", action: add)
                 .padding(.leading, -8)
         }
     }

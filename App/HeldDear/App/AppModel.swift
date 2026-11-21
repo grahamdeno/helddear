@@ -717,7 +717,7 @@ final class AppModel: ObservableObject {
                 default: soon = days == 0 ? "Message ready today" : "Message ready \(weekday)"
                 }
             }
-            return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.type.label,
+            return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.label,
                                         dueDate: m.dueDate, detail: detail, soonLine: soon)
         }
         AppGroup.write(WidgetSnapshot(next: Array(next), writtenAt: now), to: AppGroup.widgetURL)

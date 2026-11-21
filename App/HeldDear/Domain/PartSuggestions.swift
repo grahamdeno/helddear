@@ -33,6 +33,9 @@ enum PartSuggestions {
             return [make("Gift", .gift), make("Card", .card), make("Flowers", .flowers),
                     make("Breakfast in bed", .theDay, label: "Breakfast in bed"), make("The day", .theDay)]
         }
+        if occasion == .event {
+            return [make("Flowers", .flowers), make("Card", .card), make("Gift", .gift), make("The day", .theDay)]
+        }
         if occasion == .birthday && isPartner(relationship: relationship) {
             return [
                 make("Gift", .gift), make("Card", .card), make("Cake", .cake), make("Flowers", .flowers),

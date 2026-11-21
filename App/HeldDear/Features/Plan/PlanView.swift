@@ -76,7 +76,7 @@ struct PlanView: View {
     private var days: Int { OccasionDates.daysBetween(Date(), moment.dueDate) }
 
     private var eyebrow: String {
-        var bits = [moment.type.label, moment.dueDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())]
+        var bits = [moment.label, moment.dueDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())]
         if days == 0 { bits.append("TODAY") } else if days == 1 { bits.append("1 DAY") } else if days > 1 { bits.append("\(days) DAYS") }
         return bits.joined(separator: " · ").uppercased()
     }

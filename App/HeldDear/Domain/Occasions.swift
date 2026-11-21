@@ -6,6 +6,9 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
     case birthday, anniversary
     case christmas, valentines, mothersDay, fathersDay
     case newBaby, graduation, newHome, retirement
+    /// A day the user names, like a recital or a big game. Happens once; its name is kept in the occasion's
+    /// `partnerName` (no new stored field, so no data migration).
+    case event
 
     var id: String { rawValue }
 
@@ -15,7 +18,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .birthday, .anniversary: .yearly
         case .christmas, .valentines, .mothersDay, .fathersDay: .holiday
-        case .newBaby, .graduation, .newHome, .retirement: .once
+        case .newBaby, .graduation, .newHome, .retirement, .event: .once
         }
     }
 
@@ -31,6 +34,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .graduation: "Graduation"
         case .newHome: "New home"
         case .retirement: "Retirement"
+        case .event: "Event"
         }
     }
 
@@ -57,6 +61,9 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .graduation: return "\(name)'s graduation"
         case .newHome: return "\(name)'s new home"
         case .retirement: return "\(name)'s retirement"
+        case .event:
+            guard let partner, !partner.isEmpty else { return "\(name)'s event" }
+            return "\(name)'s \(partner.prefix(1).lowercased() + partner.dropFirst())"
         }
     }
 
@@ -69,7 +76,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .valentines: "Happy Valentine's Day,"
         case .mothersDay: "Happy Mother's Day,"
         case .fathersDay: "Happy Father's Day,"
-        case .newBaby, .graduation: "Congratulations,"
+        case .newBaby, .graduation, .event: "Congratulations,"
         case .newHome: "Welcome home,"
         case .retirement: "Happy retirement,"
         }

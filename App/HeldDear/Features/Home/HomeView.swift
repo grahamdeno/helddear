@@ -237,7 +237,7 @@ struct FeaturedView: View {
 
     private func subline(days: Int, missed: Bool) -> String {
         if missed { return "A late note still counts." }
-        let what = moment.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? moment.type.label.lowercased()
+        let what = moment.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? moment.label.lowercased()
         let when: String
         switch days {
         case 0: when = "today"

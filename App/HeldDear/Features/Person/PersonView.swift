@@ -59,7 +59,8 @@ struct PersonView: View {
                         if o.type == .birthday {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
                         } else {
-                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)" : o.type.label,
+                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
+                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
                                       caption: occasionCaption(o)) { occasionToEdit = o }
                         }
                     }
@@ -186,7 +187,7 @@ struct PersonView: View {
 
     private func subline(_ next: Moment) -> String {
         let date = next.dueDate.formatted(.dateTime.month(.wide).day())
-        let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.type.label.lowercased()
+        let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.label.lowercased()
         return next.type.kind == .holiday ? "\(next.type.label), \(date)" : "\(date), \(what)"
     }
 
@@ -763,7 +764,7 @@ struct AddOccasionView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Eyebrow(text: title)
                 ForEach(items) { t in
-                    OptionRow(title: t.label, caption: caption(t)) {
+                    OptionRow(title: t == .event ? "Something else" : t.label, caption: caption(t)) {
                         if t.needsDate { type = t } else { save(t) }
                     }
                 }
@@ -778,13 +779,17 @@ struct AddOccasionView: View {
         case .mothersDay: "Second Sunday in May"
         case .fathersDay: "Third Sunday in June"
         case .anniversary: "Theirs, or yours together"
+        case .event: "A recital, a big game, a show"
         default: nil
         }
     }
 
     private func dateStep(_ t: OccasionType) -> some View {
         FlowScreen(onClose: { type = nil }) {
-            Question(title: t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?")
+            Question(title: t == .event ? "What's the day?" : (t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?"))
+            if t == .event {
+                LineField(label: "What is it?", text: $partner, placeholder: "Ballet recital", showsDictation: true)
+            }
             DatePicker(t.label, selection: $date, displayedComponents: .date)
                 .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
             if t == .anniversary {
@@ -792,7 +797,10 @@ struct AddOccasionView: View {
                 Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
             }
         } footer: {
+            let missingName = t == .event && partner.trimmingCharacters(in: .whitespaces).isEmpty
             PrimaryButton(title: "Save") { save(t) }
+                .disabled(missingName)
+                .opacity(missingName ? 0.45 : 1)
         }
     }
 
@@ -800,7 +808,7 @@ struct AddOccasionView: View {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
         let year: Int? = t.kind == .once ? c.year : (t == .anniversary && knowsYear ? c.year : nil)
         model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
-                          partnerName: t == .anniversary ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
+                          partnerName: t == .anniversary || t == .event ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
         dismiss()
     }
 }

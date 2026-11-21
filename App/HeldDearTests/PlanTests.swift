@@ -303,7 +303,7 @@ final class PlanTests: XCTestCase {
             .birthday: "Plan the birthday", .anniversary: "Plan the anniversary", .christmas: "Plan Christmas",
             .valentines: "Plan Valentine's Day", .mothersDay: "Plan Mother's Day", .fathersDay: "Plan Father's Day",
             .newBaby: "Plan the new baby", .graduation: "Plan the graduation", .newHome: "Plan the new home",
-            .retirement: "Plan the retirement",
+            .retirement: "Plan the retirement", .event: "Plan the day",
         ]
         for type in OccasionType.allCases { XCTAssertEqual(PlanReadiness.planRowTitle(for: type), expected[type], "\(type)") }
     }
