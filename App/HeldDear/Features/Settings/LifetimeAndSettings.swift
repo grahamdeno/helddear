@@ -108,6 +108,8 @@ struct SettingsView: View {
     @State private var makingCard = false
     @State private var addingHoliday = false
     @State private var holidayToEdit: CustomHoliday?
+    @State private var exportItems: [Any]?
+    @State private var exportFailed = false
 
     var body: some View {
         ScrollView {
@@ -219,6 +221,14 @@ struct SettingsView: View {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
                     }
                 }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Your data")
+                    OptionRow(title: "Export my data",
+                              caption: exportFailed ? "The export didn't work. Nothing was changed. Try again."
+                                                    : "Everything you've added, with photos, in one file. You choose where it goes.") {
+                        exportData()
+                    }
+                }
                 Text("Everything you add stays on this iPhone. Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
                     .textStyle(.caption, color: Brand.inkMuted)
                 Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
@@ -229,9 +239,22 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .sheet(isPresented: Binding(get: { exportItems != nil }, set: { if !$0 { exportItems = nil } })) {
+            ShareSheet(items: exportItems ?? []) { _ in exportItems = nil }
+        }
         .fullScreenCover(isPresented: $addingHoliday) { OwnHolidayFlow(editing: nil) { addingHoliday = false }.environmentObject(model) }
         .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
         .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
         .addFromContacts(isPresented: $addingFromContacts)
+    }
+
+    /// Writes the file and opens the share sheet. The file goes nowhere else.
+    private func exportData() {
+        do {
+            exportItems = [try DataExport.exportForSharing(context: model.context).zip]
+            exportFailed = false
+        } catch {
+            exportFailed = true
+        }
     }
 }
