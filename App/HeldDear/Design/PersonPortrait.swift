@@ -5,6 +5,8 @@ import SwiftUI
 struct PersonPortrait: View {
     let person: Person?
     var size: CGFloat = 44
+    /// Warm two-tone photo (Home's medallion).
+    var toned = false
     @State private var image: UIImage?
 
     var body: some View {
@@ -19,7 +21,7 @@ struct PersonPortrait: View {
         .frame(width: size, height: size)
         .clipShape(Circle())
         .overlay { Circle().strokeBorder(Brand.raisedLine, lineWidth: 1) }
-        .task(id: person?.id) { image = await FaceFinder.shared.portrait(for: person, side: size) }
+        .task(id: person?.id) { image = await FaceFinder.shared.portrait(for: person, side: size, toned: toned) }
         .accessibilityHidden(true)
     }
 

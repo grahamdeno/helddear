@@ -8,6 +8,8 @@ struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
     @State private var selectedID: UUID?
+    /// Home's medallion, on by default; test builds can switch it off in You (AppFeatures.homeMedallion).
+    @AppStorage(AppFeatures.homeMedallionKey) private var medallionOn = true
 
     var body: some View {
         NavigationStack(path: $model.navPath) {
@@ -53,8 +55,9 @@ struct HomeView: View {
                             // The person's face (or the holiday's mark) sits on the page right above the date and
                             // slides with it; in the bar it made the bar taller and pushed the page down (build 1024).
                             VStack(spacing: Brand.space2) {
-                                topCircle(m)
+                                if !medallionOn { topCircle(m) }
                                 featuredView(m, now: now)
+                                    .environment(\.featuredMedallion, medallionOn ? AnyView(medallion(m)) : nil)
                             }
                             .padding(.horizontal, Brand.space5)
                         }
@@ -82,6 +85,17 @@ struct HomeView: View {
         var line = moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) }.sorted { $0.dueDate < $1.dueDate }
         if !line.contains(where: { $0.id == featured.id }) { line.insert(featured, at: 0) }
         return line
+    }
+
+    /// The medallion: the face (warm-toned) or the holiday's mark, 120 points, between the date and the name.
+    @ViewBuilder private func medallion(_ m: Moment) -> some View {
+        if m.type.kind == .holiday {
+            HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 120)
+        } else if let person = m.person {
+            Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 120, toned: true) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+        }
     }
 
     @ViewBuilder private func topCircle(_ m: Moment) -> some View {
@@ -573,7 +587,17 @@ struct NavPage: View {
 /// builds 1013 and 1014): the date line, the name (its size varies, its space doesn't), the line under it, the
 /// readiness bar with one line, the main button, and one link. A place with nothing in it stays empty and keeps its
 /// height. Every place grows with the text size.
+private struct FeaturedMedallionKey: EnvironmentKey { static let defaultValue: AnyView? = nil }
+extension EnvironmentValues {
+    /// Home's medallion, drawn between the date and the name when it's on.
+    var featuredMedallion: AnyView? {
+        get { self[FeaturedMedallionKey.self] }
+        set { self[FeaturedMedallionKey.self] = newValue }
+    }
+}
+
 struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
+    @Environment(\.featuredMedallion) private var medallion
     let eyebrow: String
     let title: String
     let open: () -> Void
@@ -592,6 +616,9 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(eyebrow).textStyle(.eyebrow)
+            if let medallion {
+                medallion.padding(.top, Brand.space3)
+            }
             Button(action: open) {
                 Text(title)
                     .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
@@ -599,9 +626,11 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .foregroundStyle(Brand.ink)
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
-                    .padding(.top, Brand.space3)
+                    .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
+                    .padding(.top, medallion == nil ? Brand.space3 : -64)
             }
             .buttonStyle(.plain)
+            .zIndex(1)
             .accessibilityHint(openHint)
             Text(subline)
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
