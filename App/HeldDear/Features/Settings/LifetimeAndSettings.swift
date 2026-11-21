@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// The Held Dear Lifetime offer. Reached only from Settings, a locked card design, or once after the
 /// first yearly line. The close button shows at once. No countdown timers, no blur, no nagging.
@@ -110,6 +111,9 @@ struct SettingsView: View {
     @State private var holidayToEdit: CustomHoliday?
     @State private var exportItems: [Any]?
     @State private var exportFailed = false
+    @State private var importing = false
+    @State private var importNote: String?
+    @State private var pendingImport: URL?
 
     var body: some View {
         ScrollView {
@@ -228,6 +232,10 @@ struct SettingsView: View {
                                                     : "Everything you've added, with photos, in one file. You choose where it goes.") {
                         exportData()
                     }
+                    OptionRow(title: "Import my data",
+                              caption: importNote ?? "Puts back everything from an export file: people, days, plans, ideas, years and photos.") {
+                        importing = true
+                    }
                 }
                 Text("Everything you add stays on this iPhone. Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
                     .textStyle(.caption, color: Brand.inkMuted)
@@ -239,6 +247,19 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.zip, .folder, .json]) { result in
+            guard case .success(let url) = result else { return }
+            if DataImport.storeIsEmpty(model.context) { importData(url, replacing: false) } else { pendingImport = url }
+        }
+        .confirmationDialog(replaceQuestion, isPresented: Binding(get: { pendingImport != nil }, set: { if !$0 { pendingImport = nil } }),
+                            titleVisibility: .visible) {
+            Button("Replace with the export", role: .destructive) {
+                if let url = pendingImport { importData(url, replacing: true) }
+                pendingImport = nil
+            }
+        } message: {
+            Text("If anything in the file doesn't check out, nothing on this iPhone changes.")
+        }
         .sheet(isPresented: Binding(get: { exportItems != nil }, set: { if !$0 { exportItems = nil } })) {
             ShareSheet(items: exportItems ?? []) { _ in exportItems = nil }
         }
@@ -246,6 +267,35 @@ struct SettingsView: View {
         .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
         .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
         .addFromContacts(isPresented: $addingFromContacts)
+    }
+
+    private var replaceQuestion: String {
+        let now = DataImport.current(model.context)
+        return "This iPhone has \(now.people) \(now.people == 1 ? "person" : "people") and \(now.parts) plan \(now.parts == 1 ? "item" : "items"). Replace them with the export?"
+    }
+
+    /// Reads the picked export (zip, folder or JSON) and puts it in. The export file itself is only read.
+    private func importData(_ url: URL, replacing: Bool) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            // A coordinated read, so a file still in iCloud Drive is downloaded first.
+            var coordinationError: NSError?
+            var folderResult: Result<URL, Error> = .failure(DataImport.Failure.notAnExport)
+            NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { readable in
+                folderResult = Result { try DataImport.exportFolder(fromPicked: readable) }
+            }
+            if let coordinationError { throw coordinationError }
+            let folder = try folderResult.get()
+            let s = try DataImport.restore(folder: folder, into: model.context, replacing: replacing)
+            importNote = "Put back \(s.people) people, \(s.acts) plan items and \(s.photos) photos."
+            model.commit()
+            Task { await model.refresh() }
+        } catch DataImport.Failure.notAnExport {
+            importNote = "That file isn't a Held Dear export. Nothing was changed."
+        } catch {
+            importNote = "The import didn't check out, so nothing was changed. Try again."
+        }
     }
 
     /// Writes the file and opens the share sheet. The file goes nowhere else.

@@ -25,6 +25,9 @@ Anything below uploads a build or changes something live. Check this list before
 | Changing helddear-mail environment variables (Handwrytten, Stripe, Blob keys) | Changes live secrets | Graham's go (secrets) |
 
 `build.yml` (pull requests, pushes to `main`) builds and tests only; it uploads and deploys nothing.
+
+**Installing a test build:** update over the existing app from TestFlight. Never delete the app first: deleting it deletes
+the store and every photo with it (Nov 21, 2026). Every handoff with a test build says so.
 Everything not listed here uploads and deploys nothing. If you find a trigger that isn't listed, stop and add it.
 
 ## Rules that must never be missed
