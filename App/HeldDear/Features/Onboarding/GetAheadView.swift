@@ -61,7 +61,7 @@ struct GetAheadView: View {
         let p = people[i]
         return FlowScreen {
             Question(tag: counter(i), title: "A photo of \(p.name) for the card?",
-                     subtitle: "It goes on the birthday card. It stays on this iPhone.")
+                     subtitle: "It goes on the birthday card. It stays yours.")
             Face(person: p, size: 120).frame(maxWidth: .infinity).padding(.top, 24)
         } footer: {
             PhotosPicker(selection: $photoItem, matching: .images) {
