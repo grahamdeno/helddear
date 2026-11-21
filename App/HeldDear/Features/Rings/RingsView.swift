@@ -18,7 +18,7 @@ struct RingsView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Your people").textStyle(.title).accessibilityAddTraits(.isHeader)
+                Text("Everyone").textStyle(.title).accessibilityAddTraits(.isHeader)
                 Text(summary(total: rows.count, early: early))
                     .font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
                     .padding(.top, Brand.space1)
@@ -34,6 +34,9 @@ struct RingsView: View {
                 Text("Tap a person to open them. Tap the reminder on the right to change how early Held Dear tells you.")
                     .textStyle(.caption, color: Brand.inkMuted)
                     .padding(.top, Brand.space3)
+                TextLink(title: "Settings") { model.route = .settings }
+                    .padding(.top, Brand.space4)
+                    .padding(.leading, -8)
             }
             .padding(.horizontal, Brand.space5)
             .padding(.vertical, 8)

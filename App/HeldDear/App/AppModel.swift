@@ -65,6 +65,8 @@ enum Nav: Hashable {
     case item(UUID)
     /// "Who is Ben to you?" for a person.
     case relationship(UUID)
+    /// Everything else about a person, one page in from their page.
+    case personDetails(UUID)
 }
 
 @MainActor
@@ -211,11 +213,12 @@ final class AppModel: ObservableObject {
 
     func title(of nav: Nav) -> String {
         switch nav {
-        case .person(let id, _): return person(id)?.name ?? "Back"
+        case .person(let id, _): return person(id).map { DisplayName.plain($0.name) } ?? "Back"
         case .holiday(let raw, _): return OccasionType(rawValue: raw)?.label ?? "Back"
-        case .people: return "People"
+        case .people: return "Everyone"
         case .ideas: return "Ideas"
         case .relationship: return "Who they are"
+        case .personDetails(let id): return person(id).map { "\(DisplayName.plain($0.name))'s details" } ?? "Back"
         case .item(let id): return act(id).map { PartSteps.displayName(kindRaw: $0.kindRaw, label: $0.label, title: $0.title) } ?? "Back"
         }
     }

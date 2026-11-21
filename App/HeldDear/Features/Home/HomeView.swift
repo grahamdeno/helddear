@@ -15,14 +15,12 @@ struct HomeView: View {
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button("People") { model.push(.people) }
-                        Button("Ideas") { model.push(.ideas) }
+                        // One quiet + (approved Nov 20, 2026). People is on the timeline (Everyone ›); Ideas shares
+                        // the People page; Settings is at the bottom of People.
                         Menu {
                             Button { model.route = .addBirthday("") } label: { Label("Add someone", systemImage: "person.badge.plus") }
                             Button { addingFromContacts = true } label: { Label("Add from Contacts", systemImage: "person.crop.circle.badge.plus") }
-                            Button { model.route = .addWish(nil) } label: { Label("Save a wish", systemImage: "heart") }
-                            Divider()
-                            Button { model.route = .settings } label: { Label("Settings", systemImage: "gearshape") }
+                            Button { model.route = .addWish(nil) } label: { Label("Save an idea", systemImage: "heart") }
                         } label: {
                             Image(systemName: "plus")
                         }
@@ -310,15 +308,19 @@ struct HorizonBand: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Coming up").textStyle(.eyebrow)
-                Spacer()
                 if let season = seasons.first(where: { OccasionDates.daysBetween(now, $0.monthStart) <= 56 }) {
                     Button { model.route = .season(season.monthStart) } label: {
-                        Text("\(season.monthStart.formatted(.dateTime.month(.wide))) is busy").textStyle(.eyebrow, color: Brand.action)
+                        Text("· \(season.monthStart.formatted(.dateTime.month(.wide))) is busy").textStyle(.eyebrow, color: Brand.action)
                             .frame(minHeight: 44)
                     }
-                } else {
-                    Text("Slide to change").textStyle(.eyebrow)
                 }
+                Spacer()
+                Button { model.push(.people) } label: {
+                    Text("Everyone ›").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                        .frame(minHeight: 44)
+                }
+                .accessibilityLabel("Everyone")
+                .accessibilityHint("Opens everyone, and saved ideas")
             }
             .padding(.horizontal, Brand.space5)
             .padding(.top, Brand.space2)
@@ -514,11 +516,13 @@ struct NavPage: View {
         case .holiday(let raw, let year):
             if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear }
         case .people:
-            RingsView()
+            PeopleAndIdeasView()
         case .ideas:
             SavedIdeasView()
         case .item(let id):
             if let act = model.act(id) { ItemView(act: act) } else { Color.clear }
+        case .personDetails(let id):
+            if let p = model.person(id) { PersonView(person: p, showsDetails: true) } else { Color.clear }
         case .relationship(let id):
             if let p = model.person(id) { RelationshipPage(person: p) } else { Color.clear }
         }
