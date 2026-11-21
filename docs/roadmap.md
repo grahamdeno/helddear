@@ -341,6 +341,18 @@ budgets, group gifts from several givers.
 
 - Set the repo's default branch to `main` (Grok, needs Graham's go). Not yet approved.
 - Clean up merged branches (see the branch list in the onboarding PR). Not yet approved.
+- **Finds photos: ask each shop for permission (planned Nov 21, 2026; Graham to start, likely the week of Nov 23).**
+  Requirement: a find shows its shop's product photo only after the shop agrees; the photo is bundled in the app
+  (`Find.photo`, an asset name), credited, never fetched, and removed if the shop asks. The app already shows a
+  bundled photo when one is set (build 1025). Steps: (1) Graham approves the email wording below; (2) Grok sends it
+  from Graham's account to each shop in the catalog and reports back a table of shops, dates and replies; (3) for each
+  yes, Opus adds the photo asset and sets `photo` on that find, and it ships in the next update. Shops that don't
+  answer keep showing no photo. Email wording (drafted Nov 21): subject "May Held Dear show a photo of your
+  [product]?"; body: Held Dear is an iPhone app that helps people plan birthdays and holidays for the people they
+  love; we hand-pick a small number of special gifts and the [product] is one, linked straight to the shop; may we
+  show the main product photo next to the link, built into the app (no hotlinking), credited, and removed any time
+  they ask; signed Graham DeNoyer, Held Dear. Irreversible: it sends email as Graham, so nothing goes out before his
+  approval of the wording.
 
 ## Shipped
 
