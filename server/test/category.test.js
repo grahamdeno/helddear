@@ -16,6 +16,18 @@ test("maps occasions to Handwrytten categories with fallbacks", () => {
   assert.equal(pickCategory([], "birthday"), null);
 });
 
+test("maps card reasons to Handwrytten categories", () => {
+  const more = [...cats, { id: 30, name: "Get Well" }, { id: 31, name: "Thank You" },
+    { id: 32, name: "Sympathy" }, { id: 33, name: "Thinking of You" }];
+  assert.equal(pickCategory(more, "getWell"), 30);
+  assert.equal(pickCategory(more, "thankYou"), 31);
+  assert.equal(pickCategory(more, "sympathy"), 32);
+  assert.equal(pickCategory(more, "thinkingOfYou"), 33);
+  assert.equal(pickCategory(more, "justBecause"), 33);
+  assert.equal(pickCategory(more, "congratulations"), 15);
+  assert.equal(pickCategory(cats, "getWell"), 20);
+});
+
 test("leaves out business cards", () => {
   assert.equal(isPersonal("Workiversary Cheers & Confetti"), false);
   assert.equal(isPersonal("Favorite Employee Anniversary Card"), false);

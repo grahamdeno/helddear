@@ -37,6 +37,15 @@ export const OCCASION_CATEGORY = {
   graduation: [/graduat/i, /congrat/i],
   newHome: [/housewarm/i, /new home/i, /congrat/i],
   retirement: [/retire/i, /congrat/i],
+  wedding: [/wedding/i, /congrat/i, /love/i],
+  event: [/congrat/i],
+  // A card for a reason, not a day (story 2.8). Keys match the app's CardReason raw values.
+  justBecause: [/thinking/i, /blank/i, /friend/i],
+  getWell: [/get well/i, /feel better/i, /sympathy/i],
+  thankYou: [/thank/i],
+  thinkingOfYou: [/thinking/i, /friend/i],
+  congratulations: [/congrat/i],
+  sympathy: [/sympathy/i, /condolence/i],
 };
 
 export function pickCategory(cats, occasion) {
