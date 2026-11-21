@@ -92,7 +92,7 @@ struct HomeView: View {
     /// A ring around it fills in oxblood as the plan gets ready, in place of the bar (approved Nov 21, 2026).
     @ViewBuilder private func medallion(_ m: Moment) -> some View {
         let parts = m.type.kind == .holiday
-            ? model.holidayMembers(type: m.type, year: m.year).flatMap(\.planParts)
+            ? model.holidayMembers(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName), year: m.year).flatMap(\.planParts)
             : m.planParts
         let ready = parts.filter(\.isReady).count
         if m.type.kind == .holiday {
