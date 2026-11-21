@@ -15,6 +15,9 @@ final class PlanGroupTests: XCTestCase {
         XCTAssertEqual(PlanGroup.group(forKindRaw: "card"), .touches)
         XCTAssertEqual(PlanGroup.group(forKindRaw: "other"), .touches)
         XCTAssertEqual(PlanGroup.group(forKindRaw: "something-new"), .touches, "Unknown kinds still land somewhere")
+        XCTAssertEqual(PlanGroup.group(forKindRaw: "other", name: "Gift from Ben"), .gifts, "A typed gift goes with the gifts")
+        XCTAssertEqual(PlanGroup.group(forKindRaw: "other", name: "Birthday party"), .theDay)
+        XCTAssertEqual(PlanGroup.group(forKindRaw: "card", name: "Gift card"), .touches, "A known kind wins over the name")
     }
 
     func testWords() {

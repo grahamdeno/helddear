@@ -30,7 +30,7 @@ struct PersonPlanSection: View {
             let note = act.note?.trimmingCharacters(in: .whitespacesAndNewlines)
             return Item(id: act.id, name: name, note: (note?.isEmpty ?? true) ? nil : note, step: step,
                         owner: PartOwners.text(names: ownerNames),
-                        progress: PartSteps.progress(step: step, family: family), group: PlanGroup.group(forKindRaw: act.kindRaw))
+                        progress: PartSteps.progress(step: step, family: family), group: PlanGroup.group(forKindRaw: act.kindRaw, name: name))
         }
     }
 
@@ -188,6 +188,8 @@ struct PersonDayCards: View {
             .scrollTargetLayout()
         }
         .scrollTargetBehavior(.viewAligned)
+        // The card that settles at the left is the selected day, so the plan below swaps as you slide.
+        .scrollPosition(id: $selectedID, anchor: .leading)
         .padding(.horizontal, -Brand.space5)
     }
 
