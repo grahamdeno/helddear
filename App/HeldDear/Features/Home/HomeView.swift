@@ -7,6 +7,7 @@ import UIKit
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
+    @State private var adding = false
     @State private var selectedID: UUID?
 
     var body: some View {
@@ -14,26 +15,21 @@ struct HomeView: View {
             content
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
-                    // Settings where people look for it: a quiet gear at the top left of Home (feedback on 1019).
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button { model.route = .settings } label: { Image(systemName: "gearshape") }
-                            .accessibilityLabel("Settings")
+                    // You in the top right; Add lives on the timeline (approved Nov 21, 2026).
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { model.route = .settings } label: { YouCircle() }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("You and settings")
                     }
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        // One quiet + (approved Nov 20, 2026). People is on the timeline (Everyone ›); Ideas shares
-                        // the People page; Settings is at the bottom of People.
-                        Menu {
-                            Button { model.route = .addBirthday("") } label: { Label("Add someone", systemImage: "person.badge.plus") }
-                            Button { addingFromContacts = true } label: { Label("Add from Contacts", systemImage: "person.crop.circle.badge.plus") }
-                            Button { model.route = .addWish(nil) } label: { Label("Save an idea", systemImage: "heart") }
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .accessibilityLabel("Add")
-                    }
+                    .sharedBackgroundVisibility(.hidden)
                 }
                 .tint(Brand.ink)
                 .addFromContacts(isPresented: $addingFromContacts)
+                .confirmationDialog("Add", isPresented: $adding, titleVisibility: .visible) {
+                    Button("Someone") { model.route = .addBirthday("") }
+                    Button("Someone from Contacts") { addingFromContacts = true }
+                    Button("An idea") { model.route = .addWish(nil) }
+                }
                 .navigationDestination(for: Nav.self) { nav in
                     NavPage(nav: nav)
                 }
@@ -74,7 +70,8 @@ struct HomeView: View {
                 otherReady(moments, featured: featured, now: now)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
-                            selectedID: featured.id, now: now, seasons: model.seasons(now: now)) { selectedID = $0 }
+                            selectedID: featured.id, now: now, seasons: model.seasons(now: now),
+                            add: { adding = true }) { selectedID = $0 }
             }
         } else {
             emptyState
@@ -307,6 +304,7 @@ struct HorizonBand: View {
     let selectedID: UUID
     let now: Date
     let seasons: [Season]
+    var add: () -> Void = {}
     var select: (UUID) -> Void
 
     @State private var position = ScrollPosition(x: 0)
@@ -333,6 +331,12 @@ struct HorizonBand: View {
                     }
                 }
                 Spacer()
+                Button { add() } label: {
+                    Text("+ Add").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                        .frame(minHeight: 44)
+                }
+                .accessibilityLabel("Add")
+                .padding(.trailing, Brand.space4)
                 Button { model.push(.people) } label: {
                     Text("Everyone ›").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
                         .frame(minHeight: 44)
@@ -619,5 +623,30 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
         case .started: Brand.inkMuted
         case .notStarted: Brand.line
         }
+    }
+}
+
+/// Your initial in a small outlined circle, top right of Home: it opens You and settings. A plain person outline
+/// until you've saved your name.
+struct YouCircle: View {
+    @AppStorage("yourName") private var yourName = ""
+
+    private var initial: String? {
+        let name = yourName.isEmpty ? (MailAddress.saved?.firstName ?? "") : yourName
+        return name.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() }
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().strokeBorder(Brand.inkMuted, lineWidth: 1)
+            if let initial {
+                Text(initial).font(Brand.serif(17, relativeTo: .body)).foregroundStyle(Brand.ink)
+            } else {
+                Image(systemName: "person").font(.system(size: 15)).foregroundStyle(Brand.ink)
+            }
+        }
+        .frame(width: 36, height: 36)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
     }
 }
