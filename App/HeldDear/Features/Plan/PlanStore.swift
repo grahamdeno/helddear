@@ -17,6 +17,15 @@ extension Moment {
 
     var partsReady: Int { planParts.filter(\.isReady).count }
 
+    /// What to plan next, with its button words ("Plan next: Flowers"), from the parts and the days left.
+    var planNudge: PlanNudge.Result {
+        PlanNudge.make(parts: planParts.map { act in
+            let info = PartSteps.displayInfo(kindRaw: act.kindRaw, label: act.label, title: act.title)
+            return PlanNudge.Part(name: info.text, typed: info.typed, family: PartSteps.family(forKindRaw: act.kindRaw),
+                                  step: act.currentStep ?? "open")
+        }, daysLeft: OccasionDates.daysBetween(Date(), dueDate))
+    }
+
     /// The occasion's name on screen: "Birthday", "Christmas", or an event's own name ("Ballet recital").
     var label: String {
         guard type == .event, let name = occasion?.partnerName, !name.isEmpty else { return type.label }

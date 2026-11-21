@@ -164,9 +164,19 @@ struct FeaturedView: View {
                 }
             }
         case .openPlan(let ready, let total):
+            // The main button is the next real thing to do, not a way to open a page. The readiness line under it
+            // opens the person's page, as does the name (feedback on build 1011).
+            let nudge = moment.planNudge
+            let parts = moment.planParts
             VStack(spacing: Brand.space3) {
-                Text("\(ready) of \(total) ready.").textStyle(.callout, color: Brand.inkMuted)
-                PrimaryButton(title: act.title(name: name)) { tap(act) }
+                if nudge.isEnabled, let t = nudge.target, parts.indices.contains(t) {
+                    let target = parts[t].id
+                    PrimaryButton(title: nudge.buttonTitle) { model.push(.item(target)) }
+                } else {
+                    PrimaryButton(title: "See \(name)'s plan") { openPerson() }
+                }
+                TextLink(title: "\(ready) of \(total) ready · \(name)'s page ›") { openPerson() }
+                    .accessibilityLabel("\(ready) of \(total) ready. Opens \(name)'s page")
             }
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
             VStack(spacing: Brand.space4) {
