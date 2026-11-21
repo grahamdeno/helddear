@@ -360,24 +360,37 @@ person the day is for.
 
 Out of scope: places outside the US; finding new places.
 
-### Epic 3: Your data in your own iCloud (approved for 1.0, Nov 21, 2026; all three stories)
+### Epic 3: Your data in your own iCloud (all of it in 1.0; Graham's decision, Nov 21, 2026, after Fable's review)
 
 **Goal:** plans aren't lost with the phone, show on a second iPhone, and can be shared with someone who plans with
-you. **The promise becomes:** "Your data stays yours: on your phone and in your own iCloud. Held Dear's server only
-sees what one order needs."
+you. Fable recommended sync and sharing for 1.1; Graham chose all three stories for 1.0, with the conditions below.
 
-- **3.1 Sync and backup.** Plans, people, ideas and records sync through the user's private iCloud. Turning iCloud on
-  keeps everything already on the phone; turning it off keeps a copy on the phone.
-- **3.2 Share a plan.** Invite someone to a person's plan, like sharing a note; they see and update parts, owners and
-  statuses; sharing can be stopped any time.
-- **3.3 The promise everywhere.** App Privacy answers, privacy policy, privacy guard rules (iCloud allowed; no Held
-  Dear server beyond the two exceptions), onboarding words.
+**The promise (approved wording):** "Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees
+a card you choose to mail."
 
-**Risks (written down before building):** 3.1 is a data migration (iCloud sync needs ids that aren't unique-
-constrained and defaults on every stored field), every install moves once; Opus reviews in full, Graham approves.
-3.2 isn't built into SwiftData; it needs CloudKit sharing below SwiftData or a move to Core Data, tested on two phones
-with two Apple IDs. Photos count against the user's iCloud storage. Fable runs a strategy and security review before
-any build.
+- **3.0 iCloud-ready data, schema version 3 (requirement; always review: yes).** All six stored types drop the
+  unique rule on their id (the id stays), every stored field gets a default, every link between records becomes
+  optional; nothing renamed or removed. Before it ships: "Export my data" in You writes everything to a file, and
+  Graham exports his real plan first. A store that won't open is set aside, never deleted, and the app says so and
+  offers the export (Fable C2, C3). Tests: a copy of a real version-2 store (names replaced) opens as version 3 with
+  every count the same; an unreadable store is kept aside.
+- **3.0b Permanent iCloud pieces need Graham's go (Fable C7).** The iCloud container and the production CloudKit
+  schema go on CLAUDE.md's uploads and deploys list.
+- **3.1 Sync and backup.** Through the user's private iCloud; turning it on keeps what's on the phone, turning it off
+  keeps a copy. Conditions before it ships: the storage decision (below) is made first (C1); duplicate rules for
+  yearly records and contact imports, with tests (C4); photos and settings sync too: own holidays, your name,
+  sign-off, hidden photos (C5); free-text notes encrypted in iCloud (C8); tested on two iPhones on one Apple ID.
+- **3.2 Share a plan.** Invite someone to a person's plan, like a shared note; they see and update parts, owners and
+  statuses; sharing can be stopped any time. Conditions: built on the storage decision; tested on two iPhones with
+  two Apple IDs.
+- **3.3 The promise everywhere.** The approved sentence in onboarding, the App Store listing, the privacy policy and
+  new App Privacy answers (Graham approves the exact answers); the privacy guard allows iCloud and still no Held Dear
+  server beyond the two exceptions.
+- **Storage decision (C1), before 3.1:** SwiftData syncs only the private database and can't share. Options: move
+  the store to Core Data with Apple's CloudKit container (sharing built in), or keep SwiftData and add custom iCloud
+  sharing code. Opus recommends, Fable reviews, Graham approves; written down here before any 3.1 or 3.2 build.
+
+**Risk accepted:** the riskiest change lands close to Christmas with less testing time; 3.0 ships first on its own.
 
 Out of scope: a Held Dear account or server for sync.
 
