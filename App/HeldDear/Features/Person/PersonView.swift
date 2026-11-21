@@ -20,7 +20,8 @@ struct PersonView: View {
     @State private var addingTo: Moment?
     @State private var linking = false
     @State private var editingDate = false
-    @State private var photoItem: PhotosPickerItem?
+    /// Several photos at once (Graham, Nov 21, 2026): pick as many as you like in one go.
+    @State private var photoItems: [PhotosPickerItem] = []
     @State private var wishToEdit: Wish?
     @State private var entryToEdit: LedgerEntry?
     @State private var editedLine = ""
@@ -77,7 +78,7 @@ struct PersonView: View {
                             titleVisibility: .visible) {
             Button("Remove", role: .destructive) { if let o = occasionToEdit { model.removeOccasion(o) } }
         }
-        .onChange(of: photoItem) { _, item in addPhoto(item) }
+        .onChange(of: photoItems) { _, items in addPhotos(items) }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
                             titleVisibility: .visible) {
             Button("Mark as given") { wishToEdit?.status = .used; model.commit() }
@@ -498,7 +499,7 @@ struct PersonView: View {
 
     /// A skipped Get ahead photo: one quiet next step.
     private var photoNudge: some View {
-        PhotosPicker(selection: $photoItem, matching: .images) {
+        PhotosPicker(selection: $photoItems, maxSelectionCount: 30, selectionBehavior: .ordered, matching: .images) {
             HStack(spacing: 14) {
                 Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.ink)
                     .frame(width: 56, height: 56)
@@ -591,7 +592,7 @@ struct PersonView: View {
     private var photoStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                PhotosPicker(selection: $photoItem, matching: .images) {
+                PhotosPicker(selection: $photoItems, maxSelectionCount: 30, selectionBehavior: .ordered, matching: .images) {
                     Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.action)
                         .frame(width: 88, height: 88)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
@@ -654,14 +655,20 @@ struct PersonView: View {
         .buttonStyle(.plain)
     }
 
-    private func addPhoto(_ item: PhotosPickerItem?) {
-        guard let item else { return }
+    private func addPhotos(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
-                person.photoFiles.append(file)
+            var added: [String] = []
+            for item in items {
+                if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                    added.append(file)
+                }
+            }
+            if !added.isEmpty {
+                person.photoFiles.append(contentsOf: added)
                 model.save()
             }
-            photoItem = nil
+            photoItems = []
         }
     }
 }
@@ -943,10 +950,21 @@ struct BirthdayMemories: View {
                     .padding(.leading, -8)
                 }
             } else if photos.status == .notDetermined {
-                OptionRow(title: "Photos from \(DisplayName.plain(person.name))'s birthdays",
-                          caption: "Held Dear looks in your library on this iPhone") {
+                OptionRow(title: "Find photos from \(DisplayName.plain(person.name))'s birthdays",
+                          caption: "Held Dear looks in your library on this iPhone. Choose Full Access to find them all.") {
                     Task { await photos.requestAccess(); load() }
                 }
+            } else {
+                OptionRow(title: "Find photos from \(DisplayName.plain(person.name))'s birthdays",
+                          caption: "Turn on Full Access for Held Dear in Settings, under Photos.") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+            }
+            if photos.status == .limited {
+                TextLink(title: "Held Dear sees only some photos. Allow all in Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .padding(.leading, -8)
             }
         }
         .onAppear(perform: load)
