@@ -17,6 +17,9 @@ final class PhotoMemories: ObservableObject {
 
     var canRead: Bool { status == .authorized || status == .limited }
 
+    /// After coming back from Settings.
+    func refresh() { status = PHPhotoLibrary.authorizationStatus(for: .readWrite) }
+
     func requestAccess() async {
         status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
     }

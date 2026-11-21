@@ -247,7 +247,7 @@ struct SettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Photos")
-                    PhotoAccessRow()
+                    PhotoAccessRow().refreshing()
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Alerts")
@@ -492,5 +492,14 @@ struct PhotoAccessRow: View {
 
     private func openSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+    }
+}
+
+extension PhotoAccessRow {
+    /// Refreshes when the app comes back, so a change in Settings shows right away.
+    func refreshing() -> some View {
+        self.onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            PhotoMemories.shared.refresh()
+        }
     }
 }
