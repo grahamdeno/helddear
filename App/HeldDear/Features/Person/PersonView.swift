@@ -387,7 +387,7 @@ struct PersonView: View {
                     if let note = person.goodToKnow { portraitLine("Good to know", note) }
                 }
             }
-            if let wish = person.openWishes.first {
+            if let wish = person.openWishes.first, !LinkPreviews.isOnlyALink(wish.text) {
                 (Text("Mentioned wanting ") + Text(wish.text).italic() + Text("."))
                     .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
             }

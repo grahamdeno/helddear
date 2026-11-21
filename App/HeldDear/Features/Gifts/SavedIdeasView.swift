@@ -40,11 +40,8 @@ struct SavedIdeasView: View {
     private func row(_ wish: Wish, person: Person) -> some View {
         Button { model.push(.person(person.id, focus: nil)) } label: {
             HStack(spacing: Brand.space3) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(wish.text).textStyle(.bodyStrong).multilineTextAlignment(.leading)
-                    Text(caption(wish)).textStyle(.caption, color: Brand.inkMuted)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                WishPreview(wish: wish, bold: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
                     .accessibilityHidden(true)
             }
