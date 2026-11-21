@@ -39,5 +39,7 @@
 	</array>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
+	<key>HeldDearCloudKitEnvironment</key>
+	<string>Development</string>
 </dict>
 </plist>

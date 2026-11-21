@@ -105,11 +105,17 @@ enum Store {
 
     /// The Core Data store at `url` (production when nil). No iCloud until item 3.1: the CloudKit container is set
     /// up but not connected. History tracking is on so turning sync on later needs no change to the store.
-    static func makeContainer(url: URL?, inMemory: Bool = false) -> NSPersistentCloudKitContainer {
+    static func makeContainer(url: URL?, inMemory: Bool = false, cloud: Bool = false) -> NSPersistentCloudKitContainer {
         let container = NSPersistentCloudKitContainer(name: "HeldDear", managedObjectModel: CoreStore.model)
         let description = NSPersistentStoreDescription(url: inMemory ? URL(fileURLWithPath: "/dev/null") : (url ?? productionURL))
         description.type = NSSQLiteStoreType
-        description.cloudKitContainerOptions = nil
+        // Item 3.1: the user's own private iCloud, for the app's real store only (never tests or in-memory stores),
+        // and only when the "Keep in iCloud" setting is on (default on).
+        if cloud, !inMemory, ICloudSync.isOnAtLaunch {
+            description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: ICloudSync.containerID)
+        } else {
+            description.cloudKitContainerOptions = nil
+        }
         description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
         description.shouldAddStoreAsynchronously = false
@@ -144,16 +150,19 @@ enum Store {
         let storeURL = url ?? productionURL
         let oldURL = legacyURL ?? (url == nil ? LegacyStore.productionURL : nil)
 
+        // A store from build 1030 (model 3.0) moves to model 3.1 first, from a backup copy kept next to it.
+        upgradeFromV30IfNeeded(storeURL, now: now)
+
         // Open version 3, trying twice before setting it aside.
         var outcome = OpenedStore.Outcome.opened
         var keptV3: URL?
-        var persistent = makeContainer(url: storeURL)
+        var persistent = makeContainer(url: storeURL, cloud: url == nil)
         if (try? load(persistent)) == nil {
-            persistent = makeContainer(url: storeURL)
+            persistent = makeContainer(url: storeURL, cloud: url == nil)
             if (try? load(persistent)) == nil {
                 let wasCopied = CopyMigration.fileSaysCopied(storeURL)
                 keptV3 = try? keepAside(storeURL, now: now)
-                persistent = makeContainer(url: storeURL)
+                persistent = makeContainer(url: storeURL, cloud: url == nil)
                 guard keptV3 != nil, (try? load(persistent)) != nil else {
                     return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: keptV3)
                 }
@@ -184,6 +193,40 @@ enum Store {
             legacy.discard()
             // Nothing is lost: the old store is untouched, and the next launch tries again.
             return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: oldURL)
+        }
+    }
+
+    /// Model 3.0 to 3.1 (item 3.1: Photo added, free text marked for iCloud encryption). The model is built in code,
+    /// so Core Data can't find the old one by itself; this migrates with both models. A copy of the store is kept
+    /// first ("HeldDear-before-3.1-<date>.sqlite"); on any failure the store is left as it was.
+    static func upgradeFromV30IfNeeded(_ url: URL, now: Date) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path),
+              let meta = try? NSPersistentStoreCoordinator.metadataForPersistentStore(ofType: NSSQLiteStoreType, at: url),
+              !CoreStore.model.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta),
+              CoreStore.modelV30.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) else { return }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd-HHmmss"
+        let dir = url.deletingLastPathComponent()
+        let backup = dir.appending(path: "HeldDear-before-3.1-\(f.string(from: now)).sqlite")
+        let temp = dir.appending(path: "HeldDear-upgrading-\(UUID().uuidString).sqlite")
+        do {
+            if !fm.fileExists(atPath: backup.path) {
+                try fm.copyItem(at: url, to: backup)
+                for suffix in ["-wal", "-shm"] where fm.fileExists(atPath: url.path + suffix) {
+                    try fm.copyItem(atPath: url.path + suffix, toPath: backup.path + suffix)
+                }
+            }
+            let mapping = try NSMappingModel.inferredMappingModel(forSourceModel: CoreStore.modelV30,
+                                                                 destinationModel: CoreStore.model)
+            let manager = NSMigrationManager(sourceModel: CoreStore.modelV30, destinationModel: CoreStore.model)
+            try manager.migrateStore(from: url, type: .sqlite, options: nil, mapping: mapping, to: temp, type: .sqlite, options: nil)
+            let coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreStore.model)
+            try coordinator.replacePersistentStore(at: url, withPersistentStoreFrom: temp, type: .sqlite)
+            try? coordinator.destroyPersistentStore(at: temp, type: .sqlite)
+        } catch {
+            try? NSPersistentStoreCoordinator(managedObjectModel: CoreStore.model).destroyPersistentStore(at: temp, type: .sqlite)
         }
     }
 

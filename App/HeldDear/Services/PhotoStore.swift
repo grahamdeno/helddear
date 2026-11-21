@@ -11,6 +11,11 @@ enum PhotoStore {
 
     static func url(_ file: String) -> URL { directory.appendingPathComponent(file) }
 
+    /// Item 3.1: set by iCloud sync. A saved photo also becomes a Photo record; a missing file is written back from one.
+    static var onSaved: ((String, Data) -> Void)?
+    static var onDeleted: ((String) -> Void)?
+    static var fetchMissing: ((String) -> Data?)?
+
     /// Saves a copy no larger than 1600 px on the long side; returns its file name.
     @discardableResult
     static func save(_ image: UIImage, maxSide: CGFloat = 1600) -> String? {
@@ -18,6 +23,7 @@ enum PhotoStore {
         guard let data = scaled.jpegData(compressionQuality: 0.85) else { return nil }
         let name = UUID().uuidString + ".jpg"
         do { try data.write(to: url(name), options: .atomic) } catch { return nil }
+        onSaved?(name, data)
         return name
     }
 
@@ -36,11 +42,16 @@ enum PhotoStore {
 
     static func load(_ file: String?) -> UIImage? {
         guard let file else { return nil }
-        return UIImage(contentsOfFile: url(file).path)
+        if let image = UIImage(contentsOfFile: url(file).path) { return image }
+        // Made on another device: write it back from its iCloud record.
+        guard !file.contains("/"), let data = fetchMissing?(file), let image = UIImage(data: data) else { return nil }
+        try? data.write(to: url(file), options: .atomic)
+        return image
     }
 
     static func delete(_ file: String) {
         try? FileManager.default.removeItem(at: url(file))
+        onDeleted?(file)
     }
 
     static func downscale(_ image: UIImage, maxSide: CGFloat) -> UIImage {

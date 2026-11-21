@@ -198,7 +198,7 @@ final class DataFoundationTests: XCTestCase {
         XCTAssertEqual(opened.outcome, .opened)
         XCTAssertNil(opened.keptStoreURL)
         XCTAssertEqual(Set(CoreStore.model.entities.compactMap(\.name)),
-                       ["Person", "Occasion", "Moment", "Wish", "Act", "LedgerEntry"])
+                       ["Person", "Occasion", "Moment", "Wish", "Act", "LedgerEntry", "Photo"], "Six record types plus Photo (3.1)")
     }
 
     func testV3_iCloudReadyModel() {
