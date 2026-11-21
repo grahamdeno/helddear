@@ -1,5 +1,4 @@
 import BackgroundTasks
-import SwiftData
 import SwiftUI
 
 @main
@@ -13,7 +12,6 @@ struct HeldDearApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(model)
-                .modelContainer(model.container)
                 .onOpenURL { model.openURL($0) }
                 .task { await model.refresh() }
         }
@@ -63,7 +61,6 @@ struct RootView: View {
                                        set: { model.route = $0 })) { route in
             RouteView(route: route)
                 .environmentObject(model)
-                .modelContainer(model.container)
         }
         .onChange(of: model.route) { old, route in
             if route == nil, case .addBirthday? = old, !model.contactsToDate.isEmpty {

@@ -111,8 +111,8 @@ final class PlaceStore {
     }
 }
 
-/// A typed address for a person whose contact card has none (story 2.13). Kept on the phone, by person id.
-/// Moves into the stored model with the Core Data store (Epic 3, item 3.0), so there is one migration, not two.
+/// Addresses kept in settings by builds before store version 3 (story 2.13, by person id). Read once, when the copy
+/// to version 3 moves each onto its person (Person.mailingAddress); nothing writes here any more.
 final class SavedAddresses {
     static let shared = SavedAddresses()
     private let defaults: UserDefaults

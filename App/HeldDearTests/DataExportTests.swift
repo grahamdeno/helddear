@@ -39,8 +39,8 @@ final class DataExportTests: XCTestCase {
     @discardableResult
     func writeFixture(storeAt url: URL, photosIn photosDirectory: URL) throws -> Ids {
         var ids = Ids()
-        let container = try Store.container(Store.configuration(url: url))
-        let context = ModelContext(container)
+        let fixtureStore = Store.open(url: url, copyFromLegacy: false)
+        let context = fixtureStore.container.mainContext
         func date(_ y: Int, _ m: Int, _ d: Int) -> Date { cal.date(from: DateComponents(year: y, month: m, day: d))! }
 
         let robin = Person(name: "Robin", fullName: "Robin Vale", contactID: "contact-robin", ring: .inner)
@@ -150,13 +150,13 @@ final class DataExportTests: XCTestCase {
 
     func testFixture_isAVersion2StoreWithKnownCounts() throws {
         let (opened, _) = try openFixture()
-        let c = ModelContext(opened.container)
-        XCTAssertEqual(try c.fetchCount(FetchDescriptor<Person>()), Expect.people)
-        XCTAssertEqual(try c.fetchCount(FetchDescriptor<Occasion>()), Expect.occasions)
-        XCTAssertEqual(try c.fetchCount(FetchDescriptor<Moment>()), Expect.moments)
-        XCTAssertEqual(try c.fetchCount(FetchDescriptor<Act>()), Expect.acts)
-        XCTAssertEqual(try c.fetchCount(FetchDescriptor<Wish>()), Expect.wishes)
-        XCTAssertEqual(try c.fetchCount(FetchDescriptor<LedgerEntry>()), Expect.ledger)
+        let c = HeldDear.ModelContext(opened.container)
+        XCTAssertEqual(try c.fetchCount(HeldDear.FetchDescriptor<Person>()), Expect.people)
+        XCTAssertEqual(try c.fetchCount(HeldDear.FetchDescriptor<Occasion>()), Expect.occasions)
+        XCTAssertEqual(try c.fetchCount(HeldDear.FetchDescriptor<Moment>()), Expect.moments)
+        XCTAssertEqual(try c.fetchCount(HeldDear.FetchDescriptor<Act>()), Expect.acts)
+        XCTAssertEqual(try c.fetchCount(HeldDear.FetchDescriptor<Wish>()), Expect.wishes)
+        XCTAssertEqual(try c.fetchCount(HeldDear.FetchDescriptor<LedgerEntry>()), Expect.ledger)
         XCTAssertEqual(SchemaV2.versionIdentifier, Schema.Version(2, 0, 0))
     }
 
@@ -166,7 +166,7 @@ final class DataExportTests: XCTestCase {
 
     func testExport_countsMatchTheFixture() throws {
         let (opened, _) = try openFixture()
-        let summary = try DataExport.write(context: ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
+        let summary = try DataExport.write(context: HeldDear.ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
         XCTAssertEqual(summary, DataExport.Summary(people: Expect.people, occasions: Expect.occasions, moments: Expect.moments,
                                                    acts: Expect.acts, wishes: Expect.wishes, ledger: Expect.ledger,
                                                    photos: Expect.photoFiles.count, missingPhotos: []))
@@ -184,7 +184,7 @@ final class DataExportTests: XCTestCase {
 
     func testExport_containsEveryPhotoWithTheSameBytes() throws {
         let (opened, _) = try openFixture()
-        try DataExport.write(context: ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
+        try DataExport.write(context: HeldDear.ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
         let inFolder = try FileManager.default.contentsOfDirectory(atPath: exportFolder().appendingPathComponent("photos").path)
         XCTAssertEqual(Set(inFolder), Set(Expect.photoFiles))
         for name in Expect.photoFiles {
@@ -200,7 +200,7 @@ final class DataExportTests: XCTestCase {
 
     func testExport_keepsEveryStoredFieldAndLink() throws {
         let (opened, ids) = try openFixture()
-        try DataExport.write(context: ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
+        try DataExport.write(context: HeldDear.ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
         let doc = try DataExport.read(folder: exportFolder())
         let gift = try XCTUnwrap(doc.acts.first { $0.id == ids.giftAct })
         XCTAssertEqual(gift.step, "bought")
@@ -226,7 +226,7 @@ final class DataExportTests: XCTestCase {
 
     func testExport_leavesTheFamilyPageOwnerKeyOut() throws {
         let (opened, _) = try openFixture()
-        try DataExport.write(context: ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
+        try DataExport.write(context: HeldDear.ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
         let text = try String(contentsOf: exportFolder().appendingPathComponent(DataExport.jsonName), encoding: .utf8)
         XCTAssertFalse(text.contains("owner-key-should-not-be-exported"))
         XCTAssertTrue(text.contains("page-1"))
@@ -235,7 +235,7 @@ final class DataExportTests: XCTestCase {
     func testExport_aMissingImageIsListedAndTheRestIsStillWritten() throws {
         let (opened, _) = try openFixture()
         try FileManager.default.removeItem(at: photos.appendingPathComponent("jordan-1.jpg"))
-        let summary = try DataExport.write(context: ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
+        let summary = try DataExport.write(context: HeldDear.ModelContext(opened.container), photosDirectory: photos, to: exportFolder())
         XCTAssertEqual(summary.missingPhotos, ["jordan-1.jpg"])
         XCTAssertEqual(summary.photos, Expect.photoFiles.count - 1)
         XCTAssertEqual(summary.people, Expect.people)
@@ -244,17 +244,17 @@ final class DataExportTests: XCTestCase {
 
     func testExport_readsOnlyAndChangesNothing() throws {
         let (opened, _) = try openFixture()
-        let context = ModelContext(opened.container)
+        let context = HeldDear.ModelContext(opened.container)
         try DataExport.write(context: context, photosDirectory: photos, to: exportFolder())
         XCTAssertFalse(context.hasChanges)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Act>()), Expect.acts)
+        XCTAssertEqual(try context.fetchCount(HeldDear.FetchDescriptor<Act>()), Expect.acts)
         for name in Expect.photoFiles { XCTAssertTrue(FileManager.default.fileExists(atPath: photos.appendingPathComponent(name).path)) }
     }
 
     func testExport_makesOneZipForTheShareSheet() throws {
         let (opened, _) = try openFixture()
         let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 12))!
-        let result = try DataExport.exportForSharing(context: ModelContext(opened.container), photosDirectory: photos,
+        let result = try DataExport.exportForSharing(context: HeldDear.ModelContext(opened.container), photosDirectory: photos,
                                                      in: dir, now: now)
         XCTAssertEqual(result.zip.lastPathComponent, "HeldDear-data-2026-11-21.zip")
         let bytes = try Data(contentsOf: result.zip)
@@ -270,7 +270,7 @@ final class DataExportTests: XCTestCase {
     func testSetAside_anUnreadableStoreIsKeptAsideAndTheScreenShows() throws {
         let junk = Data("This is not a Held Dear store.".utf8)
         try junk.write(to: storeURL)
-        let opened = Store.open(url: storeURL)
+        let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), legacyURL: storeURL)
         XCTAssertEqual(opened.outcome, .freshStoreOldKeptAside)
         let kept = try XCTUnwrap(opened.keptStoreURL)
         XCTAssertEqual(try Data(contentsOf: kept), junk, "Kept, untouched, not deleted")
@@ -292,7 +292,7 @@ final class DataExportTests: XCTestCase {
         try junk.write(to: storeURL)
         try Data("wal".utf8).write(to: URL(fileURLWithPath: storeURL.path + "-wal"))
         try Data("photo".utf8).write(to: photos.appendingPathComponent("robin-1.jpg"))
-        let opened = Store.open(url: storeURL)
+        let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), legacyURL: storeURL)
         let kept = try XCTUnwrap(opened.keptStoreURL)
 
         let source = try XCTUnwrap(StoreSetAside.storeToExport(kept: kept, original: storeURL))

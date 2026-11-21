@@ -510,7 +510,7 @@ struct PersonView: View {
     /// Story 2.13: an address kept on this iPhone when Contacts has none for this person.
     private var addressRow: some View {
         let _ = model.revision
-        let saved = SavedAddresses.shared.address(for: person.id)
+        let saved = person.mailingAddress
         return OptionRow(title: saved == nil ? "Add a mailing address" : "Mailing address",
                          caption: saved?.oneLine ?? "For mailed cards. It stays on this iPhone") { editingAddress = true }
     }
@@ -817,21 +817,21 @@ struct AddressEditor: View {
             AddressForm(address: $address)
         } footer: {
             PrimaryButton(title: "Save") {
-                SavedAddresses.shared.set(address, for: person.id)
-                model.revision += 1
+                person.mailingAddress = address
+                model.save()
                 dismiss()
             }
             .disabled(!address.isComplete)
             if hadOne {
                 TextLink(title: "Clear the address") {
-                    SavedAddresses.shared.set(nil, for: person.id)
-                    model.revision += 1
+                    person.mailingAddress = nil
+                    model.save()
                     dismiss()
                 }
             }
         }
         .onAppear {
-            if let saved = SavedAddresses.shared.address(for: person.id) { address = saved; hadOne = true }
+            if let saved = person.mailingAddress { address = saved; hadOne = true }
             else { address.firstName = DisplayName.plain(person.name).split(separator: " ").first.map(String.init) ?? "" }
         }
     }

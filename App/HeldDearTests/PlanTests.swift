@@ -676,8 +676,8 @@ final class PlanTests: XCTestCase {
     // MARK: Helpers
 
     private struct World {
-        let container: ModelContainer
-        let context: ModelContext
+        let container: HeldDear.ModelContainer
+        let context: HeldDear.ModelContext
         let person: Person
         let moment: Moment
     }
@@ -688,12 +688,12 @@ final class PlanTests: XCTestCase {
     /// Saves, then reads every act back from the store.
     private func savedActIDs(_ w: World) -> [UUID] {
         try? w.context.save()
-        return ((try? w.context.fetch(FetchDescriptor<Act>())) ?? []).map(\.id)
+        return ((try? w.context.fetch(HeldDear.FetchDescriptor<Act>())) ?? []).map(\.id)
     }
 
     private func makeWorld(status: MomentStatus = .upcoming) -> World {
         let opened = Store.open(inMemory: true)
-        let context = ModelContext(opened.container)
+        let context = HeldDear.ModelContext(opened.container)
         let person = Person(name: "Anna", ring: .inner)
         let occasion = Occasion(type: .birthday, month: 1, day: 16)
         let moment = Moment(year: 2027, dueDate: day(2027, 1, 16))

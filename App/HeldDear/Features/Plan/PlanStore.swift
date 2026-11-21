@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 extension Moment {
     /// The plan parts in the order the plan shows them: sortOrder, then the order they were made.

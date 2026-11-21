@@ -28,7 +28,7 @@ struct StoreSetAsideView: View {
 
     private func export() {
         couldNotExport = false
-        guard let store = StoreSetAside.storeToExport(kept: model.keptStoreURL, original: Store.configuration(url: nil).url),
+        guard let store = StoreSetAside.storeToExport(kept: model.keptStoreURL, original: Store.productionURL),
               let zipped = try? DataExport.keptStoreBundle(storeURL: store) else {
             couldNotExport = true
             return

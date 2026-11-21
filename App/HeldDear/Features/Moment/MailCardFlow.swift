@@ -142,8 +142,9 @@ struct MailCardFlow: View {
         } footer: {
             PrimaryButton(title: "Next") {
                 if next == .review { MailAddress.saved = sender }
-                if next == .sender, !fromContacts, keepAddress, let id = context.person?.id {
-                    SavedAddresses.shared.set(recipient, for: id)
+                if next == .sender, !fromContacts, keepAddress, let person = context.person {
+                    person.mailingAddress = recipient
+                    try? person.managedObjectContext?.save()
                 }
                 step = next
             }
@@ -224,7 +225,7 @@ struct MailCardFlow: View {
             if let address = ContactsService.shared.mailAddress(contactID: context.person?.contactID) {
                 recipient = address
                 fromContacts = true
-            } else if let id = context.person?.id, let saved = SavedAddresses.shared.address(for: id) {
+            } else if let saved = context.person?.mailingAddress {
                 recipient = saved
             }
             if recipient.firstName.isEmpty { recipient.firstName = name }
