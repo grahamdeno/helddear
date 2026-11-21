@@ -329,7 +329,7 @@ private struct PartScreen: View {
     }
     private var others: [Person] { household.filter { p in !core.contains { $0.id == p.id } } }
 
-    /// What it is when nothing's been typed: "Gift", or "Gift from Heidi and Nora" once who it's from is set.
+    /// What it is when nothing's been typed: "Gift", or "Gift from Ada and Bea" once who it's from is set.
     private var autoName: String {
         let names = household.filter { ownerIDs.contains($0.id) }.map { DisplayName.plain($0.name) }
         if act.kind == .kidsMade, let n = PartOwners.kidsGiftName(names: names) { return n }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// How big a name is drawn in the display serif. Longer names step down in size first; past the smallest step the
-/// name wraps onto a second line instead of being cut off ("Susan Holobaugh..." on build 1011).
+/// name wraps onto a second line instead of being cut off ("Miriam Hollowell..." on build 1011).
 enum NameSize {
     /// Home's featured name.
     static func featured(_ name: String) -> CGFloat {
@@ -39,7 +39,7 @@ enum NameSize {
     static let maxLines = 2
 }
 
-/// A name for a sentence or title, without the emoji some contact cards carry ("Haiden 🕑" reads "Haiden").
+/// A name for a sentence or title, without the emoji some contact cards carry ("Marcus 🕑" reads "Marcus").
 enum DisplayName {
     static func plain(_ name: String) -> String {
         let kept = name.unicodeScalars.filter { s in

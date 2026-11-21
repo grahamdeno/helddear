@@ -128,7 +128,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Cards from you")
                     OptionRow(title: "Make a card", caption: "For Christmas or any reason. Text it or post it.") { makingCard = true }
-                    TextField("Sign cards as (like The DeNoyers)", text: $signedAs)
+                    TextField("Sign cards as (like The Hollands)", text: $signedAs)
                         .textStyle(.body)
                         .padding(.horizontal, Brand.space4)
                         .frame(minHeight: 52)

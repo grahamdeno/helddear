@@ -19,8 +19,8 @@ final class ShareCardLayoutTests: XCTestCase {
     func testNoAgeUnlessAdded() {
         XCTAssertEqual(ShareCardLayout.subline(type: .birthday, partner: nil, count: 40, addAge: false), "birthday")
         XCTAssertEqual(ShareCardLayout.subline(type: .birthday, partner: nil, count: 40, addAge: true), "turns 40")
-        XCTAssertEqual(ShareCardLayout.subline(type: .anniversary, partner: "Graham", count: 11, addAge: false), "anniversary")
-        XCTAssertEqual(ShareCardLayout.subline(type: .anniversary, partner: "Graham", count: 11, addAge: true), "11th anniversary")
+        XCTAssertEqual(ShareCardLayout.subline(type: .anniversary, partner: "Sam", count: 11, addAge: false), "anniversary")
+        XCTAssertEqual(ShareCardLayout.subline(type: .anniversary, partner: "Sam", count: 11, addAge: true), "11th anniversary")
         XCTAssertEqual(ShareCardLayout.subline(type: .event, partner: "Ballet recital", count: nil, addAge: true), "Ballet recital")
     }
 

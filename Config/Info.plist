@@ -37,5 +37,7 @@
 	<array>
 		<string>com.grahamdeno.helddear.refresh</string>
 	</array>
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 </dict>
 </plist>

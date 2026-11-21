@@ -41,7 +41,7 @@ export const OCCASION_CATEGORY = {
   event: [/congrat/i],
   // A card for a reason, not a day (story 2.8). Keys match the app's CardReason raw values.
   justBecause: [/thinking/i, /blank/i, /friend/i],
-  getWell: [/get well/i, /feel better/i, /sympathy/i],
+  getWell: [/get well/i, /feel better/i],
   thankYou: [/thank/i],
   thinkingOfYou: [/thinking/i, /friend/i],
   congratulations: [/congrat/i],
