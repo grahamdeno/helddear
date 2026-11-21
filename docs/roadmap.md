@@ -97,6 +97,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 | Nov 20, 2026 | Shared holidays become one timeline event with a holiday page; plans still save per person; one heads-up six weeks ahead; the user chooses which holidays to keep (Epic 1) | A busy date should read as one event, and planning everyone happens in one place |
 | Nov 20, 2026 | Held Dear follows playbook 1.4.0. docs/roadmap.md is the running plan; the plan doc stays the concept and spec reference | One process across all of Graham's apps |
 | Nov 13, 2026 | Direction: "Never stuck on what to give." A gift shelf filled all year, ideas about six weeks out, pick, buy, and Home shows the arrival. Phase 1 uses no new APIs or server setup | The real problem was not knowing what to give, not forgetting the date |
+| Nov 21, 2026 | Mailed cards are on: in test builds now (server stays in test mode), and in 1.0. Story 2.8 (a card for any reason) is in 1.0 with both Make it and Mail it | Graham: cards are not only for a day. Changes the 1.0 privacy answers and listing; family pages stay off |
 | Nov 13, 2026 | Graham does not curate a gift collection. Any server gift search later sends interests only, never names, behind a consent screen | Keeps the work and the privacy promise small |
 | Nov 12, 2026 | Horizon look: warm stone, one composed page per main screen, Fraunces names, one oxblood action per screen, time left to right | Replaced Hearth, Quiet and the other rejected directions |
 | Nov 12, 2026 | Family pages may store what the user and family add on Held Dear's server: no accounts, links that expire, deleted 30 days after the day | Second network exception, enforced by the guard |
@@ -107,7 +108,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 ## Release scope
 
-- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.7, R1 to R4),
+- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.8, R1 to R4),
   Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
@@ -263,6 +264,22 @@ As a user, I want plans for my 3 closest people free so that I can try the full 
 - Reminders, the morning-of message and the yearly line stay free for everyone.
 - Lifetime adds plans for everyone, all card designs, the Lock Screen widget, AI ideas and keepsakes.
 
+#### 2.8 A card for any reason (approved Nov 21, 2026)
+
+As someone who cares about a person, I want to make or mail them a card for any reason, not only for a day, so that a
+get-well or just-because card is as easy as a birthday card.
+
+- Given I'm on a person's page, when I tap Send a card, then I choose a reason: Just because, Get well, Thank you,
+  Thinking of you, Congratulations, Sorry for your loss.
+- Given I chose a reason, then the card's opening line fits it ("Feel better soon,") and I can change it.
+- Given mailed cards are on, then I choose Make it (free, sent in Messages) or Mail it (Apple Pay); with them off,
+  only Make it shows.
+- Given I send one, then it goes in the person's yearly record as one line ("Get-well card, Nov 21").
+- Mailed cards for a reason show that reason's designs, which needs the server to know the reasons (server change,
+  ship go).
+
+**Out of scope:** reminders for these cards; prices and Stripe going live.
+
 #### Requirements
 - **R1. Several recipients:** an occasion can hold several people. Enforced by a unit test on the data model.
 - **R2. Mailed cards and family pages off in 1.0:** the code ships, switched off by a build setting. No 1.0 build
@@ -290,7 +307,7 @@ removed.
 - **M4. No bulk rewrite:** steps for existing parts are worked out when read and stored only when the user changes
   one.
 
-**Out of scope:** mailed cards and family pages for customers, Valentine's Day, ongoing gifts such as a weekly note,
+**Out of scope:** family pages for customers (mailed cards are in, Nov 21), Valentine's Day, ongoing gifts such as a weekly note,
 budgets, group gifts from several givers.
 
 **Open:** how early the inner-ring heads-up arrives (the hand test decides; today 21 days).
