@@ -12,19 +12,120 @@ enum CopyMigration {
 
     enum Failure: Error, Equatable { case countsDiffer(expected: Report, found: Report) }
 
-    /// A small file next to the store says the store is complete (copied, or started fresh).
-    static func markerURL(_ storeURL: URL) -> URL { URL(fileURLWithPath: storeURL.path + ".complete") }
+    /// "Copied" is a mark in the store's own metadata, written in the same save as the copied records (Fable S2).
+    static let copiedKey = "HeldDearCopiedFromVersion2"
 
-    static func isComplete(_ url: URL) -> Bool { FileManager.default.fileExists(atPath: markerURL(url).path) }
-
-    static func markComplete(_ container: NSPersistentContainer) {
-        guard let url = container.persistentStoreDescriptions.first?.url, url.path != "/dev/null" else { return }
-        FileManager.default.createFile(atPath: markerURL(url).path, contents: Data(CoreStore.version.utf8))
+    static func isCopied(_ container: NSPersistentContainer) -> Bool {
+        guard let store = container.persistentStoreCoordinator.persistentStores.first else { return false }
+        return (container.persistentStoreCoordinator.metadata(for: store)[copiedKey] as? Bool) == true
     }
 
+    /// Reads the mark from a store file without opening it (for a file about to be set aside).
+    static func fileSaysCopied(_ url: URL) -> Bool {
+        let meta = try? NSPersistentStoreCoordinator.metadataForPersistentStore(ofType: NSSQLiteStoreType, at: url)
+        return (meta?[copiedKey] as? Bool) == true
+    }
+
+    private static func setMark(_ on: Bool, _ container: NSPersistentContainer) {
+        let coordinator = container.persistentStoreCoordinator
+        guard let store = coordinator.persistentStores.first else { return }
+        var meta = coordinator.metadata(for: store)
+        meta[copiedKey] = on ? true : nil
+        coordinator.setMetadata(meta, for: store)
+    }
+
+    /// Marks a fresh store as copied with no records, so an older version 2 file is never copied over the user's
+    /// latest plans after a version 3 store was set aside. Writes the metadata alone.
+    static func markCopiedWithoutRecords(_ container: NSPersistentContainer) {
+        setMark(true, container)
+        let request = NSSaveChangesRequest(inserted: nil, updated: nil, deleted: nil, locked: nil)
+        _ = try? container.persistentStoreCoordinator.execute(request, with: container.viewContext)
+    }
+
+    enum CheckFailure: Error, Equatable { case readBackDiffers(String) }
+
+    /// The ids and links of every record, for comparing the old store with the new one (Fable S4).
+    struct Shape: Equatable {
+        var people: [UUID: [Int]] = [:]          // occasions, wishes, ledger
+        var occasions: [UUID: UUID?] = [:]       // person
+        var moments: [UUID: UUID?] = [:]         // occasion
+        var acts: [UUID: UUID?] = [:]            // moment
+        var wishes: [UUID: UUID?] = [:]          // person
+        var ledger: [UUID: UUID?] = [:]          // person
+    }
+
+    static func shape(of old: SwiftData.ModelContext) throws -> Shape {
+        var s = Shape()
+        for p in try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Person>()) { s.people[p.id] = [p.occasions.count, p.wishes.count, p.ledger.count] }
+        for o in try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Occasion>()) { s.occasions[o.id] = o.person?.id }
+        for m in try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Moment>()) { s.moments[m.id] = m.occasion?.id }
+        for a in try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Act>()) { s.acts[a.id] = a.moment?.id }
+        for w in try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Wish>()) { s.wishes[w.id] = w.person?.id }
+        for l in try old.fetch(SwiftData.FetchDescriptor<SchemaV2.LedgerEntry>()) { s.ledger[l.id] = l.person?.id }
+        return s
+    }
+
+    static func shape(of new: ModelContext) throws -> Shape {
+        var s = Shape()
+        for p in try new.fetch(FetchDescriptor<Person>()) { s.people[p.id] = [p.occasions.count, p.wishes.count, p.ledger.count] }
+        for o in try new.fetch(FetchDescriptor<Occasion>()) { s.occasions[o.id] = o.person?.id }
+        for m in try new.fetch(FetchDescriptor<Moment>()) { s.moments[m.id] = m.occasion?.id }
+        for a in try new.fetch(FetchDescriptor<Act>()) { s.acts[a.id] = a.moment?.id }
+        for w in try new.fetch(FetchDescriptor<Wish>()) { s.wishes[w.id] = w.person?.id }
+        for l in try new.fetch(FetchDescriptor<LedgerEntry>()) { s.ledger[l.id] = l.person?.id }
+        return s
+    }
+
+    /// Copies, checks counts, saves the records and the mark together, then reads everything back in a fresh
+    /// context and compares ids and links with the old store. Any failure leaves the new store empty and unmarked.
     @discardableResult
-    static func copy(from old: SwiftData.ModelContext, to new: ModelContext,
-                     addresses: SavedAddresses = .shared) throws -> Report {
+    static func copy(from old: SwiftData.ModelContext, to container: ModelContainer,
+                     addresses: SavedAddresses = .shared,
+                     beforeSave: ((ModelContext) throws -> Void)? = nil) throws -> Report {
+        let new = container.mainContext
+        let report: Report
+        do {
+            report = try insertAll(from: old, into: new, addresses: addresses)
+            try beforeSave?(new)
+            let found = try counts(new)
+            guard found == report else { throw Failure.countsDiffer(expected: report, found: found) }
+            setMark(true, container.persistent)
+            try new.save()
+        } catch {
+            new.moc.rollback()
+            setMark(false, container.persistent)
+            throw error
+        }
+        let expected = try shape(of: old)
+        let fresh = ModelContext(container)
+        let readBack = try shape(of: fresh)
+        guard readBack == expected else {
+            wipe(container)
+            throw CheckFailure.readBackDiffers("ids or links differ after the copy")
+        }
+        return report
+    }
+
+    static func counts(_ c: ModelContext) throws -> Report {
+        Report(people: try c.fetchCount(FetchDescriptor<Person>()), occasions: try c.fetchCount(FetchDescriptor<Occasion>()),
+               moments: try c.fetchCount(FetchDescriptor<Moment>()), acts: try c.fetchCount(FetchDescriptor<Act>()),
+               wishes: try c.fetchCount(FetchDescriptor<Wish>()), ledger: try c.fetchCount(FetchDescriptor<LedgerEntry>()))
+    }
+
+    /// Empties the new store and removes the mark, after a copy that didn't read back right. Only the new store.
+    static func wipe(_ container: ModelContainer) {
+        let c = ModelContext(container)
+        for name in ["Act", "Wish", "LedgerEntry", "Moment", "Occasion", "Person"] {
+            let found = (try? c.moc.fetch(NSFetchRequest<NSManagedObject>(entityName: name))) ?? []
+            found.forEach { c.moc.delete($0) }
+        }
+        setMark(false, container.persistent)
+        try? c.save()
+        container.mainContext.moc.reset()
+    }
+
+    private static func insertAll(from old: SwiftData.ModelContext, into new: ModelContext,
+                                  addresses: SavedAddresses) throws -> Report {
         let people = try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Person>())
         let occasions = try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Occasion>())
         let moments = try old.fetch(SwiftData.FetchDescriptor<SchemaV2.Moment>())
@@ -119,14 +220,6 @@ enum CopyMigration {
             l.person = o.person.flatMap { personByID[$0.id] }
         }
 
-        let found = Report(people: try new.fetchCount(FetchDescriptor<Person>()),
-                           occasions: try new.fetchCount(FetchDescriptor<Occasion>()),
-                           moments: try new.fetchCount(FetchDescriptor<Moment>()),
-                           acts: try new.fetchCount(FetchDescriptor<Act>()),
-                           wishes: try new.fetchCount(FetchDescriptor<Wish>()),
-                           ledger: try new.fetchCount(FetchDescriptor<LedgerEntry>()))
-        guard found == expected else { throw Failure.countsDiffer(expected: expected, found: found) }
-        try new.save()
-        return found
+        return expected
     }
 }

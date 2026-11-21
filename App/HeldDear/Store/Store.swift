@@ -39,10 +39,36 @@ enum LegacyStore {
 
     static func configuration(url: URL) -> ModelConfiguration { ModelConfiguration(schema: schema, url: url) }
 
-    /// Opens a version 1 or 2 store through the migration plan.
+    /// Opens a version 1 or 2 store through the migration plan. Writes to it (a version 1 store is migrated in
+    /// place), so the app only ever calls this on a copy (`openCopy`).
     static func container(url: URL) throws -> SwiftData.ModelContainer {
         try SwiftData.ModelContainer(for: schema, migrationPlan: HeldDearMigrationPlan.self,
                                      configurations: [configuration(url: url)])
+    }
+
+    /// A copy of the old store's files in a temporary folder, opened. The original is only read (Fable S9).
+    struct OpenedCopy {
+        let container: SwiftData.ModelContainer
+        let folder: URL
+        /// Removes the temporary copy (never the original).
+        func discard() { try? FileManager.default.removeItem(at: folder) }
+    }
+
+    static func openCopy(of url: URL) throws -> OpenedCopy {
+        let fm = FileManager.default
+        let folder = fm.temporaryDirectory.appending(path: "HeldDearCopy-\(UUID().uuidString)")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let copy = folder.appending(path: url.lastPathComponent)
+        do {
+            try fm.copyItem(at: url, to: copy)
+            for suffix in ["-wal", "-shm"] where fm.fileExists(atPath: url.path + suffix) {
+                try fm.copyItem(atPath: url.path + suffix, toPath: copy.path + suffix)
+            }
+            return OpenedCopy(container: try container(url: copy), folder: folder)
+        } catch {
+            try? fm.removeItem(at: folder)
+            throw error
+        }
     }
 }
 
@@ -102,65 +128,63 @@ enum Store {
     }
 
     /// Opens the store. Never crashes and never deletes anything:
-    /// - a version 3 store opens as it is;
-    /// - with none yet and a version 1 or 2 store (`legacyURL`, production when nil), that store is copied into a new
-    ///   version 3 store and every count is checked; the old file stays where it is, untouched;
-    /// - if the old store can't be opened, it's kept aside under a dated name and a fresh store opens;
-    /// - if the copy fails, or no store opens at all, the app runs in memory this launch and says so.
-    /// `url` and `legacyURL` are for tests. `copyFromLegacy: false` skips looking for an old store (tests).
+    /// - the version 3 store opens (made if missing); if it won't open, it's tried once more, then kept aside under a
+    ///   dated name and a fresh one opens (Fable S6);
+    /// - if it isn't marked as copied, has no records, and a version 1 or 2 store exists (`legacyURL`, production when
+    ///   nil), that store is copied in: the records and the "copied" mark go in one save, then everything is read back
+    ///   and compared (Fable S2, S4). A version 3 store that already has records is never copied over;
+    /// - the old store is never opened in place: a copy of its files is opened, so it's never written (Fable S9);
+    /// - if the old store won't open or the copy fails, it stays where it is, the app runs in memory this launch and
+    ///   says so, and the next launch tries again (Fable S1).
+    /// `url` and `legacyURL` are for tests. `copyFromLegacy: false` skips looking for an old store (tests);
+    /// `beforeCopySave` lets a test break the copy.
     static func open(inMemory: Bool = false, url: URL? = nil, legacyURL: URL? = nil, copyFromLegacy: Bool = true,
-                     now: Date = Date()) -> OpenedStore {
+                     now: Date = Date(), beforeCopySave: ((ModelContext) throws -> Void)? = nil) -> OpenedStore {
         if inMemory { return OpenedStore(container: memoryContainer(), outcome: .opened, keptStoreURL: nil) }
         let storeURL = url ?? productionURL
-        let fm = FileManager.default
         let oldURL = legacyURL ?? (url == nil ? LegacyStore.productionURL : nil)
 
-        // Already version 3.
-        if fm.fileExists(atPath: storeURL.path), CopyMigration.isComplete(storeURL) {
-            let c = makeContainer(url: storeURL)
-            if (try? load(c)) != nil { return OpenedStore(container: ModelContainer(persistent: c), outcome: .opened, keptStoreURL: nil) }
-            let kept = try? keepAside(storeURL, now: now)
-            let fresh = makeContainer(url: storeURL)
-            if kept != nil, (try? load(fresh)) != nil {
-                CopyMigration.markComplete(fresh)
-                return OpenedStore(container: ModelContainer(persistent: fresh), outcome: .freshStoreOldKeptAside, keptStoreURL: kept)
-            }
-            return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: kept ?? storeURL)
-        }
-
-        // A version 3 file left by a copy that didn't finish: put it aside (it's ours, from a failed copy) and start over.
-        if fm.fileExists(atPath: storeURL.path) { _ = try? keepAside(storeURL, now: now) }
-
-        let c = makeContainer(url: storeURL)
-        guard (try? load(c)) != nil else {
-            return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: nil)
-        }
-        let container = ModelContainer(persistent: c)
-
-        // Copy from version 1 or 2, when there is one.
-        if copyFromLegacy, let oldURL, fm.fileExists(atPath: oldURL.path) {
-            let legacy: SwiftData.ModelContainer
-            do {
-                legacy = try LegacyStore.container(url: oldURL)
-            } catch {
-                // The old store can't be opened: keep it aside, untouched, and go on with the fresh store.
-                let kept = try? keepAside(oldURL, now: now)
-                CopyMigration.markComplete(c)
-                return OpenedStore(container: container, outcome: .freshStoreOldKeptAside, keptStoreURL: kept ?? oldURL)
-            }
-            do {
-                let report = try CopyMigration.copy(from: SwiftData.ModelContext(legacy), to: container.mainContext)
-                CopyMigration.markComplete(c)
-                return OpenedStore(container: container, outcome: .opened, keptStoreURL: nil, copy: report)
-            } catch {
-                // Nothing is lost: the old store is untouched and the next launch tries again.
-                container.mainContext.moc.rollback()
-                return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: oldURL)
+        // Open version 3, trying twice before setting it aside.
+        var outcome = OpenedStore.Outcome.opened
+        var keptV3: URL?
+        var persistent = makeContainer(url: storeURL)
+        if (try? load(persistent)) == nil {
+            persistent = makeContainer(url: storeURL)
+            if (try? load(persistent)) == nil {
+                let wasCopied = CopyMigration.fileSaysCopied(storeURL)
+                keptV3 = try? keepAside(storeURL, now: now)
+                persistent = makeContainer(url: storeURL)
+                guard keptV3 != nil, (try? load(persistent)) != nil else {
+                    return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: keptV3)
+                }
+                outcome = .freshStoreOldKeptAside
+                // A store that had already been copied stays the user's latest; the old version 2 file is older.
+                if wasCopied { CopyMigration.markCopiedWithoutRecords(persistent) }
             }
         }
+        let container = ModelContainer(persistent: persistent)
 
-        CopyMigration.markComplete(c)
-        return OpenedStore(container: container, outcome: .opened, keptStoreURL: nil)
+        guard copyFromLegacy, let oldURL, FileManager.default.fileExists(atPath: oldURL.path),
+              !CopyMigration.isCopied(persistent),
+              ((try? container.mainContext.fetchCount(FetchDescriptor<Person>())) ?? 1) == 0,
+              ((try? container.mainContext.fetchCount(FetchDescriptor<Occasion>())) ?? 1) == 0 else {
+            return OpenedStore(container: container, outcome: outcome, keptStoreURL: keptV3)
+        }
+
+        // Copy from version 1 or 2, through a copy of its files.
+        guard let legacy = try? LegacyStore.openCopy(of: oldURL) else {
+            return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: oldURL)
+        }
+        do {
+            let report = try CopyMigration.copy(from: SwiftData.ModelContext(legacy.container), to: container,
+                                                beforeSave: beforeCopySave)
+            legacy.discard()
+            return OpenedStore(container: container, outcome: outcome, keptStoreURL: keptV3, copy: report)
+        } catch {
+            legacy.discard()
+            // Nothing is lost: the old store is untouched, and the next launch tries again.
+            return OpenedStore(container: memoryContainer(), outcome: .inMemoryThisLaunch, keptStoreURL: oldURL)
+        }
     }
 
     private static func memoryContainer() -> ModelContainer {

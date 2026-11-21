@@ -95,7 +95,7 @@ class StoredRecord: NSManagedObject, Observable {
 
 @objc(PersonObject)
 final class PersonObject: StoredRecord {
-    var id: UUID { get { read("id", UUID()) } set { write("id", newValue) } }
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
     var name: String { get { read("name", "") } set { write("name", newValue) } }
     var fullName: String { get { read("fullName", "") } set { write("fullName", newValue) } }
     var contactID: String? { get { readOptional("contactID") } set { write("contactID", newValue) } }
@@ -151,7 +151,7 @@ final class PersonObject: StoredRecord {
 
 @objc(OccasionObject)
 final class OccasionObject: StoredRecord {
-    var id: UUID { get { read("id", UUID()) } set { write("id", newValue) } }
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
     var typeRaw: String { get { read("typeRaw", OccasionType.birthday.rawValue) } set { write("typeRaw", newValue) } }
     var month: Int { get { read("month", 1) } set { write("month", newValue) } }
     var day: Int { get { read("day", 1) } set { write("day", newValue) } }
@@ -182,7 +182,7 @@ final class OccasionObject: StoredRecord {
 
 @objc(MomentObject)
 final class MomentObject: StoredRecord {
-    var id: UUID { get { read("id", UUID()) } set { write("id", newValue) } }
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
     var year: Int { get { read("year", 2026) } set { write("year", newValue) } }
     var dueDate: Date { get { read("dueDate", Date.distantPast) } set { write("dueDate", newValue) } }
     var statusRaw: String { get { read("statusRaw", MomentStatus.upcoming.rawValue) } set { write("statusRaw", newValue) } }
@@ -212,6 +212,8 @@ final class MomentObject: StoredRecord {
     }
 
     var person: Person? { occasion?.person }
+    /// Parts oldest first. Core Data keeps links unordered, so anything that picks "the first" sorts first (Fable S7).
+    var actsInOrder: [Act] { acts.sorted { $0.createdAt == $1.createdAt ? $0.id.uuidString < $1.id.uuidString : $0.createdAt < $1.createdAt } }
     var plan: Act? { acts.filter { $0.role == .plan }.sorted { $0.createdAt > $1.createdAt }.first }
     var greeting: Act? { acts.filter { $0.role == .greeting }.sorted { $0.createdAt > $1.createdAt }.first }
     var anyActDone: Bool { acts.contains { $0.completedAt != nil } }
@@ -236,7 +238,7 @@ final class MomentObject: StoredRecord {
 
 @objc(WishObject)
 final class WishObject: StoredRecord {
-    var id: UUID { get { read("id", UUID()) } set { write("id", newValue) } }
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
     var text: String { get { read("text", "") } set { write("text", newValue) } }
     var url: String? { get { readOptional("url") } set { write("url", newValue) } }
     var imageFile: String? { get { readOptional("imageFile") } set { write("imageFile", newValue) } }
@@ -269,7 +271,7 @@ final class WishObject: StoredRecord {
 
 @objc(ActObject)
 final class ActObject: StoredRecord {
-    var id: UUID { get { read("id", UUID()) } set { write("id", newValue) } }
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
     var roleRaw: String { get { read("roleRaw", ActRole.plan.rawValue) } set { write("roleRaw", newValue) } }
     var kindRaw: String { get { read("kindRaw", ActKind.other.rawValue) } set { write("kindRaw", newValue) } }
     var title: String? { get { readOptional("title") } set { write("title", newValue) } }
@@ -324,7 +326,7 @@ final class ActObject: StoredRecord {
 
 @objc(LedgerEntryObject)
 final class LedgerEntryObject: StoredRecord {
-    var id: UUID { get { read("id", UUID()) } set { write("id", newValue) } }
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
     var year: Int { get { read("year", 2026) } set { write("year", newValue) } }
     var occasionTypeRaw: String { get { read("occasionTypeRaw", OccasionType.birthday.rawValue) } set { write("occasionTypeRaw", newValue) } }
     var what: String { get { read("what", "") } set { write("what", newValue) } }
@@ -362,6 +364,8 @@ extension LedgerEntryObject: Identifiable {}
 enum CoreStore {
     /// Store version 3 (the first Core Data version).
     static let version = "3.0.0"
+    /// What a record without an id reads as: the same value every time, never a new random one (Fable S8).
+    static let missingID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     /// One model for every container, so records made before they're inserted belong to it.
     static let model: NSManagedObjectModel = makeModel()

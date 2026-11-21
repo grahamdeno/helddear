@@ -39,18 +39,19 @@ final class DataExportTests: XCTestCase {
     @discardableResult
     func writeFixture(storeAt url: URL, photosIn photosDirectory: URL) throws -> Ids {
         var ids = Ids()
-        let fixtureStore = Store.open(url: url, copyFromLegacy: false)
-        let context = fixtureStore.container.mainContext
+        // A real version 2 store (SwiftData), as phones have today; the app copies it into version 3 on open.
+        let container = try SwiftData.ModelContainer(for: LegacyStore.schema, configurations: [LegacyStore.configuration(url: url)])
+        let context = SwiftData.ModelContext(container)
         func date(_ y: Int, _ m: Int, _ d: Int) -> Date { cal.date(from: DateComponents(year: y, month: m, day: d))! }
 
-        let robin = Person(name: "Robin", fullName: "Robin Vale", contactID: "contact-robin", ring: .inner)
+        let robin = SchemaV2.Person(name: "Robin", fullName: "Robin Vale", contactID: "contact-robin", ring: .inner)
         robin.photoFiles = ["robin-1.jpg", "robin-2.jpg"]
         robin.relationship = "sister"
         robin.loves = ["kayaking", "tea"]
-        let jordan = Person(name: "Jordan", ring: .outer)
+        let jordan = SchemaV2.Person(name: "Jordan", ring: .outer)
         jordan.photoFiles = ["jordan-1.jpg"]
         jordan.manualPhone = "555-0100"
-        let casey = Person(name: "Casey", ring: .inner)
+        let casey = SchemaV2.Person(name: "Casey", ring: .inner)
         casey.relationship = "wife"
         casey.goodToKnow = "Calls on Sundays"
         casey.sizes = "M tops"
@@ -58,10 +59,10 @@ final class DataExportTests: XCTestCase {
         ids.robin = robin.id
         ids.casey = casey.id
 
-        let robinBirthday = Occasion(type: .birthday, month: 3, day: 14, birthYear: 1980)
-        let jordanBirthday = Occasion(type: .birthday, month: 7, day: 2)
-        let caseyBirthday = Occasion(type: .birthday, month: 12, day: 17, birthYear: 1985)
-        let anniversary = Occasion(type: .anniversary, month: 6, day: 5)
+        let robinBirthday = SchemaV2.Occasion(type: .birthday, month: 3, day: 14, birthYear: 1980)
+        let jordanBirthday = SchemaV2.Occasion(type: .birthday, month: 7, day: 2)
+        let caseyBirthday = SchemaV2.Occasion(type: .birthday, month: 12, day: 17, birthYear: 1985)
+        let anniversary = SchemaV2.Occasion(type: .anniversary, month: 6, day: 5)
         anniversary.partnerName = "Alex"
         anniversary.extraRecipientIDs = [robin.id]
         for item in [robinBirthday, jordanBirthday, caseyBirthday, anniversary] { context.insert(item) }
@@ -70,10 +71,10 @@ final class DataExportTests: XCTestCase {
         caseyBirthday.person = casey
         anniversary.person = casey
 
-        let m1 = Moment(year: 2027, dueDate: date(2027, 3, 14))
-        let m2 = Moment(year: 2027, dueDate: date(2027, 7, 2))
-        let m3 = Moment(year: 2026, dueDate: date(2026, 12, 17))
-        let m4 = Moment(year: 2027, dueDate: date(2027, 6, 5))
+        let m1 = SchemaV2.Moment(year: 2027, dueDate: date(2027, 3, 14))
+        let m2 = SchemaV2.Moment(year: 2027, dueDate: date(2027, 7, 2))
+        let m3 = SchemaV2.Moment(year: 2026, dueDate: date(2026, 12, 17))
+        let m4 = SchemaV2.Moment(year: 2027, dueDate: date(2027, 6, 5))
         m3.familyOwnerKey = "owner-key-should-not-be-exported"
         m3.familyPageID = "page-1"
         for item in [m1, m2, m3, m4] { context.insert(item) }
@@ -84,32 +85,32 @@ final class DataExportTests: XCTestCase {
         ids.robinMoment = m1.id
         ids.anniversary = anniversary.id
 
-        let wish = Wish(text: "Dry bag", url: "https://example.com/bag")
-        let wish2 = Wish(text: "Tea sampler", imageFile: "wish-1.jpg")
-        let wish3 = Wish(text: "Notebook")
+        let wish = SchemaV2.Wish(text: "Dry bag", url: "https://example.com/bag")
+        let wish2 = SchemaV2.Wish(text: "Tea sampler", imageFile: "wish-1.jpg")
+        let wish3 = SchemaV2.Wish(text: "Notebook")
         for item in [wish, wish2, wish3] { context.insert(item) }
         wish.person = robin
         wish2.person = robin
         wish3.person = jordan
         ids.wish = wish.id
 
-        let gift = Act(role: .plan, kind: .gift, title: "Dry bag", wishID: wish.id)
+        let gift = SchemaV2.Act(role: .plan, kind: .gift, title: "Dry bag", wishID: wish.id)
         gift.step = "bought"
         gift.label = "From the shelf"
         gift.note = "Arrives Friday"
         gift.ownerIDs = [casey.id]
         gift.sortOrder = 2
         gift.photoFile = "act-photo.jpg"
-        let card = Act(role: .plan, kind: .card)
+        let card = SchemaV2.Act(role: .plan, kind: .card)
         card.cardFile = "card-1.jpg"
         card.complete(.user)
-        let cake = Act(role: .plan, kind: .cake)
+        let cake = SchemaV2.Act(role: .plan, kind: .cake)
         cake.step = "ordered"
-        let day = Act(role: .plan, kind: .theDay)
+        let day = SchemaV2.Act(role: .plan, kind: .theDay)
         day.label = "Breakfast in bed"
-        let greeting = Act(role: .greeting, kind: .message)
+        let greeting = SchemaV2.Act(role: .greeting, kind: .message)
         greeting.complete(.messageSent)
-        let call = Act(role: .plan, kind: .call)
+        let call = SchemaV2.Act(role: .plan, kind: .call)
         for item in [gift, card, cake, day, greeting, call] { context.insert(item) }
         gift.moment = m1
         card.moment = m1
@@ -119,12 +120,12 @@ final class DataExportTests: XCTestCase {
         call.moment = m4
         ids.giftAct = gift.id
 
-        let l1 = LedgerEntry(year: 2026, type: .birthday, what: "Tea sampler", photoFile: "robin-1.jpg", line: "Loved it",
+        let l1 = SchemaV2.LedgerEntry(year: 2026, type: .birthday, what: "Tea sampler", photoFile: "robin-1.jpg", line: "Loved it",
                              personName: "Robin", momentID: m1.id)
-        let l2 = LedgerEntry(year: 2025, type: .birthday, what: "A card", photoFile: nil, line: nil,
+        let l2 = SchemaV2.LedgerEntry(year: 2025, type: .birthday, what: "A card", photoFile: nil, line: nil,
                              personName: "Robin", momentID: nil)
         l2.cardFile = "card-1.jpg"
-        let l3 = LedgerEntry(year: 2025, type: .birthday, what: "A call", photoFile: nil, line: nil,
+        let l3 = SchemaV2.LedgerEntry(year: 2025, type: .birthday, what: "A call", photoFile: nil, line: nil,
                              personName: "Jordan", momentID: nil)
         for item in [l1, l2, l3] { context.insert(item) }
         l1.person = robin
@@ -143,8 +144,9 @@ final class DataExportTests: XCTestCase {
     /// The fixture, opened the way the app opens a store.
     func openFixture() throws -> (OpenedStore, Ids) {
         let ids = try writeFixture(storeAt: storeURL, photosIn: photos)
-        let opened = Store.open(url: storeURL)
+        let opened = Store.open(url: dir.appendingPathComponent("HeldDear.sqlite"), legacyURL: storeURL)
         XCTAssertEqual(opened.outcome, .opened)
+        XCTAssertNotNil(opened.copy, "The version 2 fixture was copied into version 3")
         return (opened, ids)
     }
 
@@ -178,7 +180,7 @@ final class DataExportTests: XCTestCase {
         XCTAssertEqual(doc.wishes.count, Expect.wishes)
         XCTAssertEqual(doc.ledger.count, Expect.ledger)
         XCTAssertEqual(doc.counts, DataExport.Counts(people: 3, occasions: 4, moments: 4, acts: 6, wishes: 3, ledger: 3, photos: 6))
-        XCTAssertEqual(doc.storeVersion, "2.0.0")
+        XCTAssertEqual(doc.storeVersion, CoreStore.version)
         XCTAssertEqual(Set(doc.people.map(\.name)), ["Robin", "Jordan", "Casey"])
     }
 
@@ -271,8 +273,9 @@ final class DataExportTests: XCTestCase {
         let junk = Data("This is not a Held Dear store.".utf8)
         try junk.write(to: storeURL)
         let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), legacyURL: storeURL)
-        XCTAssertEqual(opened.outcome, .freshStoreOldKeptAside)
+        XCTAssertEqual(opened.outcome, .inMemoryThisLaunch, "An old store that won't open is left where it is (Fable S1)")
         let kept = try XCTUnwrap(opened.keptStoreURL)
+        XCTAssertEqual(kept, storeURL)
         XCTAssertEqual(try Data(contentsOf: kept), junk, "Kept, untouched, not deleted")
 
         XCTAssertTrue(StoreSetAside.shouldShow(outcome: opened.outcome, acknowledged: false))

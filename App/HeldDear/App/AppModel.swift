@@ -723,11 +723,11 @@ final class AppModel: ObservableObject {
     func record(_ m: Moment, line: String?) {
         guard let person = m.person else { return }
         if person.ledger.contains(where: { $0.momentID == m.id }) { return }
-        let photo = m.acts.compactMap(\.photoFile).first
+        let photo = m.actsInOrder.compactMap(\.photoFile).first
         let entry = LedgerEntry(year: m.year, type: m.occasion?.type ?? .birthday, what: MomentEngine.whatWasDone(m),
                                 photoFile: photo, line: line?.trimmingCharacters(in: .whitespaces).nilIfEmpty,
                                 personName: person.name, momentID: m.id)
-        entry.cardFile = m.acts.compactMap(\.cardFile).first
+        entry.cardFile = m.actsInOrder.compactMap(\.cardFile).first
         context.insert(entry)
         entry.person = person
         commit()
