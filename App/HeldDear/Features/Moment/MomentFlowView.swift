@@ -32,7 +32,12 @@ struct MomentFlowView: View {
             case .auto, .choose: ChooseStep(moment: moment, go: go)
             case .wishPrompt: WishPromptStep(moment: moment, close: close)
             case .nextStep: NextStepView(moment: moment, go: go, close: close)
-            case .mailCard: MailCardFlow(moment: moment, go: go, close: close)
+            case .mailCard:
+                MailCardFlow(context: MailContext(person: moment.person, occasionKey: MailContext.occasionKey(for: moment.type),
+                                                  opening: moment.type.cardOpening,
+                                                  greeting: moment.type.greeting(name: DisplayName.plain(moment.person?.name ?? "")),
+                                                  onMailed: { model.mailedCard(moment, cardName: $0) }),
+                             go: go, close: close)
             case .dayOf: DayOfStep(moment: moment, go: go, close: close)
             case .photo: PhotoStep(moment: moment, go: go, close: close)
             case .confirmCall: ConfirmCallStep(moment: moment, go: go, close: close)

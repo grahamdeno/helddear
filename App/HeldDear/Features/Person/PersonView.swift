@@ -31,6 +31,7 @@ struct PersonView: View {
     @State private var addingOccasion = false
     @State private var occasionToEdit: Occasion?
     @State private var showIdeas = false
+    @State private var sendingCard = false
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -43,6 +44,9 @@ struct PersonView: View {
         .sheet(item: $addingTo) { m in
             PlanView(moment: m, onClose: { addingTo = nil }, startOnAdd: true)
                 .environmentObject(model)
+        }
+        .fullScreenCover(isPresented: $sendingCard) {
+            ReasonCardFlow(person: person) { sendingCard = false }.environmentObject(model)
         }
         .sheet(isPresented: $showRing) { RingSheet(person: person).presentationDetents([.medium]) }
         .onChange(of: linking) { _, open in
@@ -293,10 +297,7 @@ struct PersonView: View {
                     TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
                 }
                 TextLink(title: "Save an idea") { model.route = .addWish(person.id) }
-                if AppFeatures.mailedCards, let next = model.nextMoment(for: person),
-                   OccasionDates.daysBetween(Date(), next.dueDate) >= 6 {
-                    TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
-                }
+                TextLink(title: "Send a card") { sendingCard = true }
                 TextLink(title: "Edit") { editingPortrait = true }
             }
             .padding(.leading, -8)

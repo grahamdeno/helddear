@@ -7,7 +7,6 @@ import UIKit
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
-    @State private var adding = false
     @State private var selectedID: UUID?
 
     var body: some View {
@@ -25,11 +24,6 @@ struct HomeView: View {
                 }
                 .tint(Brand.ink)
                 .addFromContacts(isPresented: $addingFromContacts)
-                .confirmationDialog("Add", isPresented: $adding, titleVisibility: .visible) {
-                    Button("Someone") { model.route = .addBirthday("") }
-                    Button("Someone from Contacts") { addingFromContacts = true }
-                    Button("An idea") { model.route = .addWish(nil) }
-                }
                 .navigationDestination(for: Nav.self) { nav in
                     NavPage(nav: nav)
                 }
@@ -71,7 +65,7 @@ struct HomeView: View {
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
                             selectedID: featured.id, now: now, seasons: model.seasons(now: now),
-                            add: { adding = true }) { selectedID = $0 }
+                            addFromContacts: { addingFromContacts = true }) { selectedID = $0 }
             }
         } else {
             emptyState
@@ -304,7 +298,7 @@ struct HorizonBand: View {
     let selectedID: UUID
     let now: Date
     let seasons: [Season]
-    var add: () -> Void = {}
+    var addFromContacts: () -> Void = {}
     var select: (UUID) -> Void
 
     @State private var position = ScrollPosition(x: 0)
@@ -331,10 +325,17 @@ struct HorizonBand: View {
                     }
                 }
                 Spacer()
-                Button { add() } label: {
+                // A menu opens right at the button, on the system's readable material (the centered dialog
+                // floated far above it and read poorly over the page, Nov 21).
+                Menu {
+                    Button { model.route = .addBirthday("") } label: { Label("Someone", systemImage: "person.badge.plus") }
+                    Button(action: addFromContacts) { Label("Someone from Contacts", systemImage: "person.crop.circle") }
+                    Button { model.route = .addWish(nil) } label: { Label("An idea", systemImage: "gift") }
+                } label: {
                     Text("+ Add").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
                         .frame(minHeight: 44)
                 }
+                .menuOrder(.fixed)
                 .accessibilityLabel("Add")
                 .padding(.trailing, Brand.space4)
                 Button { model.push(.people) } label: {
