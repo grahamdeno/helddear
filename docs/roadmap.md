@@ -390,6 +390,12 @@ a card you choose to mail."
   the store to Core Data with Apple's CloudKit container (sharing built in), or keep SwiftData and add custom iCloud
   sharing code. Opus recommends, Fable reviews, Graham approves; written down here before any 3.1 or 3.2 build.
 
+**Approved Nov 21, 2026 (Graham's exception to the playbook: Opus carries out the rest of the work and ships test
+builds without stopping):** storage moves to Core Data with Apple's CloudKit container (Fable agreed, K1 to K7); a share
+is one whole person (days, plans, items with owners and notes, ideas, past years, photos), never the user's own
+settings or other people; owner names travel with the plan. Permanent iCloud steps (creating the container, deploying
+the production schema) still wait for Graham's go.
+
 **Risk accepted:** the riskiest change lands close to Christmas with less testing time; 3.0 ships first on its own.
 
 Out of scope: a Held Dear account or server for sync.
