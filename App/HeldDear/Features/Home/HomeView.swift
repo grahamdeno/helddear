@@ -106,6 +106,13 @@ struct HomeView: View {
                 HolidayMark(type: m.type, name: m.occasion?.partnerName, size: size * 0.87)
             }
             .padding(.bottom, size * 0.13)
+        } else if let person = m.person, let partner = model.pairPartner(for: m) {
+            Button { model.push(.person(person.id, focus: nil)) } label: {
+                PairPortrait(person: person, partner: partner, size: size * 0.86, toned: true, fadeBottom: true,
+                             ring: (ready, parts.count))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens \(DisplayName.plain(person.name))'s page")
         } else if let person = m.person {
             Button { model.push(.person(person.id, focus: nil)) } label: {
                 ReadyRing(ready: ready, total: parts.count, size: size) {
@@ -120,6 +127,9 @@ struct HomeView: View {
     @ViewBuilder private func topCircle(_ m: Moment) -> some View {
         if m.type.kind == .holiday {
             HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 40)
+        } else if let person = m.person, let partner = model.pairPartner(for: m) {
+            Button { model.push(.person(person.id, focus: nil)) } label: { PairPortrait(person: person, partner: partner, size: 34) }
+                .buttonStyle(.plain)
         } else if let person = m.person {
             Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 40) }
                 .buttonStyle(.plain)
