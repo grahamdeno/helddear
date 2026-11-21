@@ -1,6 +1,5 @@
 import Contacts
 import Foundation
-import SwiftData
 import SwiftUI
 import UIKit
 import WidgetKit
@@ -279,15 +278,13 @@ final class AppModel: ObservableObject {
 
     func address(for person: Person?) -> String? {
         if let a = ContactsService.shared.address(contactID: person?.contactID) { return a }
-        guard let id = person?.id, let saved = SavedAddresses.shared.address(for: id) else { return nil }
-        return saved.oneLine
+        return person?.mailingAddress?.oneLine
     }
 
     /// The person's ZIP code, from Contacts or the address kept in the app (story 2.14).
     func zip(for person: Person?) -> String? {
         if let a = ContactsService.shared.mailAddress(contactID: person?.contactID), let z = Places.zip(in: a.zip) { return z }
-        guard let id = person?.id else { return nil }
-        return Places.zip(in: SavedAddresses.shared.address(for: id)?.zip)
+        return Places.zip(in: person?.mailingAddress?.zip)
     }
 
     /// The photo set for cards: last year's record photo, every photo saved to the person (top one first), then the contact photo.
@@ -726,11 +723,11 @@ final class AppModel: ObservableObject {
     func record(_ m: Moment, line: String?) {
         guard let person = m.person else { return }
         if person.ledger.contains(where: { $0.momentID == m.id }) { return }
-        let photo = m.acts.compactMap(\.photoFile).first
+        let photo = m.actsInOrder.compactMap(\.photoFile).first
         let entry = LedgerEntry(year: m.year, type: m.occasion?.type ?? .birthday, what: MomentEngine.whatWasDone(m),
                                 photoFile: photo, line: line?.trimmingCharacters(in: .whitespaces).nilIfEmpty,
                                 personName: person.name, momentID: m.id)
-        entry.cardFile = m.acts.compactMap(\.cardFile).first
+        entry.cardFile = m.actsInOrder.compactMap(\.cardFile).first
         context.insert(entry)
         entry.person = person
         commit()

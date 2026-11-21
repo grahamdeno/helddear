@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// "Export my data" (roadmap item 3.0a). Writes everything in the store to one zipped folder: a JSON file with every
 /// person, occasion, moment, plan part, wish and yearly record, and a folder of every photo and card image they point
@@ -24,6 +23,7 @@ enum DataExport {
         var id: UUID, name: String, fullName: String, contactID: String?, manualPhone: String?
         var ring: String, photoFiles: [String], createdAt: Date, showAgeOnCard: Bool
         var loves: [String], sizes: String?, goodToKnow: String?, relationship: String?
+        var mailingAddress: MailAddress? = nil
     }
     struct OccasionRecord: Codable, Equatable {
         var id: UUID, type: String, month: Int, day: Int, birthYear: Int?, ringOverride: String?
@@ -100,9 +100,8 @@ enum DataExport {
         let acts = try context.fetch(FetchDescriptor<Act>(sortBy: [SortDescriptor(\.createdAt)]))
         let wishes = try context.fetch(FetchDescriptor<Wish>(sortBy: [SortDescriptor(\.capturedAt)]))
         let ledger = try context.fetch(FetchDescriptor<LedgerEntry>(sortBy: [SortDescriptor(\.createdAt)]))
-        let v = SchemaV2.versionIdentifier
         return Document(
-            storeVersion: "\(v.major).\(v.minor).\(v.patch)", exportedAt: now,
+            storeVersion: CoreStore.version, exportedAt: now,
             counts: Counts(people: people.count, occasions: occasions.count, moments: moments.count, acts: acts.count,
                            wishes: wishes.count, ledger: ledger.count, photos: photoCount),
             missingPhotos: missing,
@@ -110,7 +109,8 @@ enum DataExport {
                 PersonRecord(id: $0.id, name: $0.name, fullName: $0.fullName, contactID: $0.contactID,
                              manualPhone: $0.manualPhone, ring: $0.ringRaw, photoFiles: $0.photoFiles,
                              createdAt: $0.createdAt, showAgeOnCard: $0.showAgeOnCard, loves: $0.loves,
-                             sizes: $0.sizes, goodToKnow: $0.goodToKnow, relationship: $0.relationship)
+                             sizes: $0.sizes, goodToKnow: $0.goodToKnow, relationship: $0.relationship,
+                             mailingAddress: $0.mailingAddress)
             },
             occasions: occasions.map {
                 OccasionRecord(id: $0.id, type: $0.typeRaw, month: $0.month, day: $0.day, birthYear: $0.birthYear,
