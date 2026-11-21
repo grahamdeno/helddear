@@ -110,11 +110,8 @@ struct HolidayView: View {
     private func personRow(_ row: Row) -> some View {
         Button { open(row) } label: {
             HStack(spacing: Brand.space3) {
-                Text(String(row.name.prefix(1)))
-                    .font(Brand.display(20, relativeTo: .title3)).foregroundStyle(Brand.ink)
-                    .frame(width: 44, height: 44)
-                    .background(Brand.faceFill(for: row.name), in: Circle())
-                    .accessibilityHidden(true)
+                // Each person's face, framed on it like Home's circle; their initial when there's no photo.
+                PersonPortrait(person: model.person(row.personID), size: 44)
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(row.name).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
