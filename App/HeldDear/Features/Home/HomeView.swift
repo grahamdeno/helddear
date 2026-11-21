@@ -273,7 +273,7 @@ struct FeaturedView: View {
                 Text("Send \(name) the family page").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
                     .frame(minHeight: 44)
             }
-        } else if !missed && days >= 6 && AppFeatures.serverFeatures {
+        } else if !missed && days >= 6 && AppFeatures.mailedCards {
             TextLink(title: "Or mail \(name) a card") { model.route = .moment(moment.id, .mailCard) }
         } else if !missed && days > 0 && !state.greetingDone {
             TextLink(title: "Or make \(name) a card") { model.route = .moment(moment.id, .photo) }
