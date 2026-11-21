@@ -143,4 +143,12 @@ enum AppFeatures {
     #else
     static let testFlightTools = false
     #endif
+
+    /// Home's medallion (approved Nov 21, 2026, as an easy-to-undo change): the date above, the featured person's
+    /// face in a warm-toned circle, the name on its rim. Off brings back the small circle above the date. To roll it
+    /// back for everyone, change the default below to false. Test builds can switch it in You.
+    static let homeMedallionKey = "homeMedallion"
+    static var homeMedallion: Bool {
+        UserDefaults.standard.object(forKey: homeMedallionKey) as? Bool ?? true
+    }
 }

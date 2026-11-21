@@ -103,6 +103,7 @@ struct SettingsView: View {
     @State private var addingFromContacts = false
     @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
     @AppStorage("yourName") private var yourName = ""
+    @AppStorage(AppFeatures.homeMedallionKey) private var medallionOn = true
     @AppStorage("cardSignature") private var signedAs = ""
     @State private var makingCard = false
     @State private var addingHoliday = false
@@ -154,6 +155,16 @@ struct SettingsView: View {
                         .tint(Brand.action)
                         .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    Toggle(isOn: $medallionOn) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Home medallion").textStyle(.bodyStrong)
+                            Text("The face in a warm-toned circle with the name on its rim. Off brings back the small circle.")
+                                .textStyle(.caption, color: Brand.inkMuted)
+                        }
+                    }
+                    .tint(Brand.action)
+                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                     }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {

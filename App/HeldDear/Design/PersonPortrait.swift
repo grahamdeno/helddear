@@ -5,6 +5,10 @@ import SwiftUI
 struct PersonPortrait: View {
     let person: Person?
     var size: CGFloat = 44
+    /// Warm two-tone photo (Home's medallion).
+    var toned = false
+    /// The bottom fades into the page, like the photo on a person's page (Home's medallion).
+    var fadeBottom = false
     @State private var image: UIImage?
 
     var body: some View {
@@ -18,8 +22,18 @@ struct PersonPortrait: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
-        .overlay { Circle().strokeBorder(Brand.raisedLine, lineWidth: 1) }
-        .task(id: person?.id) { image = await FaceFinder.shared.portrait(for: person, side: size) }
+        .overlay {
+            if fadeBottom {
+                Circle().fill(LinearGradient(stops: [
+                    .init(color: Brand.page.opacity(0), location: 0.45),
+                    .init(color: Brand.page.opacity(0.7), location: 0.78),
+                    .init(color: Brand.page, location: 0.98)
+                ], startPoint: .top, endPoint: .bottom))
+            } else {
+                Circle().strokeBorder(Brand.raisedLine, lineWidth: 1)
+            }
+        }
+        .task(id: person?.id) { image = await FaceFinder.shared.portrait(for: person, side: size, toned: toned) }
         .accessibilityHidden(true)
     }
 

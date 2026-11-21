@@ -1,3 +1,4 @@
+import CoreImage
 import UIKit
 import Vision
 
@@ -9,16 +10,19 @@ final class FaceFinder {
     private let cache = NSCache<NSString, UIImage>()
 
     /// The person's own photo, framed on their face: the newest saved photo, else the contact photo.
-    func portrait(for person: Person?, side: CGFloat) async -> UIImage? {
+    func portrait(for person: Person?, side: CGFloat, toned: Bool = false) async -> UIImage? {
         guard let person else { return nil }
         let file = person.photoFiles.last
-        let key = "\(person.id.uuidString)-\(file ?? "contact")-\(Int(side))" as NSString
+        let key = "\(person.id.uuidString)-\(file ?? "contact")-\(Int(side))-\(toned)" as NSString
         if let hit = cache.object(forKey: key) { return hit }
         guard let source = PhotoStore.load(file) ?? ContactsService.shared.photo(contactID: person.contactID) else { return nil }
         // Draw upright and smaller first, here (UIKit drawing stays on the main thread): Vision runs faster and the
         // photo's orientation can't go wrong. Finding the face and cropping run off the main thread.
         guard let upright = Self.upright(source) else { return nil }
-        let cropped = await Task.detached(priority: .userInitiated) { Self.cropOnFace(upright) }.value
+        let cropped = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+            guard let face = Self.cropOnFace(upright) else { return nil }
+            return toned ? Self.warmTone(face) : face
+        }.value
         let made = cropped.map { UIImage(cgImage: $0) }
         if let made { cache.setObject(made, forKey: key) }
         return made
@@ -65,6 +69,20 @@ final class FaceFinder {
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }.cgImage
+    }
+
+    /// The photo in the app's own two tones, dark ink to warm stone, so any photo sits calmly on the page and text
+    /// near it reads the same (Home's medallion). Made on the phone with Core Image.
+    nonisolated private static func warmTone(_ cg: CGImage) -> CGImage? {
+        let input = CIImage(cgImage: cg)
+        guard let mono = CIFilter(name: "CIColorControls", parameters: [kCIInputImageKey: input, kCIInputSaturationKey: 0, kCIInputContrastKey: 1.08]),
+              let duo = CIFilter(name: "CIFalseColor", parameters: [
+                kCIInputImageKey: mono.outputImage as Any,
+                "inputColor0": CIColor(red: 0.11, green: 0.094, blue: 0.082),
+                "inputColor1": CIColor(red: 0.925, green: 0.886, blue: 0.824)
+              ]),
+              let out = duo.outputImage else { return cg }
+        return CIContext(options: nil).createCGImage(out, from: input.extent) ?? cg
     }
 
     nonisolated private static func cropOnFace(_ cg: CGImage) -> CGImage? {
