@@ -735,6 +735,8 @@ final class ContactPickerPresenter: NSObject, CNContactPickerDelegate {
 
 /// Apple's contact picker with checkmarks: implementing the plural delegate method turns on picking several.
 /// A separate delegate from ContactPickerPresenter, which links one contact to one person.
+@MainActor
+@MainActor
 final class MultiContactPickerPresenter: NSObject, CNContactPickerDelegate {
     static let shared = MultiContactPickerPresenter()
     private var onPick: (([CNContact]) -> Void)?
