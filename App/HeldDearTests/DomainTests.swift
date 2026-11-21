@@ -335,3 +335,22 @@ final class GiftTimingTests: XCTestCase {
         XCTAssertEqual(GiftTiming.savedThisYear([d(2026, 3, 1), d(2025, 10, 1), d(2026, 11, 1)], now: now, calendar: cal), 2)
     }
 }
+
+final class ByLineTests: XCTestCase {
+    private var cal: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }
+
+    func testThingsYouBuyGetAnOrderByDate() {
+        let due = cal.date(from: DateComponents(year: 2026, month: 12, day: 17))!
+        let line = NextAct.byLine(kindRaw: ActKind.cake.rawValue, step: "open", due: due, calendar: cal)
+        XCTAssertNotNil(line)
+        XCTAssertTrue(line!.hasPrefix("Order by "))
+        XCTAssertTrue(NextAct.byLine(kindRaw: ActKind.card.rawValue, step: nil, due: due, calendar: cal)!.hasPrefix("Mail by "))
+    }
+
+    func testNoLineOnceStartedOrForOtherKinds() {
+        let due = Date()
+        XCTAssertNil(NextAct.byLine(kindRaw: ActKind.cake.rawValue, step: "ordered", due: due))
+        XCTAssertNil(NextAct.byLine(kindRaw: ActKind.call.rawValue, step: "open", due: due))
+        XCTAssertNil(NextAct.byLine(kindRaw: nil, step: nil, due: due))
+    }
+}
