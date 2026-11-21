@@ -83,6 +83,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | App map approved: three tabs always visible (Coming up, People, Ideas); one Person page per person reached from anywhere, with each upcoming day as a section; holiday pages open people with that holiday on top; item details is the only level below a Person page; never more than two levels below a tab | Every screen popping up over the last left no sense of where you are |
 | Nov 20, 2026 | One-time playbook exemption: Opus built, self-reviewed and merged PR #16 and uploaded test build 1010 the same day | Get 1.0 into Graham's hands fast |
 | Nov 20, 2026 | A part's step and its completion agree: reaching the ready step completes it, leaving it undoes that. A plan with several parts, or any part set on the plan screen, drives Home and the occasion's status by readiness; single plans from the older flow keep today's behavior | One answer to "is this done" everywhere |
 | Nov 20, 2026 | Migration review approved: added fields only, versioned schema, a migration test, never crash on open, no bulk rewrite (M1 to M4) | Protects existing test data and every future update |
