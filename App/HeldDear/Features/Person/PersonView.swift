@@ -938,10 +938,21 @@ struct BirthdayMemories: View {
                     .padding(.leading, -8)
                 }
             } else if photos.status == .notDetermined {
-                OptionRow(title: "Photos from \(DisplayName.plain(person.name))'s birthdays",
-                          caption: "Held Dear looks in your library on this iPhone") {
+                OptionRow(title: "Find photos from \(DisplayName.plain(person.name))'s birthdays",
+                          caption: "Held Dear looks in your library on this iPhone. Choose Full Access to find them all.") {
                     Task { await photos.requestAccess(); load() }
                 }
+            } else {
+                OptionRow(title: "Find photos from \(DisplayName.plain(person.name))'s birthdays",
+                          caption: "Turn on Full Access for Held Dear in Settings, under Photos.") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+            }
+            if photos.status == .limited {
+                TextLink(title: "Held Dear sees only some photos. Allow all in Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .padding(.leading, -8)
             }
         }
         .onAppear(perform: load)

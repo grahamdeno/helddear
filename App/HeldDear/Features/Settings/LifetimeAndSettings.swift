@@ -246,6 +246,10 @@ struct SettingsView: View {
                     .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Photos")
+                    PhotoAccessRow()
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Alerts")
                     OptionRow(title: model.notificationsAllowed ? "Alerts are on" : "Alerts are off",
                               caption: "Change them in the Settings app") {
@@ -463,5 +467,30 @@ struct YourAnniversaryFlow: View {
                 }
             } footer: { EmptyView() }
         }
+    }
+}
+
+/// Whether Held Dear can look for birthday photos, and the one tap that changes it (Nov 21, 2026). iOS lists
+/// Full Access in Settings only after the app has asked, so the first tap asks.
+struct PhotoAccessRow: View {
+    @ObservedObject private var photos = PhotoMemories.shared
+
+    var body: some View {
+        switch photos.status {
+        case .authorized:
+            OptionRow(title: "Full access to your photos", caption: "Held Dear finds photos from past birthdays by date. They stay in your library.") { openSettings() }
+        case .notDetermined:
+            OptionRow(title: "Find photos from past birthdays", caption: "Choose Full Access so Held Dear can find them all, by date.") {
+                Task { await photos.requestAccess() }
+            }
+        case .limited:
+            OptionRow(title: "Held Dear sees only some photos", caption: "Choose Full Access in Settings, under Photos, to find them all.") { openSettings() }
+        default:
+            OptionRow(title: "Photos are off for Held Dear", caption: "Choose Full Access in Settings, under Photos, to find birthday photos.") { openSettings() }
+        }
+    }
+
+    private func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
     }
 }
