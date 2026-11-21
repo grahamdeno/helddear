@@ -25,7 +25,7 @@ struct HolidayMark: View {
                 }
                 .frame(width: size * 0.7, height: size * 0.7)
             } else {
-                Text(String(type.title(partner: name).prefix(1)).uppercased())
+                Text(String((name?.isEmpty == false ? name! : type.label).prefix(1)).uppercased())
                     .font(Brand.display(size * 0.46)).foregroundStyle(Brand.ink)
             }
         }

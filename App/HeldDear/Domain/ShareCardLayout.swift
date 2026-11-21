@@ -22,7 +22,7 @@ enum ShareCardLayout {
         if addAge, let line = type.countLine(count) { return line.prefix(1).lowercased() + line.dropFirst() }
         switch type {
         case .anniversary: return "anniversary"
-        case .event, .custom: return type.title(partner: partner)
+        case .event: return (partner?.isEmpty == false ? partner! : type.label)
         default: return type.label.lowercased()
         }
     }
