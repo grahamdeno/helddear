@@ -11,6 +11,9 @@ struct PersonView: View {
     let person: Person
     /// The occasion (a Moment's id) to show first, when the page was opened from it.
     var focus: UUID? = nil
+    /// One page in: relationship, days, reminders, card photos and Remove.
+    var showsDetails = false
+    @State private var selectedID: UUID?
     @State private var showRing = false
     @State private var addingTo: Moment?
     @State private var linking = false
@@ -30,68 +33,8 @@ struct PersonView: View {
 
     var body: some View {
         let _ = model.revision
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                header
-                ForEach(Array(planMoments.enumerated()), id: \.element.id) { i, m in
-                    PersonPlanSection(moment: m, primary: i == 0) { addingTo = m }
-                }
-                portrait
-                PersonYears(person: person)
-                    .padding(.horizontal, -Brand.space5)
-                if let next = model.nextMoment(for: person) {
-                    if AppFeatures.serverFeatures { FamilyPageSection(person: person, moment: next) }
-                    scheduleCard(next)
-                }
-                if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
-                if let b = person.birthday {
-                    BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
-                }
-                if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
-                if person.contactID == nil { linkRow }
-                if model.phone(for: person) == nil { phoneRow }
-                OptionRow(title: "Relationship", caption: person.relationship ?? "Not set yet. Helps with suggestions and who gives what") {
-                    model.push(.relationship(person.id))
-                }
-                section("Occasions") {
-                    ForEach(sortedOccasions, id: \.id) { o in
-                        if o.type == .birthday {
-                            OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
-                        } else {
-                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
-                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
-                                      caption: occasionCaption(o)) { occasionToEdit = o }
-                        }
-                    }
-                    SecondaryButton(title: purchases.hasLifetime ? "Add an occasion" : "Add an occasion · Lifetime") {
-                        if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
-                    }
-                }
-                section("Wishes") {
-                    ForEach(person.openWishes, id: \.id) { wish in
-                        OptionRow(title: wish.text, caption: wishCaption(wish)) { wishToEdit = wish }
-                    }
-                    SecondaryButton(title: "Save a wish") { model.route = .addWish(person.id) }
-                }
-                section("Photos for the card") {
-                    photoStrip
-                    Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
-                        Text("Show \(person.name)'s age on the card").textStyle(.body)
-                    }
-                    .tint(Brand.action)
-                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                }
-                if !person.ledger.isEmpty {
-                    section("Through the years") {
-                        ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
-                    }
-                }
-                TextLink(title: "Remove \(person.name)") { confirmRemove = true }
-                    .frame(maxWidth: .infinity)
-            }
-            .padding(.horizontal, Brand.space5)
-            .padding(.vertical, 16)
+        Group {
+            if showsDetails { detailsPage } else { mainPage }
         }
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
@@ -136,7 +79,7 @@ struct PersonView: View {
         .confirmationDialog("Remove \(person.name) from Held Dear?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
                 model.route = nil
-                dismiss()
+                model.navPath = []
                 model.delete(person)
             }
         } message: {
@@ -144,22 +87,174 @@ struct PersonView: View {
         }
     }
 
-    /// The occasions planned on this page: the one it was opened from first, then what's coming in the next four
-    /// months. At most two, so the page stays one composed page.
+    // MARK: The page (approved Nov 20, 2026)
+
+    /// The person's page: the photo hero, the day cards, the selected day's plan grouped by what it is, what they
+    /// love, then one row to everything else.
+    private var mainPage: some View {
+        let moments = planMoments
+        let selected = moments.first { $0.id == (selectedID ?? focus) } ?? moments.first
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                PersonHero(person: person, line: heroLine, tag: heroTag)
+                    .padding(.horizontal, -Brand.space5)
+                VStack(alignment: .leading, spacing: Brand.space5) {
+                    if !moments.isEmpty {
+                        PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { selectedID = $0 }))
+                    }
+                    if let selected {
+                        PersonPlanSection(moment: selected) { addingTo = selected }
+                    }
+                    ideasSection
+                    Button { model.push(.personDetails(person.id)) } label: {
+                        HStack(spacing: Brand.space3) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(DisplayName.plain(person.name))'s details").textStyle(.bodyStrong)
+                                Text(detailsCaption).textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                        }
+                        .frame(minHeight: 64)
+                        .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityHint("Relationship, days, reminders, card photos")
+                }
+                .padding(.top, Brand.space3)
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.bottom, Brand.space6)
+        }
+        .ignoresSafeArea(edges: .top)
+    }
+
+    /// Everything else about the person, one page in from their page.
+    private var detailsPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("\(DisplayName.plain(person.name))'s details").textStyle(.title).accessibilityAddTraits(.isHeader)
+                OptionRow(title: "Relationship", caption: person.relationship ?? "Not set yet. Helps with suggestions and who gives what") {
+                    model.push(.relationship(person.id))
+                }
+                OptionRow(title: "Reminders", caption: person.ring.label) { showRing = true }
+                if let next = model.nextMoment(for: person) {
+                    if AppFeatures.serverFeatures { FamilyPageSection(person: person, moment: next) }
+                    scheduleCard(next)
+                }
+                if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
+                if let b = person.birthday {
+                    BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
+                }
+                if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
+                if person.contactID == nil { linkRow }
+                if model.phone(for: person) == nil { phoneRow }
+                section("Days") {
+                    ForEach(sortedOccasions, id: \.id) { o in
+                        if o.type == .birthday {
+                            OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
+                        } else {
+                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
+                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
+                                      caption: occasionCaption(o)) { occasionToEdit = o }
+                        }
+                    }
+                    SecondaryButton(title: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
+                        if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
+                    }
+                }
+                section("Saved ideas") {
+                    ForEach(person.openWishes, id: \.id) { wish in
+                        OptionRow(title: wish.text, caption: wishCaption(wish)) { wishToEdit = wish }
+                    }
+                    SecondaryButton(title: "Save an idea") { model.route = .addWish(person.id) }
+                }
+                section("Photos for the card") {
+                    photoStrip
+                    Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
+                        Text("Show \(person.name)'s age on the card").textStyle(.body)
+                    }
+                    .tint(Brand.action)
+                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                }
+                if !person.ledger.isEmpty {
+                    section("Through the years") {
+                        ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
+                    }
+                }
+                TextLink(title: "Remove \(person.name)") { confirmRemove = true }
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.vertical, 16)
+        }
+    }
+
+    private var heroLine: String {
+        let rel = person.relationship.map { "Your " + $0.lowercased() }
+        guard let next = model.nextPersonalMoment(for: person) ?? model.nextMoment(for: person) else {
+            return rel ?? "No day saved yet"
+        }
+        let date = next.dueDate.formatted(.dateTime.month(.abbreviated).day())
+        let what: String
+        if next.type == .birthday, let t = next.turning { what = "turns \(t) on \(date)" }
+        else { what = "\(next.label.lowercased()) on \(date)" }
+        return [rel, what].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    private var heroTag: String? {
+        guard let next = model.nextMoment(for: person) else { return nil }
+        let days = OccasionDates.daysBetween(Date(), next.dueDate)
+        if days == 0 { return "Today" }
+        return days == 1 ? "1 day" : (days < 60 ? "\(days) days" : nil)
+    }
+
+    private var detailsCaption: String {
+        var bits: [String] = []
+        if let r = person.relationship { bits.append(r) }
+        let n = person.occasions.count
+        bits.append(n == 1 ? "1 day" : "\(n) days")
+        bits.append("reminders")
+        bits.append("card photos")
+        return bits.joined(separator: " · ")
+    }
+
+    /// "For ideas": what they love, sizes, what they mentioned, and the links that use it.
+    private var ideasSection: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "For ideas")
+            portrait
+            HStack(spacing: Brand.space4) {
+                if let next = model.nextMoment(for: person), next.status != .missed {
+                    TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
+                }
+                TextLink(title: "Save an idea") { model.route = .addWish(person.id) }
+                if AppFeatures.serverFeatures, let next = model.nextMoment(for: person),
+                   OccasionDates.daysBetween(Date(), next.dueDate) >= 6 {
+                    TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
+                }
+                TextLink(title: "Edit") { editingPortrait = true }
+            }
+            .padding(.leading, -8)
+        }
+        .padding(.top, Brand.space2)
+    }
+
+    /// The days on this page's cards: the one it was opened from first if it isn't coming soon, then every day in
+    /// the next twelve months, soonest first.
     private var planMoments: [Moment] {
         let today = Calendar.current.startOfDay(for: Date())
-        let horizon = Calendar.current.date(byAdding: .day, value: 120, to: today) ?? today
+        let horizon = Calendar.current.date(byAdding: .day, value: 366, to: today) ?? today
         var moments = person.occasions.flatMap(\.moments)
             .filter { $0.dueDate >= today && $0.dueDate <= horizon && $0.status != .missed }
             .sorted { $0.dueDate < $1.dueDate }
-        if let focus {
-            if let i = moments.firstIndex(where: { $0.id == focus }) {
-                moments.insert(moments.remove(at: i), at: 0)
-            } else if let m = person.occasions.flatMap(\.moments).first(where: { $0.id == focus }) {
-                moments.insert(m, at: 0)
-            }
+        if let focus, !moments.contains(where: { $0.id == focus }),
+           let m = person.occasions.flatMap(\.moments).first(where: { $0.id == focus }) {
+            moments.insert(m, at: 0)
         }
-        return Array(moments.prefix(2))
+        return Array(moments.prefix(6))
     }
 
     private var header: some View {
@@ -215,17 +310,6 @@ struct PersonView: View {
             if let wish = person.openWishes.first {
                 (Text("Mentioned wanting ") + Text(wish.text).italic() + Text("."))
                     .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
-            }
-            if let next = model.nextMoment(for: person), next.status != .missed {
-                let days = OccasionDates.daysBetween(Date(), next.dueDate)
-                HStack(spacing: Brand.space4) {
-                    if days >= 6 && AppFeatures.serverFeatures {
-                        TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
-                    }
-                    TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
-                    TextLink(title: "Edit") { editingPortrait = true }
-                }
-                .padding(.leading, -8)
             }
         }
     }

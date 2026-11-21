@@ -32,6 +32,9 @@ enum NameSize {
         }
     }
 
+    /// The fixed height Home's featured name sits in, so the line under it stays put whatever the name's length.
+    static let featuredSlot: CGFloat = 156
+
     /// Lines a name may use before it scales down further.
     static let maxLines = 2
 }
