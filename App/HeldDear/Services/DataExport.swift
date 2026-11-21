@@ -60,6 +60,9 @@ enum DataExport {
         /// Remembered places (story 2.12) and addresses kept for people (story 2.13), by person id.
         var places: [Place]? = nil
         var addresses: [String: MailAddress]? = nil
+        /// Your photo and birthday (You page, Nov 21, 2026).
+        var yourPhotoFile: String? = nil
+        var yourBirthday: YouProfile.Day? = nil
 
         static func read(_ d: UserDefaults = .standard) -> Settings {
             Settings(yourName: d.string(forKey: "yourName"), cardSignature: d.string(forKey: "cardSignature"),
@@ -67,7 +70,9 @@ enum DataExport {
                      enabledHolidays: Holidays.enabled(d).map(\.rawValue),
                      hiddenPhotoIDs: d.stringArray(forKey: "hiddenPhotoIDs") ?? [],
                      places: PlaceStore(defaults: d).all,
-                     addresses: SavedAddresses(defaults: d).all)
+                     addresses: SavedAddresses(defaults: d).all,
+                     yourPhotoFile: d.string(forKey: YouProfile.photoKey),
+                     yourBirthday: YouProfile.birthday(d))
         }
     }
 
@@ -148,6 +153,7 @@ enum DataExport {
         names += doc.wishes.compactMap(\.imageFile)
         names += doc.acts.flatMap { [$0.photoFile, $0.cardFile].compactMap { $0 } }
         names += doc.ledger.flatMap { [$0.photoFile, $0.cardFile].compactMap { $0 } }
+        if let yours = doc.settings?.yourPhotoFile { names.append(yours) }
         var seen = Set<String>()
         return names.filter { !$0.isEmpty && seen.insert($0).inserted }
     }

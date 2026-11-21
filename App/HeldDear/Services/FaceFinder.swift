@@ -28,6 +28,21 @@ final class FaceFinder {
         return made
     }
 
+    /// The user's own photo (You page), framed on the face, for an anniversary that's theirs.
+    func yourPortrait(side: CGFloat, toned: Bool = false) async -> UIImage? {
+        guard let file = YouProfile.photoFile else { return nil }
+        let key = "you-\(file)-\(Int(side))-\(toned)" as NSString
+        if let hit = cache.object(forKey: key) { return hit }
+        guard let source = PhotoStore.load(file), let upright = Self.upright(source) else { return nil }
+        let cropped = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+            guard let face = Self.cropOnFace(upright) else { return nil }
+            return toned ? Self.warmTone(face) : face
+        }.value
+        let made = cropped.map { UIImage(cgImage: $0) }
+        if let made { cache.setObject(made, forKey: key) }
+        return made
+    }
+
     /// The person's photo cropped to a shape (width / height) with the face placed for a share image. Larger than
     /// the portrait: up to 1600 pixels across.
     func banner(for person: Person?, aspect: CGFloat) async -> UIImage? {
