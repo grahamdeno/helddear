@@ -23,6 +23,7 @@ Anything below uploads a build or changes something live. Check this list before
 | Deploying `server/` to the Vercel project helddear-mail (production, helddear-mail.vercel.app) | Changes the live server for mailed cards and family pages | Ship |
 | Merge to `main` touching `server/**` | Does not deploy on its own (checked Nov 21, 2026: PRs #11 to #29 merged with no new Vercel deployment). Deploying is a separate redeploy of helddear-mail | Ship (for the redeploy) |
 | Changing helddear-mail environment variables (Handwrytten, Stripe, Blob keys) | Changes live secrets | Graham's go (secrets) |
+| Creating the iCloud container (iCloud.com.grahamdeno.helddear) or deploying the CloudKit schema to production | Permanent: container IDs can't be deleted; production schema fields can't be removed | Graham's go |
 
 `build.yml` (pull requests, pushes to `main`) builds and tests only; it uploads and deploys nothing.
 
