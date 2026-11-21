@@ -22,7 +22,9 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
 - Test build 1029 at fe5fef1 (PR #37 export my data, PR #38 Fable review fixes P1, S1, D1, N1, N2, N3, U2 and the limited-photos prompt, PR #39 stories 2.12 to 2.14). CI: 195 tests, 0 failures. Server redeployed at fe5fef1; get-well shows 13 get-well designs and no sympathy designs.
 - Story 2.13 deviation: the address was kept in settings in 1029 and moves onto Person (mailingAddress) with store version 3, so one migration instead of two.
 - iCloud container iCloud.com.grahamdeno.helddear created and enabled on the App ID with CloudKit (Graham's go, Grok, Nov 21). No CloudKit schema deployed. The app has no iCloud entitlement yet (item 3.1).
-- Item 3.0 (PR #40, Core Data store, model approved by Graham): Fable's review (S1 to S9) fixed at 941fda3, CI 206 tests, 0 failures. Waiting on Fable's re-check and Graham's export from 1029 before a test build.
+- Item 3.0 (PR #40, Core Data store, model approved by Graham): Fable's review (S1 to S9) fixed at 941fda3, CI 206 tests, 0 failures.
+- Graham exported from 1029, then deleted the app (deleting it deleted the store). Built "Import my data" (restore an export: every record with its id and links, photos, settings; checked before one save; replace only with Graham's confirmation). CLAUDE.md now says test builds install over the app, never delete it.
+- Test build 1030 at 6dc1494 (3.0 store plus Import my data, PR #40 merged under the Nov 21 exception). CI 211 tests, 0 failures. Fable's re-check of 3.0 at 941fda3 not yet back. Next: Graham installs 1030 over the app and imports his export.
 
 - **Store:** not released and never submitted. App Store Connect record "Held Dear: Your People" (Apple ID
   6833744147) exists. TestFlight builds 1001 to 1009 uploaded for internal testing. Latest: build 1009, from `main`
