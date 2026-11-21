@@ -48,7 +48,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if model.onboarded {
+            if StoreSetAside.shouldShow(outcome: model.storeOutcome, acknowledged: model.setAsideAcknowledged) {
+                StoreSetAsideView()
+            } else if model.onboarded {
                 HomeView()
             } else {
                 OnboardingView()
