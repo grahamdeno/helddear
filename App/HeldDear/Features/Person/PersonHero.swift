@@ -15,6 +15,7 @@ struct PersonHero: View {
 
     @State private var page = 0
     @State private var years: [PhotoMemories.Year] = []
+    @State private var opened: PickedPhoto?
 
     static let height: CGFloat = 460
 
@@ -44,6 +45,8 @@ struct PersonHero: View {
             TabView(selection: $page) {
                 ForEach(Array(pages.enumerated()), id: \.element.id) { i, p in
                     photo(p).tag(i)
+                        .contentShape(Rectangle())
+                        .onTapGesture { if let a = p.asset { opened = PickedPhoto(asset: a, caption: p.caption) } }
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -106,6 +109,10 @@ struct PersonHero: View {
             }
         }
         .onAppear(perform: load)
+        .fullScreenCover(item: $opened) { p in
+            PhotoViewer(asset: p.asset, person: person, caption: p.caption) { page = 0; load() }
+                .environmentObject(model)
+        }
     }
 
     @ViewBuilder private func photo(_ p: Page) -> some View {
@@ -131,7 +138,7 @@ struct PersonHero: View {
     private func load() {
         guard photos.canRead, let b = person.birthday else { return }
         let thisYear = Calendar.current.component(.year, from: Date())
-        years = photos.years(month: b.month, day: b.day).filter { $0.year < thisYear && !$0.assets.isEmpty }
+        years = HiddenPhotos.filter(photos.years(month: b.month, day: b.day)).filter { $0.year < thisYear }
             .sorted { $0.year > $1.year }
     }
 }
@@ -149,6 +156,6 @@ private struct HeroAsset: View {
         .frame(maxWidth: .infinity)
         .frame(height: PersonHero.height)
         .clipped()
-        .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.thumbnail(asset, side: 1000) }
+        .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.bestLocalImage(asset) }
     }
 }

@@ -739,29 +739,38 @@ struct BirthdayMemories: View {
     let day: Int
     var showLifetime: () -> Void
     @State private var years: [PhotoMemories.Year] = []
-    @State private var picked: PHAsset?
+    @State private var opened: PickedPhoto?
+    @State private var hiddenCount = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: Brand.space3) {
             if photos.canRead {
                 if !years.isEmpty {
-                    Text("On \(person.name)'s birthdays").textStyle(.headline)
+                    Text("On \(DisplayName.plain(person.name))'s birthdays").textStyle(.headline)
+                    Text("Tap a photo to open it, use it on the card, or hide it.").textStyle(.caption, color: Brand.inkMuted)
                     ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
                     if !purchases.hasLifetime && years.count > 1 {
                         TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
                     }
                 }
+                if hiddenCount > 0 {
+                    TextLink(title: hiddenCount == 1 ? "Show 1 hidden photo" : "Show \(hiddenCount) hidden photos") {
+                        HiddenPhotos.showAll()
+                        load()
+                    }
+                    .padding(.leading, -8)
+                }
             } else if photos.status == .notDetermined {
-                OptionRow(title: "Photos from \(person.name)'s birthdays",
+                OptionRow(title: "Photos from \(DisplayName.plain(person.name))'s birthdays",
                           caption: "Held Dear looks in your library on this iPhone") {
                     Task { await photos.requestAccess(); load() }
                 }
             }
         }
         .onAppear(perform: load)
-        .confirmationDialog("Use this photo on \(person.name)'s card?", isPresented: Binding(get: { picked != nil }, set: { if !$0 { picked = nil } }),
-                            titleVisibility: .visible) {
-            Button("Use for the card") { if let a = picked { use(a) } }
+        .fullScreenCover(item: $opened) { p in
+            PhotoViewer(asset: p.asset, person: person, caption: p.caption) { load() }
+                .environmentObject(model)
         }
     }
 
@@ -771,9 +780,10 @@ struct BirthdayMemories: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(y.assets, id: \.localIdentifier) { asset in
-                        Button { picked = asset } label: { AssetThumb(asset: asset, side: 104) }
+                        Button { opened = PickedPhoto(asset: asset, caption: String(y.year)) } label: { AssetThumb(asset: asset, side: 104) }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Photo from \(String(y.year))")
+                            .accessibilityHint("Opens the photo")
                     }
                 }
             }
@@ -781,16 +791,10 @@ struct BirthdayMemories: View {
     }
 
     private func load() {
-        years = photos.years(month: month, day: day)
-    }
-
-    private func use(_ asset: PHAsset) {
-        Task {
-            if let image = await photos.fullImage(asset), let file = PhotoStore.save(image) {
-                person.photoFiles.append(file)
-                model.save()
-            }
-        }
+        let all = photos.years(month: month, day: day)
+        years = HiddenPhotos.filter(all)
+        let ids = Set(all.flatMap { $0.assets.map(\.localIdentifier) })
+        hiddenCount = HiddenPhotos.all().intersection(ids).count
     }
 }
 
