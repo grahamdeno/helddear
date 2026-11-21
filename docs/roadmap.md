@@ -115,7 +115,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
-- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation), PR #15 (occasion plan) and PR #16 (exemption) (Nov 20); test build 1010 at 04b3527 and test build 1011 at 26dabd1 (PR #17, feedback on 1010); test build 1012 at 9f0e4cc (PR #18: version B navigation, Add someone, named days, kids' Christmas default) (Nov 20, exemption). Test build 1013 at b376a7e (PR #19: relationship picker, occasion list, long names, Home's next-item button) (Nov 20, exemption). Test build 1014 at 3c32830 (PR #20: person page cleanup with photo hero, day cards and grouped plan; Home with one +; steady featured name) (Nov 20, exemption). Test build 1015 at 893fc17 (PR #21: Home's featured day in fixed places, flick to move) (Nov 20, exemption). Test build 1016 at d36efff (PR #22: photos open and hide, older photos load, swipeable Home pages, plan follows the day cards) (Nov 20, exemption). Test build 1017 (PR #23: lighter cards on the person page) (Nov 20, exemption). Test build 1018 (PR #24: back links that read on any photo) (Nov 20, exemption). Test build 1019 (PR #25: item page on cards) (Nov 20, exemption). Test build 1020 at 100e51e (PR #26: back link keeps its words; you top right, Add on the timeline; remove from plan; plain bars on slide-up screens) (Nov 21, Graham's go). Test build 1021 at d99484a (PR #27: Finds page, approved finds, mailed cards on) (Nov 21, exemption). Test build 1022 at 62d109a (PR #28: a card for any reason, + Add menu at the button) (Nov 21, exemption). Server deploy of PR #29 (card categories for card reasons) at d54e1ef (Nov 21, Graham's go). Test build 1024 at 60f595d (PR #31, with PR #30: several contacts at once, face circle on Home, holiday marks, saved ideas on gifts, share a person's day) (Nov 21, exemption). Test build 1025 at 216ae96 (PR #32: make a card, your own holidays, photos on faces) (Nov 21, Graham's go). Test build 1026 at 6108b02 (PR #33: Home medallion with readiness ring, switchable) (Nov 21, Graham's go). Test build 1027 at 91689f7 (PR #34: Home never scrolls, medallion 92 points) (Nov 21, exemption). Test build 1028 at 7745540 (PR #35: everyone keeps the medallion) (Nov 21, exemption). Test build 1029 at 23ac0e6 (PR #36: name ›, medallion 110, order-by line) (Nov 21, Graham's go). Graham's decisions on Fable's review (Nov 21): mailed cards stay on for 1.0; all Nov 21 features stay in 1.0. PRs #18 to #36 need Fable's review; #18 to #20 reviewed Nov 20 (fix items F1 to F3 drafted, waiting on Graham). Scope reopened once on Nov 20 (see
+- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation), PR #15 (occasion plan) and PR #16 (exemption) (Nov 20); test build 1010 at 04b3527 and test build 1011 at 26dabd1 (PR #17, feedback on 1010); test build 1012 at 9f0e4cc (PR #18: version B navigation, Add someone, named days, kids' Christmas default) (Nov 20, exemption). Test build 1013 at b376a7e (PR #19: relationship picker, occasion list, long names, Home's next-item button) (Nov 20, exemption). Test build 1014 at 3c32830 (PR #20: person page cleanup with photo hero, day cards and grouped plan; Home with one +; steady featured name) (Nov 20, exemption). Test build 1015 at 893fc17 (PR #21: Home's featured day in fixed places, flick to move) (Nov 20, exemption). Test build 1016 at d36efff (PR #22: photos open and hide, older photos load, swipeable Home pages, plan follows the day cards) (Nov 20, exemption). Test build 1017 (PR #23: lighter cards on the person page) (Nov 20, exemption). Test build 1018 (PR #24: back links that read on any photo) (Nov 20, exemption). Test build 1019 (PR #25: item page on cards) (Nov 20, exemption). Test build 1020 at 100e51e (PR #26: back link keeps its words; you top right, Add on the timeline; remove from plan; plain bars on slide-up screens) (Nov 21, Graham's go). Test build 1021 at d99484a (PR #27: Finds page, approved finds, mailed cards on) (Nov 21, exemption). Test build 1022 at 62d109a (PR #28: a card for any reason, + Add menu at the button) (Nov 21, exemption). Server deploy of PR #29 (card categories for card reasons) at d54e1ef (Nov 21, Graham's go). Test build 1024 at 60f595d (PR #31, with PR #30: several contacts at once, face circle on Home, holiday marks, saved ideas on gifts, share a person's day) (Nov 21, exemption). Test build 1025 at 216ae96 (PR #32: make a card, your own holidays, photos on faces) (Nov 21, Graham's go). Test build 1026 at 6108b02 (PR #33: Home medallion with readiness ring, switchable) (Nov 21, Graham's go). Test build 1027 at 91689f7 (PR #34: Home never scrolls, medallion 92 points) (Nov 21, exemption). Test build 1028 at 7745540 (PR #35: everyone keeps the medallion) (Nov 21, exemption). Test build 1029 at 23ac0e6 (PR #36: name ›, medallion 110, order-by line) (Nov 21, Graham's go). Graham's decisions on Fable's review (Nov 21): mailed cards stay on for 1.0; all Nov 21 features stay in 1.0; repo history is left as it is (names are replaced in the code going forward, P1). PRs #18 to #36 need Fable's review; #18 to #20 reviewed Nov 20 (fix items F1 to F3 drafted, waiting on Graham). Scope reopened once on Nov 20 (see
   Decision log).
 
 ## Dated checks
@@ -295,10 +295,49 @@ so that I can spot the special gift on my own.
 - Dependable picks (national brands for the cake or flowers) are marked as such.
 - Nothing leaves the phone; finds ship with the app. Browsing is free; Use follows the free plan limit.
 
+#### 2.10 Your own holidays (approved Nov 21, 2026; shipped in build 1025)
+
+As someone who keeps a holiday Held Dear doesn't list, I want to add it myself so the people I celebrate it with get it
+like Christmas.
+
+- You, Your own holidays: add one with a name, this year's date and who celebrates it; change or remove it later.
+- It works like Christmas: Home, each person's page, a plan, gift ideas and alerts. Built-in holidays stay Christmas,
+  Mother's Day and Father's Day.
+- Same date every year; the six-week alert adds "If the date moves this year, change it in You."
+- Removing one takes it off every timeline; past years stay in each person's record. No schema change.
+
+#### 2.11 Digital cards from you, for any reason (approved Nov 21, 2026; shipped in build 1025)
+
+As someone who sends cards to family and friends, I want to make a digital card from my own page so I can text it or
+post it.
+
+- You, Make a card: your holidays, the six reasons, or just your words; one photo or up to 10; still or a moving
+  slideshow; Post or Story size; signed "from" the name set in You.
+- Made on the phone and handed to the share sheet; photos come through the system picker and stay in the library.
+
+#### 2.12 Remember where things come from (approved Nov 21, 2026)
+
+As someone planning several people's days, I want the places I've used before offered again for the same kind of
+thing, so I don't look them up each time.
+
+- Given a cake, flowers, dinner or party item, then it has a "Where from" card: a place's name and an optional link or
+  phone.
+- Given I've used a place on one kind of item, when I open that kind of item for anyone, then the place is a one-tap
+  choice; it never appears on other kinds (a baker shows on cakes, not gifts or flowers).
+- Given a cake, flowers, dinner or party item, then "Who it's from" is hidden and set to me; it still shows on gifts,
+  stockings, cards and kids' gifts.
+- The note stays in "Link and note". A place can be removed from the list with press and hold.
+- Dependable picks from Finds show under my own places on cake and flowers, marked as such (assumed; Graham to
+  confirm).
+- Places are kept on the phone in a small list; no schema change.
+
+Out of scope: suggesting places I haven't used; web search.
+
 #### Requirements
 - **R1. Several recipients:** an occasion can hold several people. Enforced by a unit test on the data model.
-- **R2. Mailed cards and family pages off in 1.0:** the code ships, switched off by a build setting. No 1.0 build
-  sends anything to the server. Enforced by a CI check on the App Store configuration and the privacy guard.
+- **R2. Mailed cards on, family pages off in 1.0 (changed Nov 21, 2026, Graham's decision):** mailed cards ship on
+  (`AppFeatures.mailedCards`); family pages ship off behind the `HELDDEAR_FAMILY_PAGES` build flag. A security review
+  of the mailed-card path comes before the go-live assessment. Enforced by the build switch test and the privacy guard.
 - **R3. TestFlight-only Lifetime switch:** compiled only into TestFlight builds through a build setting, never into
   an App Store build, never decided by the purchase environment. Enforced by a CI check.
 - **R4. No remote switches:** no feature is turned on from the server. Turning on mailed cards or family pages means
