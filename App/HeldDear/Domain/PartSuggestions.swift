@@ -33,6 +33,9 @@ enum PartSuggestions {
             return [make("Gift", .gift), make("Card", .card), make("Flowers", .flowers),
                     make("Breakfast in bed", .theDay, label: "Breakfast in bed"), make("The day", .theDay)]
         }
+        if occasion == .event {
+            return [make("Flowers", .flowers), make("Card", .card), make("Gift", .gift), make("The day", .theDay)]
+        }
         if occasion == .birthday && isPartner(relationship: relationship) {
             return [
                 make("Gift", .gift), make("Card", .card), make("Cake", .cake), make("Flowers", .flowers),
@@ -44,7 +47,7 @@ enum PartSuggestions {
     }
 
     /// What a person's plan starts with when they join a shared holiday (roadmap 1.6), by relationship.
-    /// Christmas: partner Gift, Stocking, Card, Gift from the kids; child Gift, From Santa, Stocking; parent or
+    /// Christmas: partner Gift, Stocking, Card, Gift from the kids; child two Gifts and a Stocking; parent or
     /// grandparent Gift, Card; sibling or in-law Gift; teacher, coach, neighbor or friend a card; unknown Gift, Card.
     /// Mother's Day and Father's Day: Gift, Card.
     static func holidayStart(for occasion: OccasionType, relationship: String?) -> [Suggestion] {
@@ -53,7 +56,8 @@ enum PartSuggestions {
         case .partner:
             return [make("Gift", .gift), make("Stocking", .stocking), make("Card", .card), make("Gift from the kids", .kidsMade)]
         case .child:
-            return [make("Gift", .gift), make("From Santa", .fromSanta), make("Stocking", .stocking)]
+            // Kids usually get more than one gift at Christmas (feedback on build 1011); From Santa stays in the add list.
+            return [make("Gift", .gift), make("Gift", .gift), make("Stocking", .stocking)]
         case .parent:
             return [make("Gift", .gift), make("Card", .card)]
         case .sibling, .extended:

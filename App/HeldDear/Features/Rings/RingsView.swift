@@ -40,9 +40,6 @@ struct RingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: UUID.self) { id in
-            if let p = model.person(id) { PersonView(person: p) }
-        }
         .sheet(item: $sheetPerson) { p in RingSheet(person: p).presentationDetents([.medium]) }
         .addFromContacts(isPresented: $addingFromContacts)
     }
@@ -67,7 +64,7 @@ struct RingsView: View {
     }
 
     private func holidayRow(_ type: OccasionType, year: Int, date: Date, people: Int) -> some View {
-        Button { model.route = .holiday(type.rawValue, year) } label: {
+        Button { model.push(.holiday(type.rawValue, year)) } label: {
             HStack(spacing: Brand.space4) {
                 Text(String(Calendar.current.component(.day, from: date)))
                     .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
@@ -98,7 +95,7 @@ struct RingsView: View {
 
     private func personRow(_ p: Person, next: Moment?) -> some View {
         HStack(alignment: .center, spacing: Brand.space4) {
-            NavigationLink(value: p.id) {
+            NavigationLink(value: Nav.person(p.id, focus: nil)) {
                 HStack(spacing: Brand.space4) {
                     Text(next.map { String(Calendar.current.component(.day, from: $0.dueDate)) } ?? "–")
                         .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
@@ -158,7 +155,7 @@ struct EveryoneView: View {
                         VStack(alignment: .leading, spacing: Brand.space2) {
                             Eyebrow(text: ring.label)
                             ForEach(group, id: \.id) { p in
-                                NavigationLink(value: p.id) {
+                                NavigationLink(value: Nav.person(p.id, focus: nil)) {
                                     HStack(spacing: 12) {
                                         Face(person: p)
                                         VStack(alignment: .leading, spacing: 2) {

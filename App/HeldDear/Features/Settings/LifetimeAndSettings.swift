@@ -145,7 +145,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "People")
                     OptionRow(title: "Add from contacts", caption: "Share more people with Held Dear") { addingFromContacts = true }
-                    OptionRow(title: "Add a birthday", caption: "Type a name and a date") { model.route = .addBirthday("") }
+                    OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Lock Screen")

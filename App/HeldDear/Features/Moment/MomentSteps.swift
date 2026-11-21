@@ -532,7 +532,7 @@ struct RecordStep: View {
     }
 
     private var eyebrow: String {
-        var text = "\(moment.year) · \(moment.type.label)"
+        var text = "\(moment.year) · \(moment.label)"
         if let t = moment.turning { text += " · turning \(t)" }
         return text
     }

@@ -16,6 +16,12 @@ extension Moment {
     }
 
     var partsReady: Int { planParts.filter(\.isReady).count }
+
+    /// The occasion's name on screen: "Birthday", "Christmas", or an event's own name ("Ballet recital").
+    var label: String {
+        guard type == .event, let name = occasion?.partnerName, !name.isEmpty else { return type.label }
+        return name
+    }
 }
 
 /// Changes to a plan's parts, on the models only. `AppModel` calls these and then saves, so a screen and a test make

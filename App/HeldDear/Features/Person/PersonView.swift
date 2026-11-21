@@ -9,7 +9,10 @@ struct PersonView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let person: Person
+    /// The occasion (a Moment's id) to show first, when the page was opened from it.
+    var focus: UUID? = nil
     @State private var showRing = false
+    @State private var addingTo: Moment?
     @State private var linking = false
     @State private var editingDate = false
     @State private var photoItem: PhotosPickerItem?
@@ -31,6 +34,9 @@ struct PersonView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
+                ForEach(Array(planMoments.enumerated()), id: \.element.id) { i, m in
+                    PersonPlanSection(moment: m, primary: i == 0) { addingTo = m }
+                }
                 portrait
                 PersonYears(person: person)
                     .padding(.horizontal, -Brand.space5)
@@ -49,16 +55,12 @@ struct PersonView: View {
                     settingRelationship = true
                 }
                 section("Occasions") {
-                    if let next = model.nextMoment(for: person) {
-                        OptionRow(title: PlanReadiness.planRowTitle(for: next.type), caption: planCaption(next)) {
-                            model.route = .plan(next.id)
-                        }
-                    }
                     ForEach(sortedOccasions, id: \.id) { o in
                         if o.type == .birthday {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
                         } else {
-                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)" : o.type.label,
+                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
+                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
                                       caption: occasionCaption(o)) { occasionToEdit = o }
                         }
                     }
@@ -94,6 +96,10 @@ struct PersonView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $addingTo) { m in
+            PlanView(moment: m, onClose: { addingTo = nil }, startOnAdd: true)
+                .environmentObject(model)
+        }
         .sheet(isPresented: $showRing) { RingSheet(person: person).presentationDetents([.medium]) }
         .onChange(of: linking) { _, open in
             guard open else { return }
@@ -142,6 +148,24 @@ struct PersonView: View {
         }
     }
 
+    /// The occasions planned on this page: the one it was opened from first, then what's coming in the next four
+    /// months. At most two, so the page stays one composed page.
+    private var planMoments: [Moment] {
+        let today = Calendar.current.startOfDay(for: Date())
+        let horizon = Calendar.current.date(byAdding: .day, value: 120, to: today) ?? today
+        var moments = person.occasions.flatMap(\.moments)
+            .filter { $0.dueDate >= today && $0.dueDate <= horizon && $0.status != .missed }
+            .sorted { $0.dueDate < $1.dueDate }
+        if let focus {
+            if let i = moments.firstIndex(where: { $0.id == focus }) {
+                moments.insert(moments.remove(at: i), at: 0)
+            } else if let m = person.occasions.flatMap(\.moments).first(where: { $0.id == focus }) {
+                moments.insert(m, at: 0)
+            }
+        }
+        return Array(moments.prefix(2))
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             HStack(alignment: .bottom, spacing: Brand.space4) {
@@ -163,7 +187,7 @@ struct PersonView: View {
 
     private func subline(_ next: Moment) -> String {
         let date = next.dueDate.formatted(.dateTime.month(.wide).day())
-        let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.type.label.lowercased()
+        let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.label.lowercased()
         return next.type.kind == .holiday ? "\(next.type.label), \(date)" : "\(date), \(what)"
     }
 
@@ -196,8 +220,6 @@ struct PersonView: View {
                     .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
             }
             if let next = model.nextMoment(for: person), next.status != .missed {
-                PrimaryButton(title: "Plan \(person.name)'s day") { model.route = .plan(next.id) }
-                    .padding(.top, Brand.space2)
                 let days = OccasionDates.daysBetween(Date(), next.dueDate)
                 HStack(spacing: Brand.space4) {
                     if days >= 6 && AppFeatures.serverFeatures {
@@ -742,7 +764,7 @@ struct AddOccasionView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Eyebrow(text: title)
                 ForEach(items) { t in
-                    OptionRow(title: t.label, caption: caption(t)) {
+                    OptionRow(title: t == .event ? "Something else" : t.label, caption: caption(t)) {
                         if t.needsDate { type = t } else { save(t) }
                     }
                 }
@@ -757,13 +779,17 @@ struct AddOccasionView: View {
         case .mothersDay: "Second Sunday in May"
         case .fathersDay: "Third Sunday in June"
         case .anniversary: "Theirs, or yours together"
+        case .event: "A recital, a big game, a show"
         default: nil
         }
     }
 
     private func dateStep(_ t: OccasionType) -> some View {
         FlowScreen(onClose: { type = nil }) {
-            Question(title: t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?")
+            Question(title: t == .event ? "What's the day?" : (t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?"))
+            if t == .event {
+                LineField(label: "What is it?", text: $partner, placeholder: "Ballet recital", showsDictation: true)
+            }
             DatePicker(t.label, selection: $date, displayedComponents: .date)
                 .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
             if t == .anniversary {
@@ -771,7 +797,10 @@ struct AddOccasionView: View {
                 Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
             }
         } footer: {
+            let missingName = t == .event && partner.trimmingCharacters(in: .whitespaces).isEmpty
             PrimaryButton(title: "Save") { save(t) }
+                .disabled(missingName)
+                .opacity(missingName ? 0.45 : 1)
         }
     }
 
@@ -779,7 +808,7 @@ struct AddOccasionView: View {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
         let year: Int? = t.kind == .once ? c.year : (t == .anniversary && knowsYear ? c.year : nil)
         model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
-                          partnerName: t == .anniversary ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
+                          partnerName: t == .anniversary || t == .event ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
         dismiss()
     }
 }

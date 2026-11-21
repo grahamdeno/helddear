@@ -56,10 +56,17 @@ struct RootView: View {
         }
         .tint(Brand.action)
         .background(Brand.page.ignoresSafeArea())
-        .fullScreenCover(item: $model.route) { route in
+        // People, holidays and plans are pages that slide in from Home; everything else is a flow in a cover.
+        .fullScreenCover(item: Binding(get: { model.route.flatMap { model.navTarget(for: $0) == nil ? $0 : nil } },
+                                       set: { model.route = $0 })) { route in
             RouteView(route: route)
                 .environmentObject(model)
                 .modelContainer(model.container)
+        }
+        .onChange(of: model.route) { _, route in
+            guard let route, let nav = model.navTarget(for: route) else { return }
+            model.route = nil
+            model.push(nav)
         }
     }
 }

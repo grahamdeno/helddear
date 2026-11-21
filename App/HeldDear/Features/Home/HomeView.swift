@@ -6,20 +6,19 @@ import UIKit
 /// coming up, placed on a line by date. Tap a name on the line to feature that person.
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
-    @State private var path: [UUID] = []
     @State private var addingFromContacts = false
     @State private var selectedID: UUID?
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $model.navPath) {
             content
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button { model.route = .rings } label: { Image(systemName: "person.2") }
-                            .accessibilityLabel("Your people")
+                        Button("People") { model.push(.people) }
+                        Button("Ideas") { model.push(.ideas) }
                         Menu {
-                            Button { model.route = .addBirthday("") } label: { Label("Type a birthday", systemImage: "character.cursor.ibeam") }
+                            Button { model.route = .addBirthday("") } label: { Label("Add someone", systemImage: "person.badge.plus") }
                             Button { addingFromContacts = true } label: { Label("Add from Contacts", systemImage: "person.crop.circle.badge.plus") }
                             Button { model.route = .addWish(nil) } label: { Label("Save a wish", systemImage: "heart") }
                             Divider()
@@ -32,8 +31,8 @@ struct HomeView: View {
                 }
                 .tint(Brand.ink)
                 .addFromContacts(isPresented: $addingFromContacts)
-                .navigationDestination(for: UUID.self) { id in
-                    if let p = model.person(id) { PersonView(person: p) }
+                .navigationDestination(for: Nav.self) { nav in
+                    NavPage(nav: nav)
                 }
         }
     }
@@ -57,7 +56,7 @@ struct HomeView: View {
                                             members: model.holidayMembers(type: featured.type, year: featured.year), now: now)
                     } else {
                         FeaturedView(moment: featured, state: model.state(for: featured), now: now,
-                                     openPerson: { if let p = featured.person { path.append(p.id) } })
+                                     openPerson: { if let p = featured.person { model.push(.person(p.id, focus: featured.id)) } })
                     }
                 }
                 .padding(.horizontal, Brand.space5)
@@ -93,7 +92,7 @@ struct HomeView: View {
                 .font(Brand.serif(19, italic: true)).foregroundStyle(Brand.inkSoft).multilineTextAlignment(.center)
             Spacer()
             PrimaryButton(title: "Add from Contacts") { addingFromContacts = true }
-            SecondaryButton(title: "Type a birthday") { model.route = .addBirthday("") }
+            SecondaryButton(title: "Add someone") { model.route = .addBirthday("") }
             if ContactsService.shared.access == .denied {
                 TextLink(title: "Let Held Dear see your contacts in Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -238,7 +237,7 @@ struct FeaturedView: View {
 
     private func subline(days: Int, missed: Bool) -> String {
         if missed { return "A late note still counts." }
-        let what = moment.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? moment.type.label.lowercased()
+        let what = moment.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? moment.label.lowercased()
         let when: String
         switch days {
         case 0: when = "today"
@@ -493,6 +492,31 @@ enum HolidayCollapse {
         return moments.filter { m in
             guard let key = Holidays.groupKey(type: m.type, year: m.year) else { return true }
             return chosen[key]?.id == m.id
+        }
+    }
+}
+
+/// One page pushed from Home, with its back link.
+struct NavPage: View {
+    @EnvironmentObject var model: AppModel
+    let nav: Nav
+
+    var body: some View {
+        page.backLink(model.backTitle(for: nav))
+    }
+
+    @ViewBuilder private var page: some View {
+        switch nav {
+        case .person(let id, let focus):
+            if let p = model.person(id) { PersonView(person: p, focus: focus) } else { Color.clear }
+        case .holiday(let raw, let year):
+            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear }
+        case .people:
+            RingsView()
+        case .ideas:
+            SavedIdeasView()
+        case .item(let id):
+            if let act = model.act(id) { ItemView(act: act) } else { Color.clear }
         }
     }
 }

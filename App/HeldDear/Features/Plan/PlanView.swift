@@ -8,9 +8,18 @@ struct PlanView: View {
     let moment: Moment
     /// Where the close control goes: a holiday page passes its own; otherwise the plan closes its cover.
     var onClose: (() -> Void)? = nil
+    /// Opens straight on "Add something" and closes once something is added (from a person's page).
+    var startOnAdd = false
 
     private enum Screen: Equatable { case plan, part(UUID), add, name, relationship }
-    @State private var screen: Screen = .plan
+    @State private var screen: Screen
+
+    init(moment: Moment, onClose: (() -> Void)? = nil, startOnAdd: Bool = false) {
+        self.moment = moment
+        self.onClose = onClose
+        self.startOnAdd = startOnAdd
+        _screen = State(initialValue: startOnAdd ? .add : .plan)
+    }
     @State private var newName = ""
     /// Suggestions ticked on "Add something", by title, added together.
     @State private var picked: Set<String> = []
@@ -28,7 +37,12 @@ struct PlanView: View {
 
     var body: some View {
         switch screen {
-        case .plan: planScreen.onAppear { model.startHolidayPlan(moment) }
+        case .plan:
+            if startOnAdd {
+                Color.clear.onAppear { (onClose ?? { model.route = nil })() }
+            } else {
+                planScreen.onAppear { model.startHolidayPlan(moment) }
+            }
         case .part(let id):
             if let act = parts.first(where: { $0.id == id }) {
                 PartScreen(act: act, household: household, personName: personName, person: person) { screen = .plan }
@@ -62,7 +76,7 @@ struct PlanView: View {
     private var days: Int { OccasionDates.daysBetween(Date(), moment.dueDate) }
 
     private var eyebrow: String {
-        var bits = [moment.type.label, moment.dueDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())]
+        var bits = [moment.label, moment.dueDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())]
         if days == 0 { bits.append("TODAY") } else if days == 1 { bits.append("1 DAY") } else if days > 1 { bits.append("\(days) DAYS") }
         return bits.joined(separator: " · ").uppercased()
     }
@@ -172,7 +186,7 @@ struct PlanView: View {
     private var addScreen: some View {
         let chosen = suggestions.filter { picked.contains($0.title) }
         return FlowScreen {
-            TextLink(title: "‹ \(personName)'s plan") { picked = []; screen = .plan }
+            TextLink(title: startOnAdd ? "‹ \(personName)" : "‹ \(personName)'s plan") { picked = []; screen = .plan }
             Question(title: "Add something", subtitle: "Pick as many as you like.")
             VStack(spacing: 0) {
                 ForEach(suggestions, id: \.title) { s in suggestionRow(s) }
@@ -287,6 +301,8 @@ private struct PartScreen: View {
     let household: [Person]
     let personName: String
     let person: Person?
+    /// On a page pushed from Home the back link is in the bar, so the page doesn't draw its own.
+    var inNav = false
     let back: () -> Void
 
     @State private var note = ""
@@ -308,7 +324,8 @@ private struct PartScreen: View {
 
     var body: some View {
         FlowScreen {
-            TextLink(title: "‹ \(personName)'s plan") { saveNote(); back() }
+            if !inNav { TextLink(title: "‹ \(personName)'s plan") { saveNote(); back() } }
+            if !personName.isEmpty { Eyebrow(text: "For \(personName)") }
             Text(titleText)
                 .font(Brand.display(52, relativeTo: .largeTitle)).tracking(-1)
                 .foregroundStyle(Brand.ink)
@@ -331,6 +348,7 @@ private struct PartScreen: View {
             PrimaryButton(title: "Done") { saveNote(); back() }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .onDisappear { saveNote() }
         .onAppear {
             guard !loaded else { return }
             note = act.note ?? ""
@@ -364,41 +382,50 @@ private struct PartScreen: View {
         }
     }
 
+    /// Where it stands, as one row of steps you tap: the kind's own steps first, the rest under "More statuses".
     private var standsList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "Where it stands").padding(.bottom, Brand.space2)
-            ForEach(shownSteps, id: \.self) { step in
-                let selected = step == current
-                Button { pick(step) } label: {
-                    HStack(spacing: Brand.space3) {
-                        Image(systemName: selected ? "largecircle.fill.circle" : "circle")
-                            .font(.system(size: 22)).foregroundStyle(selected ? Brand.ink : Brand.inkMuted)
-                        Text(PartSteps.word(for: step)).textStyle(selected ? .bodyStrong : .body)
-                            .multilineTextAlignment(.leading)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Where it stands")
+            FlowLayout(spacing: 8) {
+                ForEach(shownSteps, id: \.self) { step in stepChip(step) }
+                if !showMore && !PartSteps.moreSteps(for: family).contains(current) {
+                    Button { showMore = true } label: {
+                        Text("More statuses").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                            .padding(.horizontal, 10).frame(minHeight: 44)
                     }
-                    .frame(minHeight: 52)
-                    .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(PressStyle())
-                .accessibilityLabel(PartSteps.word(for: step))
-                .accessibilityValue(selected ? "Selected" : "Not selected")
-                .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-                .accessibilityHint("Where it stands. One choice.")
             }
-            if !showMore && !PartSteps.moreSteps(for: family).contains(current) {
-                TextLink(title: "More statuses") { showMore = true }
-                    .padding(.top, Brand.space2)
-            }
+            Text("Tap a step to change it.").textStyle(.caption, color: Brand.inkMuted)
             if PartSteps.datedSteps.contains(current) {
                 DatePicker("\(PartSteps.word(for: current)) on", selection: dateBinding, displayedComponents: .date)
                     .textStyle(.body)
                     .tint(Brand.action)
                     .frame(minHeight: 52)
-                    .padding(.top, Brand.space2)
             }
         }
+    }
+
+    private func stepChip(_ step: String) -> some View {
+        let selected = step == current
+        return Button { pick(step) } label: {
+            HStack(spacing: 6) {
+                if selected { Image(systemName: "checkmark").font(.footnote.weight(.bold)) }
+                Text(PartSteps.word(for: step)).font(.callout.weight(.semibold)).lineLimit(1)
+            }
+            .foregroundStyle(selected ? Brand.page : Brand.ink)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background {
+                if selected { Capsule().fill(Brand.ink) } else { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityLabel(PartSteps.word(for: step))
+        .accessibilityValue(selected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHint("Where it stands. One choice.")
     }
 
     /// The item's link: what was bought, or where to track it. Paste one any time (no clipboard prompt).
@@ -538,6 +565,19 @@ private struct PartScreen: View {
     }
 }
 
+
+/// One item's page, pushed from a person's page: its note, where it stands, its link and who it's from.
+struct ItemView: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let act: Act
+
+    var body: some View {
+        let person = act.moment?.person
+        PartScreen(act: act, household: model.household(for: person), personName: person?.name ?? "", person: person,
+                   inNav: true) { dismiss() }
+    }
+}
 
 /// "Who is Ben to you?" One tap sets the relationship, which shapes suggestions (roadmap 1.6).
 struct RelationshipPicker: View {

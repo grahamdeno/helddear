@@ -113,7 +113,7 @@ struct IdeasList: View {
     }
 
     private var subline: String {
-        let what = moment.countLine.map { "For " + $0.prefix(1).lowercased() + $0.dropFirst() } ?? "For \(moment.type.label.lowercased())"
+        let what = moment.countLine.map { "For " + $0.prefix(1).lowercased() + $0.dropFirst() } ?? "For \(moment.label.lowercased())"
         let order = OccasionDates.shortDate(GiftTiming.suggestedArrival(due: moment.dueDate, now: Date()))
         return "\(what) · aim to have it by \(order)"
     }
