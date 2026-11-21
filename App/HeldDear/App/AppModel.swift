@@ -79,6 +79,10 @@ final class AppModel: ObservableObject {
     let storeOutcome: OpenedStore.Outcome
     var couldNotOpenSavedPlans: Bool { storeOutcome != .opened }
     var runningInMemoryThisLaunch: Bool { storeOutcome == .inMemoryThisLaunch }
+    /// Where the old store was kept, if it could be moved aside.
+    let keptStoreURL: URL?
+    /// The "couldn't be opened" screen was answered (Continue) this launch.
+    @Published var setAsideAcknowledged = false
 
     @Published var route: Route?
     /// Picked contacts still waiting for a date, shown one after another after Add a birthday closes.
@@ -101,6 +105,7 @@ final class AppModel: ObservableObject {
         let opened = Store.open(inMemory: inMemory)
         container = opened.container
         storeOutcome = opened.outcome
+        keptStoreURL = opened.keptStoreURL
         onboarded = UserDefaults.standard.bool(forKey: "onboarded")
         firstVisitCardDismissed = UserDefaults.standard.bool(forKey: "firstVisitCardDismissed")
 
