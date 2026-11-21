@@ -51,17 +51,16 @@ struct HomeView: View {
                 let line = pagedLine(moments, featured: featured, now: now)
                 TabView(selection: Binding(get: { featured.id }, set: { selectedID = $0 })) {
                     ForEach(line, id: \.id) { m in
-                        ScrollView {
-                            // The person's face (or the holiday's mark) sits on the page right above the date and
-                            // slides with it; in the bar it made the bar taller and pushed the page down (build 1024).
-                            VStack(spacing: Brand.space2) {
-                                if !medallionOn { topCircle(m) }
-                                featuredView(m, now: now)
-                                    .environment(\.featuredMedallion, medallionOn ? AnyView(medallion(m)) : nil)
-                            }
-                            .padding(.horizontal, Brand.space5)
+                        // Home never scrolls (feedback on build 1026). The first layout that fits is used: the
+                        // medallion, a smaller one, none, and last the plain page shrunk just enough to fit.
+                        ViewThatFits(in: .vertical) {
+                            // The medallion is 92 points (Graham, Nov 21: the smaller size for everyone).
+                            page(m, now: now, medallionSize: medallionOn ? 92 : 0)
+                            if medallionOn { page(m, now: now, medallionSize: 72) }
+                            page(m, now: now, medallionSize: 0, circle: false)
+                            ShrinkToFit { page(m, now: now, medallionSize: 0, circle: false) }
                         }
-                        .scrollBounceBehavior(.basedOnSize)
+                        .frame(maxHeight: .infinity, alignment: .top)
                         .tag(m.id)
                     }
                 }
@@ -87,23 +86,35 @@ struct HomeView: View {
         return line
     }
 
+    /// One featured page. With a medallion size, the face (or mark) sits between the date and the name; with none,
+    /// the small circle above the date (when `circle`), or nothing.
+    @ViewBuilder private func page(_ m: Moment, now: Date, medallionSize: CGFloat, circle: Bool = true) -> some View {
+        VStack(spacing: Brand.space2) {
+            if medallionSize == 0 && circle { topCircle(m) }
+            featuredView(m, now: now)
+                .environment(\.featuredMedallion, medallionSize > 0 ? AnyView(medallion(m, size: medallionSize)) : nil)
+                .environment(\.featuredMedallionSize, medallionSize)
+        }
+        .padding(.horizontal, Brand.space5)
+    }
+
     /// The medallion: the face (warm-toned, fading into the page at the bottom) or the holiday's mark, between the
     /// date and the name.
     /// A ring around it fills in oxblood as the plan gets ready, in place of the bar (approved Nov 21, 2026).
-    @ViewBuilder private func medallion(_ m: Moment) -> some View {
+    @ViewBuilder private func medallion(_ m: Moment, size: CGFloat) -> some View {
         let parts = m.type.kind == .holiday
             ? model.holidayMembers(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName), year: m.year).flatMap(\.planParts)
             : m.planParts
         let ready = parts.filter(\.isReady).count
         if m.type.kind == .holiday {
-            ReadyRing(ready: ready, total: parts.count, size: 110) {
-                HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 110)
+            ReadyRing(ready: ready, total: parts.count, size: size * 0.87) {
+                HolidayMark(type: m.type, name: m.occasion?.partnerName, size: size * 0.87)
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, size * 0.13)
         } else if let person = m.person {
             Button { model.push(.person(person.id, focus: nil)) } label: {
-                ReadyRing(ready: ready, total: parts.count, size: 126) {
-                    PersonPortrait(person: person, size: 126, toned: true, fadeBottom: true)
+                ReadyRing(ready: ready, total: parts.count, size: size) {
+                    PersonPortrait(person: person, size: size, toned: true, fadeBottom: true)
                 }
             }
             .buttonStyle(.plain)
@@ -626,9 +637,37 @@ struct ReadyRing<Content: View>: View {
     }
 }
 
+private struct ShrinkHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// Shows a page at its natural height, scaled down only if it doesn't fit, so Home never needs to scroll.
+struct ShrinkToFit<Content: View>: View {
+    @ViewBuilder var content: Content
+    @State private var natural: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = natural > 0 ? min(1, geo.size.height / natural) : 1
+            content
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { g in Color.clear.preference(key: ShrinkHeightKey.self, value: g.size.height) })
+                .scaleEffect(scale, anchor: .top)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+        }
+        .onPreferenceChange(ShrinkHeightKey.self) { natural = $0 }
+    }
+}
+
+private struct FeaturedMedallionSizeKey: EnvironmentKey { static let defaultValue: CGFloat = 0 }
 private struct FeaturedMedallionKey: EnvironmentKey { static let defaultValue: AnyView? = nil }
 extension EnvironmentValues {
     /// Home's medallion, drawn between the date and the name when it's on.
+    var featuredMedallionSize: CGFloat {
+        get { self[FeaturedMedallionSizeKey.self] }
+        set { self[FeaturedMedallionSizeKey.self] = newValue }
+    }
     var featuredMedallion: AnyView? {
         get { self[FeaturedMedallionKey.self] }
         set { self[FeaturedMedallionKey.self] = newValue }
@@ -637,6 +676,7 @@ extension EnvironmentValues {
 
 struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
     @Environment(\.featuredMedallion) private var medallion
+    @Environment(\.featuredMedallionSize) private var medallionSize
     let eyebrow: String
     let title: String
     let open: () -> Void
@@ -666,7 +706,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
-                    .padding(.top, medallion == nil ? Brand.space3 : -70)
+                    .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126)
             }
             .buttonStyle(.plain)
             .zIndex(1)
