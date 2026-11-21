@@ -1,7 +1,7 @@
 // Handwrytten API (https://api.handwrytten.com/v2). The key lives only in Vercel env HANDWRYTTEN_API_KEY.
 const BASE = "https://api.handwrytten.com/v2";
 
-async function hw(path, { method = "GET", body } = {}) {
+export async function hw(path, { method = "GET", body } = {}) {
   const r = await fetch(BASE + path, {
     method,
     headers: {
@@ -20,7 +20,7 @@ async function hw(path, { method = "GET", body } = {}) {
   return json;
 }
 
-const pickList = (json, ...keys) => {
+export const pickList = (json, ...keys) => {
   for (const k of keys) if (Array.isArray(json?.[k])) return json[k];
   return [];
 };
