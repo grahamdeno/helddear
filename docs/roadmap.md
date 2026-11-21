@@ -111,7 +111,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
-- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation), PR #15 (occasion plan) and PR #16 (exemption) (Nov 20); test build 1010 at 04b3527 and test build 1011 at 26dabd1 (PR #17, feedback on 1010) (Nov 20, exemption). Scope reopened once on Nov 20 (see
+- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation), PR #15 (occasion plan) and PR #16 (exemption) (Nov 20); test build 1010 at 04b3527 and test build 1011 at 26dabd1 (PR #17, feedback on 1010); test build 1012 at 9f0e4cc (PR #18: version B navigation, Add someone, named days, kids' Christmas default) (Nov 20, exemption). PR #18 still needs Fable's review after the phone pass. Scope reopened once on Nov 20 (see
   Decision log).
 
 ## Dated checks
