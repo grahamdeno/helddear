@@ -32,8 +32,11 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
 - **1.0 scope:** planned Nov 20 after Fable's strategy review (Go). Core job: plan the whole occasion. See
   "Release scope" and Epics 1 and 2.
 - **Christmas hand test** runs Nov 21 to Dec 26 on paper (see "Dated checks").
-- **Next:** words and Horizon mockups for the occasion plan (Epic 2, S1 to S4), then the holiday page (Epic 1)
-  (Held Dear Product, Opus).
+- **Built Nov 20 (PRs #14, #15, #16):** data foundation, occasion plan, holiday page with readiness per person,
+  suggested parts by relationship, shelf to gift, free plan limit, build switches (R2, R3). Test build 1010 from
+  `main` at 04b3527, uploaded under Graham's one-time exemption.
+- **Next:** Graham tests build 1010 (including the device check: his data survives the upgrade), then the UX audit
+  and the 1.0 remainder (Held Dear Product, Opus).
 
 ### Open decisions (carried from the plan doc, not yet decided)
 
@@ -80,6 +83,12 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 | Date | Decision | Why |
 |---|---|---|
+| Nov 20, 2026 | App map approved: three tabs always visible (Coming up, People, Ideas); one Person page per person reached from anywhere, with each upcoming day as a section; holiday pages open people with that holiday on top; item details is the only level below a Person page; never more than two levels below a tab | Every screen popping up over the last left no sense of where you are |
+| Nov 20, 2026 | One-time playbook exemption: Opus built, self-reviewed and merged PR #16 and uploaded test build 1010 the same day | Get 1.0 into Graham's hands fast |
+| Nov 20, 2026 | A part's step and its completion agree: reaching the ready step completes it, leaving it undoes that. A plan with several parts, or any part set on the plan screen, drives Home and the occasion's status by readiness; single plans from the older flow keep today's behavior | One answer to "is this done" everywhere |
+| Nov 20, 2026 | Migration review approved: added fields only, versioned schema, a migration test, never crash on open, no bulk rewrite (M1 to M4) | Protects existing test data and every future update |
+| Nov 20, 2026 | Birthday plan mockup approved: parts with family step words, who it's from (a person or a group), relationship-based suggestions, a calm time-aware note, and the first part not started as the main action | Graham's paper plan, as an app screen |
+| Nov 20, 2026 | 1.0 scope reopened once to add: readiness per person from their own plan, family step words with the last step as ready, suggested parts by relationship (1.6) and a relationship field | They make the holiday page work as mocked up |
 | Nov 20, 2026 | Core job for 1.0: plan the whole occasion. Each occasion has parts, each part an owner, a status and a date. The gift shelf feeds the Gift part | Fable's strategy review (Go) and Graham's own paper plan |
 | Nov 20, 2026 | Free: reminders, morning-of message and yearly line for everyone; plans for 3 people. Lifetime unlocks plans for everyone | The free version never lets anyone miss a date; plans show the value before paying |
 | Nov 20, 2026 | Lifetime purchase: Product ID `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on | A household app; Family Sharing can't be turned off later |
@@ -88,6 +97,10 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 | Nov 20, 2026 | Shared holidays become one timeline event with a holiday page; plans still save per person; one heads-up six weeks ahead; the user chooses which holidays to keep (Epic 1) | A busy date should read as one event, and planning everyone happens in one place |
 | Nov 20, 2026 | Held Dear follows playbook 1.4.0. docs/roadmap.md is the running plan; the plan doc stays the concept and spec reference | One process across all of Graham's apps |
 | Nov 13, 2026 | Direction: "Never stuck on what to give." A gift shelf filled all year, ideas about six weeks out, pick, buy, and Home shows the arrival. Phase 1 uses no new APIs or server setup | The real problem was not knowing what to give, not forgetting the date |
+| Nov 21, 2026 | One-day playbook exemption again for Nov 21: build and upload test builds without waiting; server deploys, App Store Connect, purchases and secrets still need Graham's go | Graham, to get everything in hand quickly |
+| Nov 21, 2026 | Finds (story 2.9) in 1.0, free to browse; 12 finds and 2 dependable picks approved from the first lists | Graham: everything discussed is in 1.0 scope |
+| Nov 21, 2026 | Graham curates a small, seasonal set of finds (about 40 to 60). A monthly Claude task and a monthly Perplexity task propose candidates; Graham approves; approved finds ship with app updates. Saved ideas are never sent anywhere; an opt-in "suggest a find" is a 1.1 idea | Replaces the Nov 13 "no curated collection" decision. Finds are the moment the app feels special |
+| Nov 21, 2026 | Mailed cards are on: in test builds now (server stays in test mode), and in 1.0. Story 2.8 (a card for any reason) is in 1.0 with both Make it and Mail it | Graham: cards are not only for a day. Changes the 1.0 privacy answers and listing; family pages stay off |
 | Nov 13, 2026 | Graham does not curate a gift collection. Any server gift search later sends interests only, never names, behind a consent screen | Keeps the work and the privacy promise small |
 | Nov 12, 2026 | Horizon look: warm stone, one composed page per main screen, Fraunces names, one oxblood action per screen, time left to right | Replaced Hearth, Quiet and the other rejected directions |
 | Nov 12, 2026 | Family pages may store what the user and family add on Held Dear's server: no accounts, links that expire, deleted 30 days after the day | Second network exception, enforced by the guard |
@@ -98,11 +111,12 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 ## Release scope
 
-- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.7, R1 to R4),
-  Epic 1 (1.1 to 1.5), then polish of the kept features. New ideas go to 1.1.
+- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.9, R1 to R4),
+  Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
-- **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
+- **Go-aheads under playbook 1.4.0:** merge PR #11, PR #12, PR #14 (data foundation), PR #15 (occasion plan) and PR #16 (exemption) (Nov 20); test build 1010 at 04b3527 and test build 1011 at 26dabd1 (PR #17, feedback on 1010); test build 1012 at 9f0e4cc (PR #18: version B navigation, Add someone, named days, kids' Christmas default) (Nov 20, exemption). Test build 1013 at b376a7e (PR #19: relationship picker, occasion list, long names, Home's next-item button) (Nov 20, exemption). Test build 1014 at 3c32830 (PR #20: person page cleanup with photo hero, day cards and grouped plan; Home with one +; steady featured name) (Nov 20, exemption). Test build 1015 at 893fc17 (PR #21: Home's featured day in fixed places, flick to move) (Nov 20, exemption). Test build 1016 at d36efff (PR #22: photos open and hide, older photos load, swipeable Home pages, plan follows the day cards) (Nov 20, exemption). Test build 1017 (PR #23: lighter cards on the person page) (Nov 20, exemption). Test build 1018 (PR #24: back links that read on any photo) (Nov 20, exemption). Test build 1019 (PR #25: item page on cards) (Nov 20, exemption). Test build 1020 at 100e51e (PR #26: back link keeps its words; you top right, Add on the timeline; remove from plan; plain bars on slide-up screens) (Nov 21, Graham's go). Test build 1021 at d99484a (PR #27: Finds page, approved finds, mailed cards on) (Nov 21, exemption). Test build 1022 at 62d109a (PR #28: a card for any reason, + Add menu at the button) (Nov 21, exemption). Server deploy of PR #29 (card categories for card reasons) at d54e1ef (Nov 21, Graham's go). Test build 1024 at 60f595d (PR #31, with PR #30: several contacts at once, face circle on Home, holiday marks, saved ideas on gifts, share a person's day) (Nov 21, exemption). Test build 1025 at 216ae96 (PR #32: make a card, your own holidays, photos on faces) (Nov 21, Graham's go). Test build 1026 at 6108b02 (PR #33: Home medallion with readiness ring, switchable) (Nov 21, Graham's go). Test build 1027 at 91689f7 (PR #34: Home never scrolls, medallion 92 points) (Nov 21, exemption). Test build 1028 at 7745540 (PR #35: everyone keeps the medallion) (Nov 21, exemption). Test build 1029 at 23ac0e6 (PR #36: name ›, medallion 110, order-by line) (Nov 21, Graham's go). Graham's decisions on Fable's review (Nov 21): mailed cards stay on for 1.0; all Nov 21 features stay in 1.0; repo history is left as it is (names are replaced in the code going forward, P1). PRs #18 to #36 need Fable's review; #18 to #20 reviewed Nov 20 (fix items F1 to F3 drafted, waiting on Graham). Scope reopened once on Nov 20 (see
+  Decision log).
 
 ## Dated checks
 
@@ -133,10 +147,16 @@ As a user, I want each shared holiday to appear once on my timeline so that a bu
 - Given only 1 person with Mother's Day, when I view Home, then it still shows as a holiday marker.
 
 #### 1.2 The holiday page
-As a user, I want one page per holiday listing everyone and where each plan stands so that I can plan the whole
+As a user, I want one page per holiday listing everyone and how ready each person is so that I can plan the whole
 holiday in one place.
-- Given the Christmas page, when I open it, then each person shows one status: no plan, idea picked, ordered,
-  arrived or done.
+- Each person's readiness comes from their own plan for that holiday: ready when every part of it is at its last
+  step. People can have different parts, so each counts their own steps.
+- Given a spouse with 4 parts, 2 ready, then the holiday page shows "2 of 4 ready" as a bar with one segment per part.
+- Given a brother with 1 part, ready, then he shows "Ready".
+- Given I move a part to its last step, then that person's readiness, the holiday page and Home all update.
+- The holiday page shows how many people are ready and how many things are ready, and offers the least-ready person
+  next as its one main action.
+- Approved mockup: https://claude.ai/artifact/4kya3FCLNtXNTjJtr6Hfw5 (Nov 20, 2026).
 - Given I choose a gift for one person there, when I save, then it appears on that person's page and in their yearly
   record, and I return to the holiday page.
 - The holiday page is a browse screen, like Home. Planning one person uses the existing one-decision-per-screen flow.
@@ -155,6 +175,20 @@ As a user, I want to choose which shared holidays Held Dear keeps so that only t
 - Given I chose Christmas and Mother's Day, when I add an occasion to a person, then only those holidays are offered.
 - Given no one has Christmas yet, when I view Home, then there is no Christmas marker.
 - Given I add Christmas to one person, when I view Home, then the Christmas event appears on the timeline.
+
+#### 1.6 Suggested parts by relationship
+As a parent, I want each person's holiday plan to start with what families usually plan for that relationship so that
+I'm not building every list from scratch.
+- Christmas suggestions: spouse or partner: Gift, Stocking, Card, Gift from the kids. Child: Gift, From Santa,
+  Stocking. Parent or grandparent: Gift, Card. Sibling or in-law: Gift. Teacher, coach or neighbor: Small gift or card.
+- Given a person is my daughter, when she joins Christmas, then her plan starts with Gift, From Santa and Stocking.
+- Given a suggestion doesn't fit, when I remove it, then readiness counts only what's left.
+- Birthdays get their own suggested set, settled in Shape.
+
+#### Requirement: relationship on each person
+Each person has a relationship to the user (for example wife, son, mother, brother), read from the Contacts
+relationship label where set, otherwise asked with one tap. Stored data change: Opus reviews the migration, Graham
+approves. Enforced by a unit test on the suggestion rules.
 
 **Out of scope:** group gifts from several givers (stage 4), budgets, holidays beyond the four (Hanukkah, Easter,
 Thanksgiving are a later item).
@@ -184,23 +218,39 @@ a miss, AI ideas and card words, keepsakes, photo memories, life moments. Each i
 
 #### 2.1 Parts
 As a user, I want an occasion's plan to hold several parts so that the whole day lives in one place.
-- Given a birthday plan, when I add parts, then I can pick from Gift, Card, Cake and The day, or type my own, one tap
-  each.
+- Given a birthday plan, when I tap Add something, then I see what families often plan for that relationship (for a
+  spouse's birthday: Gift, Card, Cake, Flowers, Dinner out, Gift from the kids, Breakfast in bed), with parts already
+  in the plan marked Added, plus Something else to type my own.
+- The plan shows the name large, the relationship and age, a readiness bar with one segment per part, and
+  "2 of 6 ready".
+- Approved mockup: https://claude.ai/artifact/4kya3FCLNtXNTjJtr6Hfw5, Birthday plan (Nov 20, 2026).
 
 #### 2.2 Owners
 As a parent, I want each part to have an owner so that gifts from my kids happen too.
-- Given a part, when I set its owner, then it shows "You" or a family member's name.
+- Given a part, when I set who it's from, then I can pick You, one household member, or a group of them (for
+  example two daughters together, or The kids), and the plan shows "From [names]".
 - Given a part owned by the daughters, then it counts as open until it's marked done.
 
-#### 2.3 Status and date
-As a user, I want each part to show where it stands so that I see what's done at a glance.
-- States: open, idea, scheduled, ordered, arrived, done. Scheduled and ordered carry a date and, optionally, where
-  it came from.
-- Given a gift ordered Oct 1 from a named shop, then it reads "Ordered Oct 1, [shop]".
+#### 2.3 Steps and notes
+As a user, I want each part to show where it stands in words families use so that I see what's ready at a glance.
+- Each kind of part has its own steps; the last step is ready:
+  - Gift, Stocking, From Santa: Not started, Have an idea, Bought, Wrapped.
+  - Card: Not started, Have an idea, Written.
+  - Made by the kids: Not started, Have an idea, Making it, Finished.
+  - The day (an outing, a dinner): Not started, Have an idea, Booked.
+  - Cake, Flowers: Not started, Have an idea, Ordered or baking, Ready.
+  - Something else (typed by the user): Not started, Have an idea, Ready.
+- Tapping a part opens it: one list of its steps to pick from, and who it's from.
+- A part can carry a short note and a date, such as "arrives Dec 12" or where it came from.
+- Given a gift bought from a named shop that arrives Dec 12, then it reads "Bought" with the note
+  "[shop], arrives Dec 12".
 
 #### 2.4 What's still open
 As a user, I want to see unplanned parts so that I act early.
-- Given the cake is open 10 days out, then the plan and Home show "Cake not planned". Calm wording, no red badges.
+- Given the cake is not started, then the plan shows a calm note, such as "Cake isn't started yet. Cakes are usually
+  ordered about a week ahead, so there's time." No red, no badges. The note grows more direct only as that kind's
+  usual lead time gets close.
+- The plan's one main action offers the first part not started ("Plan the cake").
 
 #### 2.5 The shelf feeds the gift
 As a user, I want to pick a gift from the shelf so that saved ideas get used.
@@ -217,19 +267,162 @@ As a user, I want plans for my 3 closest people free so that I can try the full 
 - Reminders, the morning-of message and the yearly line stay free for everyone.
 - Lifetime adds plans for everyone, all card designs, the Lock Screen widget, AI ideas and keepsakes.
 
+#### 2.8 A card for any reason (approved Nov 21, 2026)
+
+As someone who cares about a person, I want to make or mail them a card for any reason, not only for a day, so that a
+get-well or just-because card is as easy as a birthday card.
+
+- Given I'm on a person's page, when I tap Send a card, then I choose a reason: Just because, Get well, Thank you,
+  Thinking of you, Congratulations, Sorry for your loss.
+- Given I chose a reason, then the card's opening line fits it ("Feel better soon,") and I can change it.
+- Given mailed cards are on, then I choose Make it (free, sent in Messages) or Mail it (Apple Pay); with them off,
+  only Make it shows.
+- Given I send one, then it goes in the person's yearly record as one line ("Get-well card, Nov 21").
+- Mailed cards for a reason show that reason's designs, which needs the server to know the reasons (server change,
+  ship go).
+
+**Out of scope:** reminders for these cards; prices and Stripe going live.
+
+#### 2.9 Finds (approved Nov 21, 2026; free)
+
+As someone planning for a person I love, I want to browse every find myself, not only the ones suggested on an item,
+so that I can spot the special gift on my own.
+
+- Given I'm on Everyone, when I switch to Finds, then I see every find, newest first, with its maker, price, arrival
+  time and why it's special.
+- I can filter by who it's for and by price; filters stack and Clear resets them.
+- Given I open a find, then I can see it at the shop, or Use for a coming day, which adds it to that day's plan.
+- Dependable picks (national brands for the cake or flowers) are marked as such.
+- Nothing leaves the phone; finds ship with the app. Browsing is free; Use follows the free plan limit.
+
+#### 2.10 Your own holidays (approved Nov 21, 2026; shipped in build 1025)
+
+As someone who keeps a holiday Held Dear doesn't list, I want to add it myself so the people I celebrate it with get it
+like Christmas.
+
+- You, Your own holidays: add one with a name, this year's date and who celebrates it; change or remove it later.
+- It works like Christmas: Home, each person's page, a plan, gift ideas and alerts. Built-in holidays stay Christmas,
+  Mother's Day and Father's Day.
+- Same date every year; the six-week alert adds "If the date moves this year, change it in You."
+- Removing one takes it off every timeline; past years stay in each person's record. No schema change.
+
+#### 2.11 Digital cards from you, for any reason (approved Nov 21, 2026; shipped in build 1025)
+
+As someone who sends cards to family and friends, I want to make a digital card from my own page so I can text it or
+post it.
+
+- You, Make a card: your holidays, the six reasons, or just your words; one photo or up to 10; still or a moving
+  slideshow; Post or Story size; signed "from" the name set in You.
+- Made on the phone and handed to the share sheet; photos come through the system picker and stay in the library.
+
+#### 2.12 Remember where things come from (approved Nov 21, 2026)
+
+As someone planning several people's days, I want the places I've used before offered again for the same kind of
+thing, so I don't look them up each time.
+
+- Given a cake, flowers, dinner or party item, then it has a "Where from" card: a place's name and an optional link or
+  phone.
+- Given I've used a place on one kind of item, when I open that kind of item for anyone, then the place is a one-tap
+  choice; it never appears on other kinds (a baker shows on cakes, not gifts or flowers).
+- Given a cake, flowers, dinner or party item, then "Who it's from" is hidden and set to me; it still shows on gifts,
+  stockings, cards and kids' gifts.
+- The note stays in "Link and note". A place can be removed from the list with press and hold.
+- Dependable picks from Finds show under my own places on cake and flowers, marked as such (assumed; Graham to
+  confirm).
+- Places are kept on the phone in a small list; no schema change.
+
+Out of scope: suggesting places I haven't used; web search.
+
+#### 2.13 An address for people Contacts doesn't have one for (approved Nov 21, 2026)
+
+As someone who mails cards, I want to keep an address for a person whose contact card doesn't have one, so I'm not
+typing it at every checkout.
+
+- Given a linked contact with an address, then the address is read live from Contacts and never copied (as now).
+- Given no address in Contacts, or no linked contact, then the details page has an Address field, kept on the phone,
+  that can be changed or cleared.
+- Given I mail a card, then the address comes from Contacts or this field; an address typed at checkout is offered to
+  save to the field.
+- Data: a new stored field on Person with a default; nothing renamed. Migration reviewed by Opus, approved by Graham.
+
+Out of scope: writing addresses to Contacts (Contacts stay read only).
+
+#### 2.14 Places near the person (approved Nov 21, 2026)
+
+As someone planning for people in different towns, I want remembered places offered only when they're near the
+person the day is for.
+
+- Given a place with a ZIP code and a person with a ZIP code (from Contacts or 2.13), then the place is offered only
+  within 50 miles of the person.
+- Given either ZIP code is missing, then the place is offered as it is today.
+- Distance comes from the US Census ZIP code centers (public data, about 1 MB) built into the app; no address leaves
+  the phone. Unit tests: a known distance, and a place 300 miles away isn't offered.
+
+Out of scope: places outside the US; finding new places.
+
+### Epic 3: Your data in your own iCloud (all of it in 1.0; Graham's decision, Nov 21, 2026, after Fable's review)
+
+**Goal:** plans aren't lost with the phone, show on a second iPhone, and can be shared with someone who plans with
+you. Fable recommended sync and sharing for 1.1; Graham chose all three stories for 1.0, with the conditions below.
+
+**The promise (approved wording):** "Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees
+a card you choose to mail."
+
+- **3.0 iCloud-ready data, schema version 3 (requirement; always review: yes).** All six stored types drop the
+  unique rule on their id (the id stays), every stored field gets a default, every link between records becomes
+  optional; nothing renamed or removed. Before it ships: "Export my data" in You writes everything to a file, and
+  Graham exports his real plan first. A store that won't open is set aside, never deleted, and the app says so and
+  offers the export (Fable C2, C3). Tests: a copy of a real version-2 store (names replaced) opens as version 3 with
+  every count the same; an unreadable store is kept aside.
+- **3.0b Permanent iCloud pieces need Graham's go (Fable C7).** The iCloud container and the production CloudKit
+  schema go on CLAUDE.md's uploads and deploys list.
+- **3.1 Sync and backup.** Through the user's private iCloud; turning it on keeps what's on the phone, turning it off
+  keeps a copy. Conditions before it ships: the storage decision (below) is made first (C1); duplicate rules for
+  yearly records and contact imports, with tests (C4); photos and settings sync too: own holidays, your name,
+  sign-off, hidden photos (C5); free-text notes encrypted in iCloud (C8); tested on two iPhones on one Apple ID.
+- **3.2 Share a plan.** Invite someone to a person's plan, like a shared note; they see and update parts, owners and
+  statuses; sharing can be stopped any time. Conditions: built on the storage decision; tested on two iPhones with
+  two Apple IDs.
+- **3.3 The promise everywhere.** The approved sentence in onboarding, the App Store listing, the privacy policy and
+  new App Privacy answers (Graham approves the exact answers); the privacy guard allows iCloud and still no Held Dear
+  server beyond the two exceptions.
+- **Storage decision (C1), before 3.1:** SwiftData syncs only the private database and can't share. Options: move
+  the store to Core Data with Apple's CloudKit container (sharing built in), or keep SwiftData and add custom iCloud
+  sharing code. Opus recommends, Fable reviews, Graham approves; written down here before any 3.1 or 3.2 build.
+
+**Risk accepted:** the riskiest change lands close to Christmas with less testing time; 3.0 ships first on its own.
+
+Out of scope: a Held Dear account or server for sync.
+
 #### Requirements
 - **R1. Several recipients:** an occasion can hold several people. Enforced by a unit test on the data model.
-- **R2. Mailed cards and family pages off in 1.0:** the code ships, switched off by a build setting. No 1.0 build
-  sends anything to the server. Enforced by a CI check on the App Store configuration and the privacy guard.
+- **R2. Mailed cards on, family pages off in 1.0 (changed Nov 21, 2026, Graham's decision):** mailed cards ship on
+  (`AppFeatures.mailedCards`); family pages ship off behind the `HELDDEAR_FAMILY_PAGES` build flag. A security review
+  of the mailed-card path comes before the go-live assessment. Enforced by the build switch test and the privacy guard.
 - **R3. TestFlight-only Lifetime switch:** compiled only into TestFlight builds through a build setting, never into
   an App Store build, never decided by the purchase environment. Enforced by a CI check.
 - **R4. No remote switches:** no feature is turned on from the server. Turning on mailed cards or family pages means
   a new, reviewed app update (App Review guideline 2.3.1). Enforced in review.
 
-**Data:** parts, owners, statuses and dates add stored fields. That's a migration: Opus reviews it and Graham approves
-it before any build, because his own test data is in the TestFlight builds.
+**Data (migration review approved Nov 20, 2026):** all changes are added fields with defaults; nothing is renamed or
+removed.
+- Act (a plan part) gains `label`, `step`, `ownerIDs` (empty means "You"), `note` and `sortOrder` (default 0).
+- Person gains `relationship` (from the Contacts relationship label, otherwise asked with one tap).
+- No stored change for grouped holidays, the single holiday heads-up, several recipients (already stored) or the
+  chosen holidays (a setting).
+- Existing parts get their step when read: a completed gift is Wrapped, a gift with an arrival date is Bought, a gift
+  with a title or shelf item is Have an idea, otherwise Not started; a completed card is Written; a dinner with a date
+  or completed is Booked; call and message plans use Not started and Done and still close on their own. Greetings
+  are not parts.
+- **M1. Versioned schema:** today's model is version 1 and 1.0 is version 2, with a declared lightweight migration.
+- **M2. Migration test:** a test opens a version 1 database with sample data from current builds, migrates it, and
+  checks that every person, occasion, part, shelf item and yearly line survives with the right step.
+- **M3. Never crash on open:** if the database can't be opened, the old file is kept untouched, the app opens empty
+  and says so calmly, and it never crashes in a loop.
+- **M4. No bulk rewrite:** steps for existing parts are worked out when read and stored only when the user changes
+  one.
 
-**Out of scope:** mailed cards and family pages for customers, Valentine's Day, ongoing gifts such as a weekly note,
+**Out of scope:** family pages for customers (mailed cards are in, Nov 21), Valentine's Day, ongoing gifts such as a weekly note,
 budgets, group gifts from several givers.
 
 **Open:** how early the inner-ring heads-up arrives (the hand test decides; today 21 days).
@@ -248,6 +441,18 @@ budgets, group gifts from several givers.
 
 - Set the repo's default branch to `main` (Grok, needs Graham's go). Not yet approved.
 - Clean up merged branches (see the branch list in the onboarding PR). Not yet approved.
+- **Finds photos: ask each shop for permission (planned Nov 21, 2026; Graham to start, likely the week of Nov 23).**
+  Requirement: a find shows its shop's product photo only after the shop agrees; the photo is bundled in the app
+  (`Find.photo`, an asset name), credited, never fetched, and removed if the shop asks. The app already shows a
+  bundled photo when one is set (build 1025). Steps: (1) Graham approves the email wording below; (2) Grok sends it
+  from Graham's account to each shop in the catalog and reports back a table of shops, dates and replies; (3) for each
+  yes, Opus adds the photo asset and sets `photo` on that find, and it ships in the next update. Shops that don't
+  answer keep showing no photo. Email wording (drafted Nov 21): subject "May Held Dear show a photo of your
+  [product]?"; body: Held Dear is an iPhone app that helps people plan birthdays and holidays for the people they
+  love; we hand-pick a small number of special gifts and the [product] is one, linked straight to the shop; may we
+  show the main product photo next to the link, built into the app (no hotlinking), credited, and removed any time
+  they ask; signed Graham DeNoyer, Held Dear. Irreversible: it sends email as Graham, so nothing goes out before his
+  approval of the wording.
 
 ## Shipped
 
