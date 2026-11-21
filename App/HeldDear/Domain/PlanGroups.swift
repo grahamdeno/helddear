@@ -13,11 +13,17 @@ enum PlanGroup: CaseIterable, Equatable {
         }
     }
 
-    static func group(forKindRaw raw: String) -> PlanGroup {
+    /// By kind; something typed in ("Gift from Ben") goes by its name when its kind doesn't say.
+    static func group(forKindRaw raw: String, name: String = "") -> PlanGroup {
         switch ActKind(rawValue: raw) {
-        case .gift, .stocking, .fromSanta, .kidsMade: .gifts
-        case .cake, .dinner, .theDay: .theDay
-        default: .touches
+        case .gift, .stocking, .fromSanta, .kidsMade: return .gifts
+        case .cake, .dinner, .theDay: return .theDay
+        case .card, .flowers, .call, .message: return .touches
+        default:
+            let n = name.lowercased()
+            if n.contains("gift") || n.contains("present") || n.contains("stocking") { return .gifts }
+            if n.contains("dinner") || n.contains("breakfast") || n.contains("party") || n.contains("cake") { return .theDay }
+            return .touches
         }
     }
 

@@ -46,6 +46,15 @@ final class PhotoMemories: ObservableObject {
         await image(asset, size: CGSize(width: 1600, height: 1600))
     }
 
+    /// The largest copy kept on this iPhone. Older photos often live only in iCloud at full size (and Held Dear
+    /// never downloads), but a smaller copy is usually here, so step down until one comes back (feedback on 1014).
+    func bestLocalImage(_ asset: PHAsset) async -> UIImage? {
+        for side in [1600.0, 900.0, 500.0, 260.0] {
+            if let image = await image(asset, size: CGSize(width: side, height: side)) { return image }
+        }
+        return nil
+    }
+
     /// High-quality delivery calls back once. iCloud-only originals are skipped (no network).
     private func image(_ asset: PHAsset, size: CGSize) async -> UIImage? {
         let options = PHImageRequestOptions()

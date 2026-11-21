@@ -49,26 +49,21 @@ struct HomeView: View {
             // The featured day is pinned to the top, not centered, so its name stays in one place as you slide
             // through people with more or less under their name (feedback on build 1013).
             VStack(spacing: 0) {
-                ScrollView {
-                    Group {
-                        if featured.type.kind == .holiday {
-                            HolidayFeaturedView(type: featured.type,
-                                                members: model.holidayMembers(type: featured.type, year: featured.year), now: now)
-                        } else {
-                            FeaturedView(moment: featured, state: model.state(for: featured), now: now,
-                                         openPerson: { if let p = featured.person { model.push(.person(p.id, focus: featured.id)) } })
+                // The featured days are pages: swipe the big text left or right and the next or previous day slides
+                // in, in timeline order, and the timeline follows (feedback on build 1015).
+                let line = pagedLine(moments, featured: featured, now: now)
+                TabView(selection: Binding(get: { featured.id }, set: { selectedID = $0 })) {
+                    ForEach(line, id: \.id) { m in
+                        ScrollView {
+                            featuredView(m, now: now)
+                                .padding(.horizontal, Brand.space5)
+                                .padding(.top, Brand.space6)
                         }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .tag(m.id)
                     }
-                    .padding(.horizontal, Brand.space5)
-                    .padding(.top, Brand.space6)
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                // Flick the featured day sideways to move to the next or previous day on the timeline.
-                .contentShape(Rectangle())
-                .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { v in
-                    guard abs(v.translation.width) > 60, abs(v.translation.width) > abs(v.translation.height) * 1.5 else { return }
-                    step(v.translation.width < 0 ? 1 : -1, from: featured, in: moments, now: now)
-                })
+                .tabViewStyle(.page(indexDisplayMode: .never))
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
                 otherReady(moments, featured: featured, now: now)
@@ -78,6 +73,23 @@ struct HomeView: View {
             }
         } else {
             emptyState
+        }
+    }
+
+    /// The days you can swipe between, in timeline order. The featured day is always one of them, even when it's a
+    /// day that has just passed.
+    private func pagedLine(_ moments: [Moment], featured: Moment, now: Date) -> [Moment] {
+        var line = moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) }.sorted { $0.dueDate < $1.dueDate }
+        if !line.contains(where: { $0.id == featured.id }) { line.insert(featured, at: 0) }
+        return line
+    }
+
+    @ViewBuilder private func featuredView(_ m: Moment, now: Date) -> some View {
+        if m.type.kind == .holiday {
+            HolidayFeaturedView(type: m.type, members: model.holidayMembers(type: m.type, year: m.year), now: now)
+        } else {
+            FeaturedView(moment: m, state: model.state(for: m), now: now,
+                         openPerson: { if let p = m.person { model.push(.person(p.id, focus: m.id)) } })
         }
     }
 
