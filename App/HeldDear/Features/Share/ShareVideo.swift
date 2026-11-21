@@ -17,8 +17,16 @@ enum ShareRender {
     /// Writes the moving version to a temporary .mp4 and returns its address. `progress` reports 0 to 1.
     static func video(_ content: ShareCardContent, shape: ShareCardView.Shape, fps: Int = 30,
                       progress: @escaping (Double) -> Void) async throws -> URL {
+        try await video(height: shape.height, duration: ShareCardLayout.duration, fps: fps, progress: progress) { t in
+            ShareCardView(content: content, shape: shape, time: t)
+        }
+    }
+
+    /// Any card laid out 390 points wide, as a video: `frame` draws the card at each moment.
+    static func video<V: View>(height: CGFloat, duration: Double, fps: Int = 30, progress: @escaping (Double) -> Void,
+                               frame: @escaping (Double) -> V) async throws -> URL {
         let scale = pixelWidth / 390
-        let size = CGSize(width: pixelWidth, height: (shape.height * scale).rounded(.down) / 2 * 2)
+        let size = CGSize(width: pixelWidth, height: (height * scale / 2).rounded(.down) * 2)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("held-dear-\(UUID().uuidString).mp4")
         let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
@@ -34,15 +42,15 @@ enum ShareRender {
         writer.startWriting()
         writer.startSession(atSourceTime: .zero)
 
-        let frames = Int(ShareCardLayout.duration * Double(fps))
+        let frames = Int(duration * Double(fps))
         for i in 0...frames {
             let t = Double(i) / Double(fps)
-            let renderer = ImageRenderer(content: ShareCardView(content: content, shape: shape, time: t))
+            let renderer = ImageRenderer(content: frame(t))
             renderer.scale = scale
             guard let cg = renderer.cgImage, let buffer = pixelBuffer(from: cg, size: size, pool: adaptor.pixelBufferPool) else { continue }
             while !input.isReadyForMoreMediaData { try await Task.sleep(nanoseconds: 5_000_000) }
             adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(i), timescale: CMTimeScale(fps)))
-            progress(Double(i) / Double(frames))
+            progress(Double(i) / Double(max(1, frames)))
             if i % 6 == 0 { await Task.yield() }
         }
         input.markAsFinished()

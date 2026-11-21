@@ -103,6 +103,8 @@ struct SettingsView: View {
     @State private var addingFromContacts = false
     @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
     @AppStorage("yourName") private var yourName = ""
+    @AppStorage("cardSignature") private var signedAs = ""
+    @State private var makingCard = false
 
     var body: some View {
         ScrollView {
@@ -117,6 +119,17 @@ struct SettingsView: View {
                         .frame(minHeight: 52)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                     Text("Shown in the circle on Home. Kept on this iPhone.").textStyle(.caption, color: Brand.inkMuted)
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Cards from you")
+                    OptionRow(title: "Make a card", caption: "For Christmas or any reason. Text it or post it.") { makingCard = true }
+                    TextField("Sign cards as (like The DeNoyers)", text: $signedAs)
+                        .textStyle(.body)
+                        .padding(.horizontal, Brand.space4)
+                        .frame(minHeight: 52)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                        .accessibilityLabel("Sign cards as")
+                    Text("Your cards end with \"from\" and this. Empty uses your name.").textStyle(.caption, color: Brand.inkMuted)
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Held Dear Lifetime")
@@ -188,6 +201,7 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
         .addFromContacts(isPresented: $addingFromContacts)
     }
 }
