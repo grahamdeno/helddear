@@ -70,6 +70,51 @@ export async function categoryId(occasion = "birthday") {
 const BUSINESS = /work|employee|staff|team|client|customer|service|dedication|contribution|excellence|achievement|success|commitment|journey with us|hard work|business|company/i;
 export const isPersonal = (name) => !BUSINESS.test(String(name ?? ""));
 
+// Categories that suit any card ("More cards" in the app, Nov 21, 2026): blank, general, thinking of you, friendship.
+export const ANY_OCCASION = [/blank/i, /general/i, /thinking/i, /friend/i, /all occasion/i, /any occasion/i];
+
+/** Ids of the "any occasion" categories, other than the occasion's own. */
+export function anyOccasionCategories(cats, excludeId) {
+  const ids = [];
+  for (const re of ANY_OCCASION) {
+    for (const c of cats) {
+      if (c.id && c.id !== excludeId && re.test(c.name ?? "") && !ids.includes(c.id)) ids.push(c.id);
+    }
+  }
+  return ids.slice(0, 4);
+}
+
+/** More cards beyond the occasion's own: any-occasion designs, without the ones already shown. Up to 40. */
+export async function listMoreCards(occasion = "birthday", shownIds = []) {
+  let cats = [];
+  try { cats = pickList(await hw("/categories/list"), "categories", "data", "items"); } catch { return []; }
+  const own = await categoryId(occasion);
+  const seen = new Set(shownIds);
+  const more = [];
+  for (const id of anyOccasionCategories(cats, own)) {
+    try {
+      for (const c of await cardsIn(id)) {
+        if (!seen.has(c.id)) { seen.add(c.id); more.push(c); }
+      }
+    } catch {}
+  }
+  return more.slice(0, 40);
+}
+
+async function cardsIn(id) {
+  const json = await hw(`/cards/list?category_id=${id}&with_images=1`);
+  return pickList(json, "cards", "data", "items")
+    .filter((c) => c.cover && c.id && isPersonal(c.name))
+    .map((c) => ({
+      id: Number(c.id),
+      name: String(c.name ?? "Card"),
+      cover: c.cover,
+      inside: c.inside_image ?? null,
+      characters: Number(c.characters) || 300,
+      orientation: c.orientation ?? null,
+    }));
+}
+
 /** Cards for an occasion with a cover image, as the app shows them. */
 export async function listCards(occasion = "birthday") {
   const id = await categoryId(occasion);
@@ -84,7 +129,7 @@ export async function listCards(occasion = "birthday") {
       characters: Number(c.characters) || 300,
       orientation: c.orientation ?? null,
     }))
-    .slice(0, 30);
+    .slice(0, 60);
 }
 
 export async function fontLabel() {

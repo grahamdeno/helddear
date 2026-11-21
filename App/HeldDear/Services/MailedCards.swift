@@ -52,6 +52,8 @@ enum MailedCards {
 
     struct Catalog: Decodable {
         var cards: [MailCard]
+        /// Any-occasion designs beyond the occasion's own (servers before Nov 21, 2026 don't send it).
+        var more: [MailCard]?
         var priceCents: Int
         var testMode: Bool?
     }
