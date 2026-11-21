@@ -14,6 +14,8 @@ struct PersonView: View {
     /// One page in: relationship, days, reminders, card photos and Remove.
     var showsDetails = false
     @State private var selectedID: UUID?
+    /// Past the photo, the page's own bar shows: the back link and the person's name.
+    @State private var pastHero = false
     @State private var showRing = false
     @State private var addingTo: Moment?
     @State private var linking = false
@@ -130,6 +132,64 @@ struct PersonView: View {
             .padding(.bottom, Brand.space6)
         }
         .ignoresSafeArea(edges: .top)
+        .onScrollGeometryChange(for: Bool.self) { g in
+            g.contentOffset.y + g.contentInsets.top > PersonHero.height - 150
+        } action: { _, past in
+            withAnimation(.easeOut(duration: 0.2)) { pastHero = past }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) { topBar }
+    }
+
+    /// Over the photo, the back link sits on a solid dark pill so it reads on any photo and stays clear of the name.
+    /// Scrolled past the photo, a plain bar in the page colour takes over with the back link and the person's name.
+    @ViewBuilder private var topBar: some View {
+        let back = model.backTitle(for: .person(person.id, focus: focus))
+        if pastHero {
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    Button { dismiss() } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left").font(.body.weight(.semibold))
+                            Text(back).lineLimit(1)
+                        }
+                        .foregroundStyle(Brand.action)
+                        .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back to \(back)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(DisplayName.plain(person.name)).font(Brand.serif(19, relativeTo: .headline)).foregroundStyle(Brand.ink)
+                        .lineLimit(1)
+                        .accessibilityAddTraits(.isHeader)
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                }
+                .padding(.horizontal, Brand.space4)
+                Rectangle().fill(Brand.line).frame(height: 1)
+            }
+            .background(Brand.page.ignoresSafeArea(edges: .top))
+            .transition(.opacity)
+        } else {
+            HStack {
+                Button { dismiss() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left").font(.body.weight(.semibold))
+                        Text(back).lineLimit(1)
+                    }
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.leading, 10).padding(.trailing, 14)
+                    .frame(minHeight: 40)
+                    .background(Color.black.opacity(0.72), in: Capsule())
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back to \(back)")
+                Spacer()
+            }
+            .padding(.horizontal, Brand.space4)
+            .transition(.opacity)
+        }
     }
 
     /// Everything else about the person, one page in from their page.
