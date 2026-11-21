@@ -35,3 +35,16 @@ enum NameSize {
     /// Lines a name may use before it scales down further.
     static let maxLines = 2
 }
+
+/// A name for a sentence or title, without the emoji some contact cards carry ("Haiden 🕑" reads "Haiden").
+enum DisplayName {
+    static func plain(_ name: String) -> String {
+        let kept = name.unicodeScalars.filter { s in
+            let p = s.properties
+            if s.value == 0xFE0F || s.value == 0x200D { return false }
+            return !(p.isEmojiPresentation || (p.isEmoji && s.value > 0x238C))
+        }
+        let result = String(String.UnicodeScalarView(kept)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? name : result
+    }
+}

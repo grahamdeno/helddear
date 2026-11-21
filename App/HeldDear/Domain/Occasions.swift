@@ -9,6 +9,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
     /// A day the user names, like a recital or a big game. Happens once; its name is kept in the occasion's
     /// `partnerName` (no new stored field, so no data migration).
     case event
+    case wedding
 
     var id: String { rawValue }
 
@@ -18,7 +19,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .birthday, .anniversary: .yearly
         case .christmas, .valentines, .mothersDay, .fathersDay: .holiday
-        case .newBaby, .graduation, .newHome, .retirement, .event: .once
+        case .newBaby, .graduation, .newHome, .retirement, .event, .wedding: .once
         }
     }
 
@@ -35,6 +36,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .newHome: "New home"
         case .retirement: "Retirement"
         case .event: "Event"
+        case .wedding: "Wedding"
         }
     }
 
@@ -61,6 +63,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .graduation: return "\(name)'s graduation"
         case .newHome: return "\(name)'s new home"
         case .retirement: return "\(name)'s retirement"
+        case .wedding: return "\(name)'s wedding"
         case .event:
             guard let partner, !partner.isEmpty else { return "\(name)'s event" }
             return "\(name)'s \(partner.prefix(1).lowercased() + partner.dropFirst())"
@@ -76,7 +79,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .valentines: "Happy Valentine's Day,"
         case .mothersDay: "Happy Mother's Day,"
         case .fathersDay: "Happy Father's Day,"
-        case .newBaby, .graduation, .event: "Congratulations,"
+        case .newBaby, .graduation, .event, .wedding: "Congratulations,"
         case .newHome: "Welcome home,"
         case .retirement: "Happy retirement,"
         }
@@ -165,5 +168,28 @@ enum OccasionRules {
         c.weekday = weekday
         c.weekdayOrdinal = n
         return calendar.date(from: c).map { calendar.startOfDay(for: $0) }
+    }
+}
+
+/// Which occasions Held Dear offers when adding a day (feedback on build 1011): the common ones by name, and
+/// everything rarer (a recital, a retirement, a new home) as Something else with its own name. Retirement and New
+/// home stay as types so days already saved keep working; they're no longer offered.
+enum OccasionOffer {
+    /// The first date when adding someone.
+    static let firstDate: [OccasionType] = [.birthday, .anniversary, .graduation, .wedding, .newBaby, .event]
+    /// Once-only days on "What else matters?".
+    static let bigDays: [OccasionType] = [.graduation, .wedding, .newBaby, .event]
+
+    /// Mother's Day isn't offered for a husband, a son or a dad; Father's Day isn't offered for a wife, a daughter or
+    /// a mom. When the relationship isn't set, both are offered.
+    static func offersHoliday(_ type: OccasionType, relationship: String?) -> Bool {
+        let r = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let male = ["husband", "son", "dad", "father", "brother", "grandpa", "grandfather", "uncle", "boyfriend", "stepson", "stepfather"]
+        let female = ["wife", "daughter", "mom", "mother", "sister", "grandma", "grandmother", "aunt", "girlfriend", "stepdaughter", "stepmother"]
+        switch type {
+        case .mothersDay: return !male.contains(r)
+        case .fathersDay: return !female.contains(r)
+        default: return true
+        }
     }
 }

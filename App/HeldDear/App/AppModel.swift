@@ -63,6 +63,8 @@ enum Nav: Hashable {
     case ideas
     /// One item in a plan (an Act's id).
     case item(UUID)
+    /// "Who is Ben to you?" for a person.
+    case relationship(UUID)
 }
 
 @MainActor
@@ -213,6 +215,7 @@ final class AppModel: ObservableObject {
         case .holiday(let raw, _): return OccasionType(rawValue: raw)?.label ?? "Back"
         case .people: return "People"
         case .ideas: return "Ideas"
+        case .relationship: return "Who they are"
         case .item(let id): return act(id).map { PartSteps.displayName(kindRaw: $0.kindRaw, label: $0.label, title: $0.title) } ?? "Back"
         }
     }
@@ -302,7 +305,7 @@ final class AppModel: ObservableObject {
     /// one-time moment typed without a year is its next one.
     @discardableResult
     func addPerson(name: String, fullName: String?, contactID: String?, firstDate type: OccasionType,
-                   month: Int, day: Int, year: Int?) -> Person {
+                   month: Int, day: Int, year: Int?, eventName: String? = nil) -> Person {
         if type == .birthday {
             return addPerson(name: name, fullName: fullName, contactID: contactID, month: month, day: day, year: year)
         }
@@ -314,7 +317,7 @@ final class AppModel: ObservableObject {
             context.insert(person)
         }
         let when = year ?? (type.kind == .once ? Calendar.current.component(.year, from: OccasionDates.nextDate(month: month, day: day, onOrAfter: Calendar.current.startOfDay(for: Date()))) : nil)
-        addOccasion(person, type: type, month: month, day: day, year: when)
+        addOccasion(person, type: type, month: month, day: day, year: when, partnerName: type == .event ? eventName : nil)
         return person
     }
 

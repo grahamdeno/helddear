@@ -519,6 +519,8 @@ struct NavPage: View {
             SavedIdeasView()
         case .item(let id):
             if let act = model.act(id) { ItemView(act: act) } else { Color.clear }
+        case .relationship(let id):
+            if let p = model.person(id) { RelationshipPage(person: p) } else { Color.clear }
         }
     }
 }

@@ -584,32 +584,86 @@ struct RelationshipPicker: View {
     @EnvironmentObject var model: AppModel
     let person: Person
     var backTitle: String? = nil
+    /// Off on a pushed page (the back link is in the bar) and in Add someone (the person is already saved).
+    var showsBack = true
     let done: () -> Void
+    @State private var showMore = false
+
+    private func isSelected(_ word: String) -> Bool {
+        person.relationship?.caseInsensitiveCompare(word) == .orderedSame
+    }
+
+    private var moreOpen: Bool { showMore || Relationship.moreChoices.contains(where: isSelected) }
 
     var body: some View {
+        let name = DisplayName.plain(person.name)
         FlowScreen {
-            TextLink(title: "‹ " + (backTitle ?? "\(person.name)'s plan")) { done() }
-            Question(title: "Who is \(person.name) to you?", subtitle: "It helps Held Dear suggest what families usually plan.")
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: Brand.space2)], alignment: .leading,
-                      spacing: Brand.space2) {
-                ForEach(Relationship.choices, id: \.self) { word in
-                    let selected = person.relationship?.caseInsensitiveCompare(word) == .orderedSame
-                    Button {
-                        model.setRelationship(person, word)
-                        done()
-                    } label: {
-                        Text(word).font(.callout.weight(.semibold))
-                            .foregroundStyle(selected ? Brand.page : Brand.ink)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background {
-                                if selected { Capsule().fill(Brand.ink) } else { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) }
-                            }
-                            .contentShape(Capsule())
+            if showsBack { TextLink(title: "‹ " + (backTitle ?? "\(name)'s plan")) { done() } }
+            Question(title: "Who is \(name) to you?", subtitle: "So Held Dear can suggest what families usually plan.")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                ForEach(Relationship.mainChoices, id: \.self) { word in
+                    tile(word, selected: isSelected(word)) { pick(word) }
+                }
+                tile("Someone else…", selected: moreOpen) { showMore.toggle() }
+                    .accessibilityHint("Shows more choices")
+            }
+            if moreOpen {
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Someone else")
+                    FlowLayout(spacing: 8) {
+                        ForEach(Relationship.moreChoices, id: \.self) { word in chip(word) }
                     }
-                    .buttonStyle(PressStyle())
-                    .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
                 }
             }
+        } footer: {
+            TextLink(title: "Skip for now") { done() }
         }
+    }
+
+    private func pick(_ word: String) {
+        model.setRelationship(person, word)
+        done()
+    }
+
+    private func tile(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.title3.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                .foregroundStyle(selected ? Brand.page : Brand.ink)
+                .frame(maxWidth: .infinity, minHeight: 64)
+                .background(selected ? Brand.ink : Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous)
+                        .strokeBorder(selected ? Brand.ink : Brand.line, lineWidth: 1)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func chip(_ word: String) -> some View {
+        let selected = isSelected(word)
+        return Button { pick(word) } label: {
+            Text(word).font(.callout.weight(.semibold))
+                .foregroundStyle(selected ? Brand.page : Brand.ink)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background {
+                    if selected { Capsule().fill(Brand.ink) } else { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// "Who is Ben to you?" as a page pushed from the person's page.
+struct RelationshipPage: View {
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+
+    var body: some View {
+        RelationshipPicker(person: person, showsBack: false) { dismiss() }
     }
 }
