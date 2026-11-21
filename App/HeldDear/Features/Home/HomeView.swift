@@ -8,8 +8,9 @@ struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
     @State private var selectedID: UUID?
-    /// The featured person, for the portrait at the top. Nil for a shared holiday.
-    @State private var portraitID: UUID?
+    /// What the small circle at the top shows: the featured person's face, or the featured holiday's mark.
+    @State private var portrait: TopCircle?
+    enum TopCircle: Equatable { case person(UUID), holiday(OccasionType, String?) }
 
     var body: some View {
         NavigationStack(path: $model.navPath) {
@@ -19,11 +20,18 @@ struct HomeView: View {
                     // The featured person's face, small and round, top center (approved Nov 21, 2026). It sits in
                     // the bar, so nothing on the page moves.
                     ToolbarItem(placement: .principal) {
-                        if let id = portraitID, let person = model.person(id) {
-                            Button { model.push(.person(id, focus: nil)) } label: { PersonPortrait(person: person, size: 44) }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
-                                .transition(.opacity)
+                        switch portrait {
+                        case .person(let id):
+                            if let person = model.person(id) {
+                                Button { model.push(.person(id, focus: nil)) } label: { PersonPortrait(person: person, size: 44) }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+                                    .transition(.opacity)
+                            }
+                        case .holiday(let type, let name):
+                            HolidayMark(type: type, name: name, size: 44).transition(.opacity)
+                        case nil:
+                            EmptyView()
                         }
                     }
                     .sharedBackgroundVisibility(.hidden)
@@ -74,7 +82,9 @@ struct HomeView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .task(id: featured.id) {
                     withAnimation(.easeOut(duration: 0.2)) {
-                        portraitID = featured.type.kind == .holiday ? nil : featured.person?.id
+                        portrait = featured.type.kind == .holiday
+                            ? .holiday(featured.type, featured.occasion?.partnerName)
+                            : featured.person.map { .person($0.id) }
                     }
                 }
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
