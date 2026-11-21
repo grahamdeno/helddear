@@ -1,0 +1,43 @@
+# Builds the ZIP code centers file for story 2.14 from US Census public data. Runs only on pushes to
+# data/zip-centers. Uploads a workflow artifact for Claude to download; uploads and deploys nothing else.
+name: zip-centers
+on:
+  push:
+    branches: [data/zip-centers]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the Census ZCTA gazetteer
+        run: |
+          set -e
+          for y in 2024 2023; do
+            if curl -fsSL -o gaz.zip "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/${y}_Gazetteer/${y}_Gaz_zcta_national.zip"; then echo "year $y"; break; fi
+          done
+          unzip -o gaz.zip
+          ls -la
+      - name: Convert to zip,lat,lon (hundredths of a degree)
+        run: |
+          set -e
+          f=$(ls *Gaz_zcta_national.txt | head -1)
+          python3 - "$f" <<'PY'
+          import sys, csv
+          rows = []
+          with open(sys.argv[1], newline='', encoding='latin-1') as fh:
+              r = csv.reader(fh, delimiter='\t')
+              head = [h.strip() for h in next(r)]
+              gi, la, lo = head.index('GEOID'), head.index('INTPTLAT'), head.index('INTPTLONG')
+              for row in r:
+                  row = [c.strip() for c in row]
+                  rows.append(f"{row[gi]},{round(float(row[la])*100)},{round(float(row[lo])*100)}")
+          rows.sort()
+          open('zip-centers.csv', 'w').write("\n".join(rows) + "\n")
+          print(len(rows), "zips")
+          PY
+          head -3 zip-centers.csv; wc -c zip-centers.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip-centers
+          path: zip-centers.csv
