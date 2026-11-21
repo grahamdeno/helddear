@@ -360,10 +360,12 @@ private struct PartScreen: View {
                 Text("Name it here. The name shows on \(DisplayName.plain(personName))'s page.")
                     .textStyle(.caption, color: Brand.inkMuted)
             }
+            // Saved ideas come first on a gift, all of them, so they're there when you need them (feedback on
+            // build 1021).
+            shelfList
             card("Where it stands") { standsList }
             card("Who it's from", trailing: "Pick any") { ownersList }
             card("Link and note") { linkAndNote }
-            shelfList
             findsList
             TextLink(title: "Remove from plan") { confirmRemove = true }
                 .padding(.leading, -8)
@@ -592,32 +594,47 @@ private struct PartScreen: View {
         }
     }
 
-    /// The shelf feeds the gift (roadmap 2.5): saved wishes for this person, one tap to make one the idea.
+    /// The shelf feeds the gift (roadmap 2.5): every saved idea for this person, one tap to make one the idea.
+    /// With none saved yet, one line to save the first.
     @ViewBuilder private var shelfList: some View {
         let wishes = person?.openWishes ?? []
-        if family == .buy && (act.kind == .gift || act.kind == .fromSanta || act.kind == .stocking) && !wishes.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                Eyebrow(text: "From your saved ideas").padding(.bottom, Brand.space2)
-                ForEach(wishes, id: \.id) { wish in
-                    let chosen = act.wishID == wish.id
-                    Button { if !model.pickWish(wish, for: act) { showLifetime = true } } label: {
-                        HStack(spacing: Brand.space3) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(wish.text).textStyle(chosen ? .bodyStrong : .body).multilineTextAlignment(.leading)
-                                Text(wish.savedLine).textStyle(.caption, color: Brand.inkMuted)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(chosen ? "Chosen" : "Use this").font(.callout.weight(.semibold))
-                                .foregroundStyle(chosen ? Brand.inkMuted : Brand.action)
-                        }
-                        .padding(.vertical, Brand.space3)
-                        .frame(minHeight: 56)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
-                        .contentShape(Rectangle())
+        let giftKinds: [ActKind] = [.gift, .fromSanta, .stocking, .kidsMade]
+        if let person, giftKinds.contains(act.kind) {
+            let first = DisplayName.plain(person.name)
+            card("\(first)'s saved ideas", trailing: wishes.isEmpty ? nil : "\(wishes.count)") {
+                if wishes.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Nothing saved for \(first) yet. When you see something \(first) would like, save it and it comes up here at every day.")
+                            .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
+                        TextLink(title: "Save an idea for \(first)") { save(); model.route = .addWish(person.id) }
+                            .padding(.leading, -8)
                     }
-                    .buttonStyle(PressStyle())
-                    .disabled(chosen)
-                    .accessibilityLabel(chosen ? "\(wish.text), chosen" : "Use \(wish.text)")
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(wishes, id: \.id) { wish in
+                            let chosen = act.wishID == wish.id
+                            Button { if !model.pickWish(wish, for: act) { showLifetime = true } } label: {
+                                HStack(spacing: Brand.space3) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(wish.text).textStyle(chosen ? .bodyStrong : .body).multilineTextAlignment(.leading)
+                                        Text(wish.savedLine).textStyle(.caption, color: Brand.inkMuted)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(chosen ? "Chosen" : "Use this").font(.callout.weight(.semibold))
+                                        .foregroundStyle(chosen ? Brand.inkMuted : Brand.action)
+                                }
+                                .padding(.vertical, Brand.space3)
+                                .frame(minHeight: 56)
+                                .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PressStyle())
+                            .disabled(chosen)
+                            .accessibilityLabel(chosen ? "\(wish.text), chosen" : "Use \(wish.text)")
+                        }
+                        TextLink(title: "Save another") { save(); model.route = .addWish(person.id) }
+                            .padding(.leading, -8)
+                    }
                 }
             }
         }
