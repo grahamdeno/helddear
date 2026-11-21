@@ -170,8 +170,9 @@ struct PersonView: View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             HStack(alignment: .bottom, spacing: Brand.space4) {
                 VStack(alignment: .leading, spacing: Brand.space2) {
-                    Text(person.name).font(Brand.display(person.name.count > 7 ? 64 : 96)).tracking(-1.5)
-                        .foregroundStyle(Brand.ink).lineLimit(1).minimumScaleFactor(0.5)
+                    Text(person.name).font(Brand.display(NameSize.page(person.name))).tracking(-1.5)
+                        .foregroundStyle(Brand.ink).lineLimit(NameSize.maxLines).minimumScaleFactor(0.8)
+                        .multilineTextAlignment(.leading)
                     if let next = model.nextMoment(for: person) {
                         Text(subline(next)).font(Brand.display(20, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                     }

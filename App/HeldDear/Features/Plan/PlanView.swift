@@ -94,7 +94,7 @@ struct PlanView: View {
         return FlowScreen(onClose: onClose ?? { model.route = nil }) {
             Eyebrow(text: eyebrow)
             Text(personName)
-                .font(Brand.display(72, relativeTo: .largeTitle)).tracking(-1.5)
+                .font(Brand.display(NameSize.title(personName), relativeTo: .largeTitle)).tracking(-1.5)
                 .foregroundStyle(Brand.ink)
                 .lineLimit(2).minimumScaleFactor(0.5)
                 .fixedSize(horizontal: false, vertical: true)

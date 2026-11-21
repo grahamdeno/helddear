@@ -124,10 +124,10 @@ struct FeaturedView: View {
                 .textStyle(.eyebrow)
             Button(action: openPerson) {
                 Text(displayName)
-                    .font(Brand.display(nameSize, relativeTo: .largeTitle))
+                    .font(Brand.display(NameSize.featured(displayName), relativeTo: .largeTitle))
                     .tracking(-2)
                     .foregroundStyle(Brand.ink)
-                    .lineLimit(1).minimumScaleFactor(0.4)
+                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.8)
                     .padding(.top, Brand.space3)
             }
             .buttonStyle(.plain)
@@ -225,14 +225,6 @@ struct FeaturedView: View {
         let name = moment.person?.name ?? ""
         if moment.type == .anniversary, let partner = moment.occasion?.partnerName { return "\(name) & \(partner)" }
         return name
-    }
-
-    private var nameSize: CGFloat {
-        switch displayName.count {
-        case ...5: 128
-        case 6...8: 100
-        default: 76
-        }
     }
 
     private func subline(days: Int, missed: Bool) -> String {
