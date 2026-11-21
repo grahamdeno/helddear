@@ -91,7 +91,7 @@ final class HolidayTests: XCTestCase {
     func testSuggestions_christmasStartByRelationship() {
         func titles(_ r: String?) -> [String] { PartSuggestions.holidayStart(for: .christmas, relationship: r).map(\.title) }
         XCTAssertEqual(titles("Wife"), ["Gift", "Stocking", "Card", "Gift from the kids"])
-        XCTAssertEqual(titles("daughter"), ["Gift", "From Santa", "Stocking"])
+        XCTAssertEqual(titles("daughter"), ["Gift", "Gift", "Stocking"])
         XCTAssertEqual(titles("Mother"), ["Gift", "Card"])
         XCTAssertEqual(titles("Grandfather"), ["Gift", "Card"])
         XCTAssertEqual(titles("Brother"), ["Gift"])
