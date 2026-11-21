@@ -176,6 +176,7 @@ private struct HalfDisc: Shape {
 /// The day cards on a person's page: one per coming day, left to right in date order, each with a big countdown and
 /// its own readiness bar. The selected card is filled; the plan below is its plan.
 struct PersonDayCards: View {
+    static let cardWidth: CGFloat = 236
     let moments: [Moment]
     @Binding var selectedID: UUID?
 
@@ -183,8 +184,13 @@ struct PersonDayCards: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Brand.space3) {
                 ForEach(moments, id: \.id) { m in card(m) }
+                // Room after the last card so it can settle at the left too (feedback on build 1015).
+                Color.clear
+                    .containerRelativeFrame(.horizontal) { width, _ in max(0, width - Self.cardWidth - Brand.space5 - Brand.space3 * 2) }
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, Brand.space5)
+            .padding(.leading, Brand.space5)
             .scrollTargetLayout()
         }
         .scrollTargetBehavior(.viewAligned)
@@ -234,7 +240,7 @@ struct PersonDayCards: View {
                     .padding(.top, Brand.space1)
             }
             .padding(Brand.space4)
-            .frame(width: 236, alignment: .leading)
+            .frame(width: Self.cardWidth, alignment: .leading)
             .background(on ? Brand.ink : Brand.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Brand.ink : Brand.line, lineWidth: 1) }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
