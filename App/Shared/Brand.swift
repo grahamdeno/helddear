@@ -10,6 +10,9 @@ enum Brand {
     static let page = dynamic(0xEDE8E0, 0x171513)
     /// The lower band (timeline, years) and quiet fills.
     static let card = dynamic(0xE3DCD1, 0x221F1B)
+    /// A lighter sheet that content sits on, so sections read as separate things (feedback on build 1016).
+    static let raised = dynamic(0xF8F4EE, 0x2E2A25)
+    static let raisedLine = dynamic(0xDDD4C7, 0x3E3933)
     static let ink = dynamic(0x1C1A17, 0xEFE8DC)
     static let inkMuted = dynamic(0x5F554A, 0xA89E90)
     static let inkSoft = dynamic(0x3A342D, 0xCFC6B8)
