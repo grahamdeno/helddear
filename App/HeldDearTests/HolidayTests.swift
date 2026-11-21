@@ -159,20 +159,23 @@ final class HolidayTests: XCTestCase {
 
     // MARK: Finds
 
+    /// The first four finds, so these tests hold as the catalog grows.
+    private var starter: [Find] { Array(Finds.catalog.prefix(4)) }
+
     func testFinds_matchTheItemAndTheGiver() {
-        let kids = Finds.matches(kind: .kidsMade, fromKids: true, loves: [], dismissed: [])
+        let kids = Finds.matches(kind: .kidsMade, fromKids: true, loves: [], dismissed: [], catalog: starter)
         XCTAssertEqual(kids.map(\.id), ["tamara-silk-scarf-kit", "star-child-special-edition"])
-        let cake = Finds.matches(kind: .cake, fromKids: false, loves: [], dismissed: [])
+        let cake = Finds.matches(kind: .cake, fromKids: false, loves: [], dismissed: [], catalog: starter)
         XCTAssertEqual(cake.map(\.id), ["boarderie-dessert-board"])
-        let fromYou = Finds.matches(kind: .gift, fromKids: false, loves: [], dismissed: [])
+        let fromYou = Finds.matches(kind: .gift, fromKids: false, loves: [], dismissed: [], catalog: starter)
         XCTAssertEqual(fromYou.map(\.id), ["cns-watch-bands"], "Kids-only finds don't show for a gift from you")
-        XCTAssertTrue(Finds.matches(kind: .card, fromKids: false, loves: [], dismissed: []).isEmpty)
+        XCTAssertTrue(Finds.matches(kind: .card, fromKids: false, loves: [], dismissed: [], catalog: starter).isEmpty)
     }
 
     func testFinds_lovesRankAndDismissedNeverReturn() {
-        let ranked = Finds.matches(kind: .kidsMade, fromKids: true, loves: ["Reading books"], dismissed: [])
+        let ranked = Finds.matches(kind: .kidsMade, fromKids: true, loves: ["Reading books"], dismissed: [], catalog: starter)
         XCTAssertEqual(ranked.first?.id, "star-child-special-edition")
-        let left = Finds.matches(kind: .kidsMade, fromKids: true, loves: [], dismissed: ["tamara-silk-scarf-kit"])
+        let left = Finds.matches(kind: .kidsMade, fromKids: true, loves: [], dismissed: ["tamara-silk-scarf-kit"], catalog: starter)
         XCTAssertEqual(left.map(\.id), ["star-child-special-edition"])
         let d = UserDefaults(suiteName: "Finds-\(UUID())")!
         let person = UUID()
@@ -189,7 +192,8 @@ final class HolidayTests: XCTestCase {
     // MARK: R2, R3 build switches
 
     func testBuildSwitches_offInTestBuilds() {
-        XCTAssertFalse(AppFeatures.serverFeatures, "Mailed cards and family pages are off in 1.0 builds")
+        XCTAssertTrue(AppFeatures.mailedCards, "Mailed cards are on in 1.0 (decided Nov 21, 2026)")
+        XCTAssertFalse(AppFeatures.familyPages, "Family pages stay off in 1.0 builds")
         XCTAssertFalse(AppFeatures.testFlightTools, "Only testflight.yml compiles the TestFlight tools in")
     }
 }

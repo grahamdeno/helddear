@@ -117,14 +117,17 @@ enum PlanLimit {
     }
 }
 
-/// Features that talk to Held Dear's server ship built in but switched off in 1.0 (roadmap R2). The switch is set
-/// when the app is built, never from the server (R4): add HELDDEAR_SERVER_FEATURES to the Swift compilation
-/// conditions to turn them on in a later, reviewed update.
+/// Features that talk to Held Dear's server. Switches are set when the app is built, never from the server (R4).
 enum AppFeatures {
-    #if HELDDEAR_SERVER_FEATURES
-    static let serverFeatures = true
+    /// Mailed cards are on, in test builds and in 1.0 (decided Nov 21, 2026). Only MailedCards.swift talks to the
+    /// server, at checkout.
+    static let mailedCards = true
+
+    /// Family pages stay off in 1.0. They come back only in builds made with HELDDEAR_FAMILY_PAGES.
+    #if HELDDEAR_FAMILY_PAGES
+    static let familyPages = true
     #else
-    static let serverFeatures = false
+    static let familyPages = false
     #endif
 
     /// The TestFlight-only Lifetime switch (roadmap R3) exists only in builds made with HELDDEAR_TESTFLIGHT_TOOLS,

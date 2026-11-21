@@ -202,7 +202,7 @@ struct PersonView: View {
                 }
                 OptionRow(title: "Reminders", caption: person.ring.label) { showRing = true }
                 if let next = model.nextMoment(for: person) {
-                    if AppFeatures.serverFeatures { FamilyPageSection(person: person, moment: next) }
+                    if AppFeatures.familyPages { FamilyPageSection(person: person, moment: next) }
                     scheduleCard(next)
                 }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
@@ -293,7 +293,7 @@ struct PersonView: View {
                     TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
                 }
                 TextLink(title: "Save an idea") { model.route = .addWish(person.id) }
-                if AppFeatures.serverFeatures, let next = model.nextMoment(for: person),
+                if AppFeatures.mailedCards, let next = model.nextMoment(for: person),
                    OccasionDates.daysBetween(Date(), next.dueDate) >= 6 {
                     TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
                 }
