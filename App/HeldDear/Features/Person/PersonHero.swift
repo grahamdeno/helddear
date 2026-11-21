@@ -123,7 +123,8 @@ struct PersonHero: View {
             let image = PhotoStore.load(person.photoFiles.last) ?? ContactsService.shared.photo(contactID: person.contactID)
             ZStack {
                 if let image {
-                    Image(uiImage: image).resizable().scaledToFill()
+                    // Placed on the face, high enough that the name over the fade falls below the chin.
+                    FaceFillImage(image: image, faceY: 0.32)
                 } else {
                     Brand.faceFill(for: person.name)
                     Text(person.initials).font(Brand.display(140)).foregroundStyle(Brand.ink.opacity(0.35))

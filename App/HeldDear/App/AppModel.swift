@@ -274,7 +274,7 @@ final class AppModel: ObservableObject {
         ContactsService.shared.address(contactID: person?.contactID)
     }
 
-    /// D2's photo set: last year's ledger photo, photos saved to the person, then the contact photo. Up to three.
+    /// The photo set for cards: last year's record photo, every photo saved to the person (top one first), then the contact photo.
     func photoChoices(for person: Person) -> [PhotoChoice] {
         var choices: [PhotoChoice] = []
         if let entry = person.sortedLedger.first(where: { $0.photoFile != nil }), let file = entry.photoFile,
@@ -286,11 +286,11 @@ final class AppModel: ObservableObject {
                 choices.append(PhotoChoice(id: "saved-\(file)", image: image, file: file, label: "Saved for \(person.name)"))
             }
         }
-        choices = Array(choices.prefix(2))
+        // Every saved photo is offered (feedback on build 1021), after last year's.
         if let contact = ContactsService.shared.photo(contactID: person.contactID) {
             choices.append(PhotoChoice(id: "contact", image: contact, file: nil, label: "\(person.name)'s contact photo"))
         }
-        return Array(choices.prefix(3))
+        return choices
     }
 
     // MARK: People and dates

@@ -466,7 +466,6 @@ struct PhotoStep: View {
             model.save()
             let choice = PhotoChoice(id: "picked-\(file)", image: image, file: file, label: "Photo you picked")
             choices.insert(choice, at: 0)
-            if choices.count > 4 { choices.removeLast() }
             selected = choice.id
         }
     }

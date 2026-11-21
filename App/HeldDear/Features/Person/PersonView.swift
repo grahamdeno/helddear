@@ -240,7 +240,9 @@ struct PersonView: View {
                     }
                     SecondaryButton(title: "Save an idea") { model.route = .addWish(person.id) }
                 }
-                section("Photos for the card") {
+                section("Photos of \(DisplayName.plain(person.name))") {
+                    Text("The first is the photo at the top of \(DisplayName.plain(person.name))'s page. Cards offer all of them. Press and hold one to change which is first.")
+                        .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                     photoStrip
                     Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
                         Text("Show \(DisplayName.plain(person.name))'s age on the card").textStyle(.body)
@@ -574,10 +576,28 @@ struct PersonView: View {
                 .accessibilityLabel("Add a photo")
                 ForEach(person.photoFiles.reversed(), id: \.self) { file in
                     if let image = PhotoStore.load(file) {
+                        let isTop = file == person.photoFiles.last
                         Image(uiImage: image).resizable().scaledToFill()
                             .frame(width: 88, height: 88)
                             .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                            .overlay(alignment: .bottomLeading) {
+                                if isTop {
+                                    Text("Top").font(.caption2.weight(.semibold)).foregroundStyle(Brand.page)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Brand.ink, in: Capsule())
+                                        .padding(6)
+                                }
+                            }
+                            .accessibilityLabel(isTop ? "Photo at the top of the page" : "Photo")
                             .contextMenu {
+                                if !isTop {
+                                    // The newest saved photo is the top one, so moving it to the end makes it first.
+                                    Button("Use at the top") {
+                                        person.photoFiles.removeAll { $0 == file }
+                                        person.photoFiles.append(file)
+                                        model.save()
+                                    }
+                                }
                                 Button("Remove photo", role: .destructive) {
                                     person.photoFiles.removeAll { $0 == file }
                                     PhotoStore.delete(file)

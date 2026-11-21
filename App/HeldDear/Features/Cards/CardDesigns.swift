@@ -109,7 +109,7 @@ struct CardView: View {
     private func photoOrFill(_ fill: Color, initialsColor: Color = CardPalette.ink) -> some View {
         ZStack {
             if let photo = content.photo {
-                Image(uiImage: photo).resizable().scaledToFill()
+                FaceFillImage(image: photo)
             } else {
                 fill
                 Text(content.initials).font(cardFont(120)).foregroundStyle(initialsColor)
