@@ -20,7 +20,10 @@ enum ICloudSync {
     static var environment: String { Bundle.main.object(forInfoDictionaryKey: "HeldDearCloudKitEnvironment") as? String ?? "Production" }
 
     /// The setting as it was when the store opened (a change applies at the next launch).
-    static let isOnAtLaunch = isOn
+    static let isOnAtLaunch = isOn && !runningTests
+
+    /// Unit tests run inside the app with no iCloud entitlement; sync stays off there.
+    static var runningTests: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
 
     private static var observers: [NSObjectProtocol] = []
     private static var container: ModelContainer?
