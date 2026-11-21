@@ -97,6 +97,8 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 | Nov 20, 2026 | Shared holidays become one timeline event with a holiday page; plans still save per person; one heads-up six weeks ahead; the user chooses which holidays to keep (Epic 1) | A busy date should read as one event, and planning everyone happens in one place |
 | Nov 20, 2026 | Held Dear follows playbook 1.4.0. docs/roadmap.md is the running plan; the plan doc stays the concept and spec reference | One process across all of Graham's apps |
 | Nov 13, 2026 | Direction: "Never stuck on what to give." A gift shelf filled all year, ideas about six weeks out, pick, buy, and Home shows the arrival. Phase 1 uses no new APIs or server setup | The real problem was not knowing what to give, not forgetting the date |
+| Nov 21, 2026 | One-day playbook exemption again for Nov 21: build and upload test builds without waiting; server deploys, App Store Connect, purchases and secrets still need Graham's go | Graham, to get everything in hand quickly |
+| Nov 21, 2026 | Finds (story 2.9) in 1.0, free to browse; 12 finds and 2 dependable picks approved from the first lists | Graham: everything discussed is in 1.0 scope |
 | Nov 21, 2026 | Graham curates a small, seasonal set of finds (about 40 to 60). A monthly Claude task and a monthly Perplexity task propose candidates; Graham approves; approved finds ship with app updates. Saved ideas are never sent anywhere; an opt-in "suggest a find" is a 1.1 idea | Replaces the Nov 13 "no curated collection" decision. Finds are the moment the app feels special |
 | Nov 21, 2026 | Mailed cards are on: in test builds now (server stays in test mode), and in 1.0. Story 2.8 (a card for any reason) is in 1.0 with both Make it and Mail it | Graham: cards are not only for a day. Changes the 1.0 privacy answers and listing; family pages stay off |
 | Nov 13, 2026 | Graham does not curate a gift collection. Any server gift search later sends interests only, never names, behind a consent screen | Keeps the work and the privacy promise small |
@@ -109,7 +111,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 ## Release scope
 
-- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.8, R1 to R4),
+- **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.9, R1 to R4),
   Epic 1 (1.1 to 1.6 and the relationship requirement), then polish of the kept features. New ideas go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
@@ -280,6 +282,18 @@ get-well or just-because card is as easy as a birthday card.
   ship go).
 
 **Out of scope:** reminders for these cards; prices and Stripe going live.
+
+#### 2.9 Finds (approved Nov 21, 2026; free)
+
+As someone planning for a person I love, I want to browse every find myself, not only the ones suggested on an item,
+so that I can spot the special gift on my own.
+
+- Given I'm on Everyone, when I switch to Finds, then I see every find, newest first, with its maker, price, arrival
+  time and why it's special.
+- I can filter by who it's for and by price; filters stack and Clear resets them.
+- Given I open a find, then I can see it at the shop, or Use for a coming day, which adds it to that day's plan.
+- Dependable picks (national brands for the cake or flowers) are marked as such.
+- Nothing leaves the phone; finds ship with the app. Browsing is free; Use follows the free plan limit.
 
 #### Requirements
 - **R1. Several recipients:** an occasion can hold several people. Enforced by a unit test on the data model.
