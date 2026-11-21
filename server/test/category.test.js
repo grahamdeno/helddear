@@ -40,3 +40,17 @@ test("leaves out business cards", () => {
   assert.equal(isPersonal("Gold Anniversary Card"), true);
   assert.equal(isPersonal("Happy Anniversary Balloons"), true);
 });
+
+import { anyOccasionCategories } from "../lib/handwrytten.js";
+
+test("more cards come from any-occasion categories, never the occasion's own", () => {
+  const cats = [
+    { id: 7, name: "Birthday" },
+    { id: 12, name: "Blank" },
+    { id: 15, name: "Thinking of You" },
+    { id: 40, name: "Sympathy" },
+    { id: 22, name: "Friendship" },
+  ];
+  assert.deepEqual(anyOccasionCategories(cats, 7), [12, 15, 22]);
+  assert.deepEqual(anyOccasionCategories(cats, 12), [15, 22]);
+});

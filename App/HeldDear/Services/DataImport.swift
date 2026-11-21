@@ -236,5 +236,7 @@ enum DataImport {
         defaults.set(Holidays.offeredIn1_0.map(\.rawValue).filter(Set(s.enabledHolidays).contains), forKey: Holidays.defaultsKey)
         if !s.hiddenPhotoIDs.isEmpty { defaults.set(s.hiddenPhotoIDs, forKey: "hiddenPhotoIDs") }
         if let places = s.places, !places.isEmpty { PlaceStore(defaults: defaults).all = places }
+        if let photo = s.yourPhotoFile { defaults.set(photo, forKey: YouProfile.photoKey) }
+        if let birthday = s.yourBirthday { YouProfile.setBirthday(birthday, defaults) }
     }
 }

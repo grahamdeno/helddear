@@ -60,6 +60,9 @@ enum DataExport {
         /// Remembered places (story 2.12) and addresses kept for people (story 2.13), by person id.
         var places: [Place]? = nil
         var addresses: [String: MailAddress]? = nil
+        /// Your photo and birthday (You page, Nov 21, 2026).
+        var yourPhotoFile: String? = nil
+        var yourBirthday: YouProfile.Day? = nil
 
         static func read(_ d: UserDefaults = .standard) -> Settings {
             Settings(yourName: d.string(forKey: "yourName"), cardSignature: d.string(forKey: "cardSignature"),
@@ -67,7 +70,9 @@ enum DataExport {
                      enabledHolidays: Holidays.enabled(d).map(\.rawValue),
                      hiddenPhotoIDs: d.stringArray(forKey: "hiddenPhotoIDs") ?? [],
                      places: PlaceStore(defaults: d).all,
-                     addresses: SavedAddresses(defaults: d).all)
+                     addresses: SavedAddresses(defaults: d).all,
+                     yourPhotoFile: d.string(forKey: YouProfile.photoKey),
+                     yourBirthday: YouProfile.birthday(d))
         }
     }
 
@@ -148,6 +153,7 @@ enum DataExport {
         names += doc.wishes.compactMap(\.imageFile)
         names += doc.acts.flatMap { [$0.photoFile, $0.cardFile].compactMap { $0 } }
         names += doc.ledger.flatMap { [$0.photoFile, $0.cardFile].compactMap { $0 } }
+        if let yours = doc.settings?.yourPhotoFile { names.append(yours) }
         var seen = Set<String>()
         return names.filter { !$0.isEmpty && seen.insert($0).inserted }
     }
@@ -158,12 +164,17 @@ enum DataExport {
     /// images; tests pass their own.
     @discardableResult
     static func write(context: ModelContext, photosDirectory: URL, to folder: URL, now: Date = Date()) throws -> Summary {
+        var doc = try document(from: context, now: now)
+        doc.settings = Settings.read()
+        return try write(doc, photosDirectory: photosDirectory, to: folder)
+    }
+
+    /// The file work alone (photos, JSON), so it can run off the main thread once the records are read.
+    static func write(_ document: Document, photosDirectory: URL, to folder: URL) throws -> Summary {
+        var doc = document
         let fm = FileManager.default
         let photoDir = folder.appendingPathComponent(photosFolder, isDirectory: true)
         try fm.createDirectory(at: photoDir, withIntermediateDirectories: true)
-
-        var doc = try document(from: context, now: now)
-        doc.settings = Settings.read()
         var copied = 0
         var missing: [String] = []
         for name in photoFileNames(doc) {
@@ -226,6 +237,26 @@ enum DataExport {
     }
 
     /// The whole export for the You page: writes the folder, zips it, removes the loose folder, returns the zip.
+    /// The export for the You page without holding up the screen (Opus review of PR #37): the records are read
+    /// here, on the main thread, and the photos are copied and zipped in the background.
+    @MainActor
+    static func exportInBackground(context: ModelContext, photosDirectory: URL = PhotoStore.directory,
+                                   in parent: URL = FileManager.default.temporaryDirectory,
+                                   now: Date = Date()) async throws -> URL {
+        var doc = try document(from: context, now: now)
+        doc.settings = Settings.read()
+        let snapshot = doc
+        let folder = parent.appendingPathComponent(baseName(now: now), isDirectory: true)
+        return try await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            if fm.fileExists(atPath: folder.path) { try fm.removeItem(at: folder) }
+            _ = try write(snapshot, photosDirectory: photosDirectory, to: folder)
+            let zipped = try zip(folder: folder)
+            try? fm.removeItem(at: folder)
+            return zipped
+        }.value
+    }
+
     static func exportForSharing(context: ModelContext, photosDirectory: URL = PhotoStore.directory,
                                  in parent: URL = FileManager.default.temporaryDirectory,
                                  now: Date = Date()) throws -> (zip: URL, summary: Summary) {

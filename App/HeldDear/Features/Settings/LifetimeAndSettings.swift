@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
 
@@ -111,8 +112,13 @@ struct SettingsView: View {
     @State private var holidayToEdit: CustomHoliday?
     @State private var exportItems: [Any]?
     @State private var exportFailed = false
+    @State private var exporting = false
     @State private var importing = false
     @State private var keepInICloud = ICloudSync.isOn
+    @State private var yourPhotoItem: PhotosPickerItem?
+    @State private var yourPhotoFile = YouProfile.photoFile
+    @State private var editingBirthday = false
+    @State private var addingAnniversary = false
     @State private var importNote: String?
     @State private var pendingImport: URL?
 
@@ -128,7 +134,27 @@ struct SettingsView: View {
                         .padding(.horizontal, Brand.space4)
                         .frame(minHeight: 52)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    Text("Shown in the circle on Home. Kept on this iPhone.").textStyle(.caption, color: Brand.inkMuted)
+                    Text("Shown in the circle on Home.").textStyle(.caption, color: Brand.inkMuted)
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Your photo and dates")
+                    PhotosPicker(selection: $yourPhotoItem, matching: .images) {
+                        HStack(spacing: Brand.space3) {
+                            YourPhotoCircle(file: yourPhotoFile, size: 44)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(yourPhotoFile == nil ? "Add your photo" : "Change your photo").textStyle(.body)
+                                Text("Shown with your partner's on your anniversary.").textStyle(.caption, color: Brand.inkMuted)
+                            }
+                            Spacer()
+                        }
+                        .frame(minHeight: 52)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    OptionRow(title: YouProfile.birthday().map { "Your birthday, \(YouDates.text($0))" } ?? "Add your birthday",
+                              caption: "Kept on this iPhone.") { editingBirthday = true }
+                    OptionRow(title: "Add your anniversary",
+                              caption: "Pick your partner. Their page gets the day, with both your photos.") { addingAnniversary = true }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Cards from you")
@@ -229,7 +255,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Your data")
                     OptionRow(title: "Export my data",
-                              caption: exportFailed ? "The export didn't work. Nothing was changed. Try again."
+                              caption: exporting ? "Getting your file ready…" : exportFailed ? "The export didn't work. Nothing was changed. Try again."
                                                     : "Everything you've added, with photos, in one file. You choose where it goes.") {
                         exportData()
                     }
@@ -259,6 +285,19 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .sheet(isPresented: $editingBirthday) { YourBirthdayEditor() }
+        .sheet(isPresented: $addingAnniversary) { YourAnniversaryFlow().environmentObject(model) }
+        .onChange(of: yourPhotoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                    YouProfile.photoFile = file
+                    yourPhotoFile = file
+                    model.revision += 1
+                }
+                yourPhotoItem = nil
+            }
+        }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.zip, .folder, .json]) { result in
             guard case .success(let url) = result else { return }
             if DataImport.storeIsEmpty(model.context) { importData(url, replacing: false) } else { pendingImport = url }
@@ -312,11 +351,117 @@ struct SettingsView: View {
 
     /// Writes the file and opens the share sheet. The file goes nowhere else.
     private func exportData() {
-        do {
-            exportItems = [try DataExport.exportForSharing(context: model.context).zip]
-            exportFailed = false
-        } catch {
-            exportFailed = true
+        guard !exporting else { return }
+        exporting = true
+        Task {
+            do {
+                exportItems = [try await DataExport.exportInBackground(context: model.context)]
+                exportFailed = false
+            } catch {
+                exportFailed = true
+            }
+            exporting = false
+        }
+    }
+}
+
+// MARK: - Your photo and dates (Nov 21, 2026)
+
+/// The user's own photo in a circle, or "You" when there's none.
+struct YourPhotoCircle: View {
+    let file: String?
+    var size: CGFloat = 44
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Brand.raised)
+            if let image { Image(uiImage: image).resizable().scaledToFill() }
+            else { Text("You").font(.system(size: size * 0.28, weight: .medium)).foregroundStyle(Brand.ink) }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay { Circle().strokeBorder(Brand.raisedLine, lineWidth: 1) }
+        .task(id: file) { image = await FaceFinder.shared.yourPortrait(side: size) }
+        .accessibilityHidden(true)
+    }
+}
+
+enum YouDates {
+    static func text(_ d: YouProfile.Day) -> String {
+        var c = DateComponents(); c.month = d.month; c.day = d.day; c.year = d.year ?? 2000
+        guard let date = Calendar.current.date(from: c) else { return "" }
+        return d.year == nil ? date.formatted(.dateTime.month(.wide).day()) : date.formatted(.dateTime.month(.wide).day().year())
+    }
+}
+
+/// One screen: the user's birthday, with or without the year.
+struct YourBirthdayEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var date = Date()
+    @State private var knowsYear = true
+    @State private var had = false
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "Your birthday", subtitle: "Kept on this iPhone.", style: .title)
+            DatePicker("Birthday", selection: $date, displayedComponents: .date)
+                .datePickerStyle(.wheel).labelsHidden()
+            Toggle("I'll include the year", isOn: $knowsYear).textStyle(.body).tint(Brand.action)
+        } footer: {
+            PrimaryButton(title: "Save") {
+                let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                YouProfile.setBirthday(.init(month: c.month ?? 1, day: c.day ?? 1, year: knowsYear ? c.year : nil))
+                dismiss()
+            }
+            if had {
+                TextLink(title: "Remove your birthday") { YouProfile.setBirthday(nil); dismiss() }
+            }
+        }
+        .onAppear {
+            guard let b = YouProfile.birthday() else { return }
+            had = true
+            var c = DateComponents(); c.month = b.month; c.day = b.day; c.year = b.year ?? 2000
+            date = Calendar.current.date(from: c) ?? Date()
+            knowsYear = b.year != nil
+        }
+    }
+}
+
+/// The user's own anniversary: pick the partner, then the date. It's saved on the partner's page as an
+/// anniversary with the user, so both photos show.
+struct YourAnniversaryFlow: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var partner: Person?
+    @State private var date = Date()
+    @State private var knowsYear = true
+
+    var body: some View {
+        if let partner {
+            FlowScreen(onClose: { dismiss() }) {
+                Question(title: "Your anniversary with \(DisplayName.plain(partner.name))", subtitle: nil, style: .title)
+                DatePicker("Anniversary", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.wheel).labelsHidden()
+                Toggle("I'll include the year", isOn: $knowsYear).textStyle(.body).tint(Brand.action)
+            } footer: {
+                PrimaryButton(title: "Save") {
+                    let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                    let you = (UserDefaults.standard.string(forKey: "yourName") ?? "").trimmingCharacters(in: .whitespaces)
+                    model.addOccasion(partner, type: .anniversary, month: c.month ?? 1, day: c.day ?? 1,
+                                      year: knowsYear ? c.year : nil, partnerName: you.isEmpty ? "you" : you)
+                    dismiss()
+                }
+            }
+        } else {
+            FlowScreen(onClose: { dismiss() }) {
+                Question(title: "Who's your partner?", subtitle: "Pick them from your people.", style: .title)
+                VStack(spacing: 0) {
+                    ForEach(model.allPeople().sorted { $0.name < $1.name }) { p in
+                        OptionRow(title: DisplayName.plain(p.name), caption: nil) { partner = p }
+                    }
+                }
+            } footer: { EmptyView() }
         }
     }
 }

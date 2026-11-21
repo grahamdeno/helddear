@@ -21,8 +21,9 @@ struct MailCardFlow: View {
     var go: (MomentStep) -> Void = { _ in }
     var close: () -> Void
 
-    enum Step: Equatable { case loading, pick, message, recipient, sender, review, done(String), failed(String) }
-    @State private var step: Step = .loading
+    enum Step: Equatable { case intro, loading, pick, message, recipient, sender, review, done(String), failed(String) }
+    /// The first mailed card starts with how it works (Nov 21, 2026); after that, straight to the cards.
+    @State private var step: Step = UserDefaults.standard.bool(forKey: "mailedCardIntroSeen") ? .loading : .intro
     @State private var catalog: MailedCards.Catalog?
     @State private var card: MailCard?
     @State private var message = ""
@@ -45,11 +46,12 @@ struct MailCardFlow: View {
     var body: some View {
         ZStack {
             switch step {
+            case .intro: intro
             case .loading: loading
             case .pick: pick
             case .message: messageStep
             case .recipient: addressStep(title: "Where does it go?", subtitle: "\(name)'s mailing address.", address: $recipient, next: .sender)
-            case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept on this iPhone for next time.", address: $sender, next: .review)
+            case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept for next time.", address: $sender, next: .review)
             case .review: review
             case .done(let mailing): done(mailing)
             case .failed(let why): failed(why)
@@ -69,37 +71,92 @@ struct MailCardFlow: View {
         }
     }
 
+    /// How a mailed card works, with an example (Nov 21, 2026).
+    private var intro: some View {
+        FlowScreen(onClose: close) {
+            Question(tag: "Mailed for you · \(price)", title: "A real card, in the mail",
+                     subtitle: "You choose a paper card and write the words. It arrives at \(name.isEmpty ? "their" : name + "'s") door looking handwritten, because it is: written in pen.", style: .title)
+            HandwrittenSample(message: sampleMessage, signature: wishes.isEmpty ? "Love, you" : wishes)
+                .padding(.vertical, Brand.space2)
+            VStack(alignment: .leading, spacing: Brand.space3) {
+                introStep(1, "Pick a card", "Real folded cards from Handwrytten, the company that writes and mails them.")
+                introStep(2, "Write your message", "Your words, as long as the card allows.")
+                introStep(3, "It's written in real pen", "A writing machine holds a ballpoint pen and writes your message and the envelope in a handwriting style.")
+                introStep(4, "Stamped and mailed", "First-class mail with your return address. Most cards arrive in 2 to 7 business days.")
+            }
+            Text("Pay with Apple Pay. Held Dear sends only the card, your message and the two addresses, to mail it.")
+                .textStyle(.caption, color: Brand.inkMuted)
+        } footer: {
+            PrimaryButton(title: "Choose a card") {
+                UserDefaults.standard.set(true, forKey: "mailedCardIntroSeen")
+                if let catalog { step = catalog.cards.isEmpty ? .failed("No cards for this occasion are available right now.") : .pick }
+                else { step = .loading; Task { await load() } }
+            }
+        }
+    }
+
+    private var sampleMessage: String {
+        let text = message.isEmpty ? context.greeting : message
+        return text.isEmpty ? "Happy birthday! Thinking of you today and hoping it's a wonderful one." : text
+    }
+
+    private func introStep(_ n: Int, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: Brand.space3) {
+            Text("\(n)").font(Brand.display(22)).foregroundStyle(Brand.action).frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).textStyle(.bodyStrong)
+                Text(detail).textStyle(.callout, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var pick: some View {
         let cards = catalog?.cards ?? []
+        let more = catalog?.more ?? []
         return FlowScreen(onClose: close) {
             Question(tag: "Mailed for you · \(price)", title: "Which card for \(name)?",
                      subtitle: "Written in pen, stamped and mailed with your return address.", style: .title)
-            TabView(selection: Binding(get: { card?.id ?? cards.first?.id ?? 0 },
-                                       set: { id in card = cards.first { $0.id == id } })) {
-                ForEach(cards) { c in
-                    VStack(spacing: Brand.space2) {
+            TextLink(title: "How it works") { step = .intro }
+                .padding(.leading, -8)
+            cardGrid(cards)
+            if !more.isEmpty {
+                Eyebrow(text: "More cards, for any occasion").padding(.top, Brand.space3)
+                cardGrid(more)
+            }
+        } footer: {
+            PrimaryButton(title: card.map { "Use \($0.name)" } ?? "Use this card") {
+                if card == nil { card = cards.first }
+                step = .message
+            }
+        }
+    }
+
+    private func cardGrid(_ list: [MailCard]) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: Brand.space3), GridItem(.flexible(), spacing: Brand.space3)],
+                  spacing: Brand.space3) {
+            ForEach(list) { c in
+                Button { card = c } label: {
+                    VStack(spacing: 6) {
                         AsyncImage(url: c.cover) { image in
                             image.resizable().scaledToFit()
                         } placeholder: {
-                            RoundedRectangle(cornerRadius: Brand.radiusSm).fill(Brand.faceFills[0])
-                                .overlay(ProgressView())
+                            RoundedRectangle(cornerRadius: Brand.radiusSm).fill(Brand.faceFills[0]).overlay(ProgressView())
                         }
-                        .frame(height: 340)
+                        .frame(height: 170)
+                        .frame(maxWidth: .infinity)
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
-                        Text(c.name).textStyle(.bodyStrong)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous)
+                                .strokeBorder(card?.id == c.id ? Brand.action : Color.clear, lineWidth: 3)
+                        }
+                        Text(c.name.trimmingCharacters(in: .whitespaces)).textStyle(.caption, color: Brand.ink).lineLimit(2)
                     }
-                    .tag(c.id)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(c.name)
+                    .contentShape(Rectangle())
                 }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .indexViewStyle(.page(backgroundDisplayMode: .always))
-            .frame(height: 420)
-        } footer: {
-            PrimaryButton(title: "Use this card") {
-                if card == nil { card = cards.first }
-                step = .message
+                .buttonStyle(PressStyle())
+                .accessibilityLabel(c.name)
+                .accessibilityAddTraits(card?.id == c.id ? .isSelected : [])
             }
         }
     }
@@ -229,9 +286,10 @@ struct MailCardFlow: View {
                 recipient = saved
             }
             if recipient.firstName.isEmpty { recipient.firstName = name }
-            step = c.cards.isEmpty ? .failed("No cards for this occasion are available right now.") : .pick
+            // Stay on the how-it-works screen if it's showing; its button goes on to the cards.
+            if step != .intro { step = c.cards.isEmpty ? .failed("No cards for this occasion are available right now.") : .pick }
         } catch {
-            step = .failed(error.localizedDescription)
+            if step != .intro { step = .failed(error.localizedDescription) }
         }
     }
 
@@ -293,5 +351,38 @@ struct AddressForm: View {
             .padding(.horizontal, Brand.space4)
             .frame(minHeight: 52)
             .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+    }
+}
+
+/// An example of a mailed card: cream paper, the message in a handwriting face, in blue ink. It's drawn, not a
+/// photo of a real card; the real one is written by machine with a ballpoint pen.
+struct HandwrittenSample: View {
+    let message: String
+    let signature: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(message)
+                .font(.custom("Bradley Hand", size: 19, relativeTo: .body))
+                .foregroundStyle(Color(red: 0.13, green: 0.20, blue: 0.45))
+                .lineSpacing(4)
+                .lineLimit(6)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(signature)
+                .font(.custom("Bradley Hand", size: 19, relativeTo: .body))
+                .foregroundStyle(Color(red: 0.13, green: 0.20, blue: 0.45))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(red: 0.99, green: 0.97, blue: 0.92), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.black.opacity(0.08), lineWidth: 1))
+        .rotationEffect(.degrees(-1.2))
+        .overlay(alignment: .bottomTrailing) {
+            Text("An example").textStyle(.caption, color: Brand.inkMuted).offset(y: 22)
+        }
+        .padding(.bottom, 18)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("An example card, handwritten in blue ink: \(message) \(signature)")
     }
 }

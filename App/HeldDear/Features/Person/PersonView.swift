@@ -493,7 +493,7 @@ struct PersonView: View {
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Add a photo for \(DisplayName.plain(person.name))'s card").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
-                    Text("It stays on this iPhone").textStyle(.caption, color: Brand.inkMuted)
+                    Text("It stays with your plans").textStyle(.caption, color: Brand.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -512,7 +512,7 @@ struct PersonView: View {
         let _ = model.revision
         let saved = person.mailingAddress
         return OptionRow(title: saved == nil ? "Add a mailing address" : "Mailing address",
-                         caption: saved?.oneLine ?? "For mailed cards. It stays on this iPhone") { editingAddress = true }
+                         caption: saved?.oneLine ?? "For mailed cards. Never added to Contacts") { editingAddress = true }
     }
 
     private var phoneRow: some View {
@@ -813,7 +813,7 @@ struct AddressEditor: View {
     var body: some View {
         FlowScreen(onClose: { dismiss() }) {
             Question(title: "\(DisplayName.plain(person.name))'s address",
-                     subtitle: "For mailed cards. It stays on this iPhone and is never added to Contacts.", style: .title)
+                     subtitle: "For mailed cards. It stays with your plans and is never added to Contacts.", style: .title)
             AddressForm(address: $address)
         } footer: {
             PrimaryButton(title: "Save") {

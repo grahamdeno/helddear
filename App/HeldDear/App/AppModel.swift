@@ -245,6 +245,15 @@ final class AppModel: ObservableObject {
     func moment(_ id: UUID) -> Moment? { allMoments().first { $0.id == id } }
     func person(_ id: UUID) -> Person? { allPeople().first { $0.id == id } }
 
+    /// The other half of an anniversary, for the two-photo circles (nil when there's nothing to pair).
+    func pairPartner(for moment: Moment) -> PairSide? {
+        guard let occasion = moment.occasion, let owner = moment.person else { return nil }
+        return AnniversaryPair.partner(type: occasion.type, partnerName: occasion.partnerName,
+                                       extraRecipientIDs: occasion.extraRecipientIDs, ownerID: owner.id,
+                                       people: allPeople().map { .init(id: $0.id, name: $0.name, fullName: $0.fullName) },
+                                       yourName: UserDefaults.standard.string(forKey: "yourName") ?? "")
+    }
+
     /// A person's own next day (birthday, anniversary, life moment), leaving out shared holidays.
     func nextPersonalMoment(for person: Person, now: Date = Date()) -> Moment? {
         let today = Calendar.current.startOfDay(for: now)
