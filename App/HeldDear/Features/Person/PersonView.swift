@@ -239,7 +239,19 @@ struct PersonView: View {
                 }
                 section("Saved ideas") {
                     ForEach(person.openWishes, id: \.id) { wish in
-                        OptionRow(title: wish.text, caption: wishCaption(wish)) { wishToEdit = wish }
+                        Button { wishToEdit = wish } label: {
+                            HStack(spacing: Brand.space3) {
+                                WishPreview(wish: wish).frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                                    .accessibilityHidden(true)
+                            }
+                            .padding(.vertical, Brand.space3)
+                            .frame(minHeight: 56)
+                            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityHint(wishCaption(wish))
                     }
                     SecondaryButton(title: "Save an idea") { model.route = .addWish(person.id) }
                 }
