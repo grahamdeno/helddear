@@ -103,8 +103,8 @@ struct PersonHero: View {
             if let tag {
                 Text(tag).font(.footnote.weight(.semibold)).foregroundStyle(.white)
                     .padding(.horizontal, 12).padding(.vertical, 7)
-                    .background(Color.black.opacity(0.35), in: Capsule())
-                    .padding(.top, 60).padding(.trailing, Brand.space4)
+                    .background(Color.black.opacity(0.72), in: Capsule())
+                    .padding(.top, 62).padding(.trailing, Brand.space4)
                     .accessibilityHidden(true)
             }
         }
