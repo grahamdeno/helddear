@@ -637,26 +637,26 @@ struct ReadyRing<Content: View>: View {
     }
 }
 
+private struct ShrinkHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 /// Shows a page at its natural height, scaled down only if it doesn't fit, so Home never needs to scroll.
 struct ShrinkToFit<Content: View>: View {
     @ViewBuilder var content: Content
     @State private var natural: CGFloat = 0
-
-    private struct HeightKey: PreferenceKey {
-        static var defaultValue: CGFloat = 0
-        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
-    }
 
     var body: some View {
         GeometryReader { geo in
             let scale = natural > 0 ? min(1, geo.size.height / natural) : 1
             content
                 .fixedSize(horizontal: false, vertical: true)
-                .background(GeometryReader { g in Color.clear.preference(key: HeightKey.self, value: g.size.height) })
+                .background(GeometryReader { g in Color.clear.preference(key: ShrinkHeightKey.self, value: g.size.height) })
                 .scaleEffect(scale, anchor: .top)
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
         }
-        .onPreferenceChange(HeightKey.self) { natural = $0 }
+        .onPreferenceChange(ShrinkHeightKey.self) { natural = $0 }
     }
 }
 
