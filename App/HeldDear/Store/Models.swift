@@ -158,7 +158,7 @@ extension SchemaV2 {
         var countLine: String? { type.countLine(turning) }
         /// "Turns 68", "Birthday", "40th anniversary with Dad", "Christmas".
         var occasionLine: String {
-            var line = countLine ?? type.label
+            var line = countLine ?? type.title(partner: occasion?.partnerName)
             if type == .anniversary, let partner = occasion?.partnerName { line += " with \(partner)" }
             return line
         }

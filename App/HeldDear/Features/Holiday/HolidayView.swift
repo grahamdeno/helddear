@@ -4,7 +4,8 @@ import SwiftUI
 /// person is, from their own plan. Tap a person to plan them; their plan is saved to them.
 struct HolidayView: View {
     @EnvironmentObject var model: AppModel
-    let type: OccasionType
+    let ref: HolidayRef
+    private var type: OccasionType { ref.type }
     let year: Int
 
     private enum Screen: Equatable { case list, add }
@@ -13,7 +14,7 @@ struct HolidayView: View {
 
     private var members: [Moment] {
         let _ = model.revision
-        return model.holidayMembers(type: type, year: year)
+        return model.holidayMembers(ref: ref, year: year)
     }
 
     var body: some View {
@@ -61,7 +62,7 @@ struct HolidayView: View {
         let next = Holidays.nextUp(rows.map { (name: $0.name, ready: $0.ready, total: $0.total) })
         return FlowScreen {
             Eyebrow(text: eyebrow)
-            Text(type.label)
+            Text(ref.label)
                 .font(Brand.display(60, relativeTo: .largeTitle)).tracking(-1)
                 .foregroundStyle(Brand.ink)
                 .lineLimit(2).minimumScaleFactor(0.5)
@@ -77,7 +78,7 @@ struct HolidayView: View {
             .accessibilityElement(children: .combine)
             VStack(spacing: 0) {
                 ForEach(rows) { row in personRow(row) }
-                TextLink(title: "+ Add people to \(type.label)") { screen = .add }
+                TextLink(title: "+ Add people to \(ref.label)") { screen = .add }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, Brand.space2)
             }
@@ -92,7 +93,7 @@ struct HolidayView: View {
     }
 
     private var eyebrow: String {
-        guard let dueDate else { return type.label.uppercased() }
+        guard let dueDate else { return ref.label.uppercased() }
         var bits = [dueDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())]
         if days == 0 { bits.append("TODAY") } else if days == 1 { bits.append("1 DAY") } else if days > 1 { bits.append("\(days) DAYS") }
         return bits.joined(separator: " · ").uppercased()
@@ -139,7 +140,7 @@ struct HolidayView: View {
         .buttonStyle(PressStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(row.name), \(readyText(row))")
-        .accessibilityHint("Opens \(row.name)'s plan for \(type.label)")
+        .accessibilityHint("Opens \(row.name)'s plan for \(ref.label)")
         .accessibilityAddTraits(.isButton)
     }
 
@@ -160,8 +161,8 @@ struct HolidayView: View {
 
     private var addScreen: some View {
         FlowScreen {
-            TextLink(title: "‹ \(type.label)") { screen = .list }
-            Question(title: "Who else is part of \(type.label)?",
+            TextLink(title: "‹ \(ref.label)") { screen = .list }
+            Question(title: "Who else is part of \(ref.label)?",
                      subtitle: "Each person starts with what families usually plan for them.")
             VStack(spacing: 0) {
                 if candidates.isEmpty {
@@ -169,7 +170,7 @@ struct HolidayView: View {
                 }
                 ForEach(candidates, id: \.id) { p in
                     Button {
-                        model.addToHoliday(p, type: type, year: year)
+                        model.addToHoliday(p, ref: ref, year: year)
                     } label: {
                         HStack(spacing: Brand.space3) {
                             Text(p.name).textStyle(.bodyStrong).frame(maxWidth: .infinity, alignment: .leading)
@@ -181,7 +182,7 @@ struct HolidayView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(PressStyle())
-                    .accessibilityLabel("Add \(p.name) to \(type.label)")
+                    .accessibilityLabel("Add \(p.name) to \(ref.label)")
                 }
             }
         } footer: {
@@ -193,7 +194,8 @@ struct HolidayView: View {
 /// Home's featured view for a shared holiday: the holiday's name large, who it's for, one readiness bar, one action.
 struct HolidayFeaturedView: View {
     @EnvironmentObject var model: AppModel
-    let type: OccasionType
+    let ref: HolidayRef
+    private var type: OccasionType { ref.type }
     let members: [Moment]
     let now: Date
 
@@ -215,12 +217,12 @@ struct HolidayFeaturedView: View {
         // The same fixed places as a person's day, so sliding between them doesn't move anything.
         FeaturedSlots(
             eyebrow: due.formatted(.dateTime.weekday(.wide).month(.wide).day()),
-            title: type.label, open: { model.push(.holiday(type.rawValue, year)) }, openHint: "Opens \(type.label)",
+            title: ref.label, open: { model.push(.holiday(ref.raw, year)) }, openHint: "Opens \(ref.label)",
             subline: Holidays.subline(daysLeft: days, people: members.count),
             progress: progress,
             status: Holidays.summary(peopleReady: peopleReady, people: members.count, thingsReady: thingsReady, things: things)
         ) {
-            PrimaryButton(title: "Plan \(type.label)") { model.push(.holiday(type.rawValue, year)) }
+            PrimaryButton(title: "Plan \(ref.label)") { model.push(.holiday(ref.raw, year)) }
         } link: {
             EmptyView()
         }

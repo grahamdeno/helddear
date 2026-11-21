@@ -226,7 +226,7 @@ struct PersonView: View {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
                         } else {
                             OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
-                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
+                                      : o.type.title(partner: o.partnerName),
                                       caption: occasionCaption(o)) { occasionToEdit = o }
                         }
                     }
@@ -357,7 +357,7 @@ struct PersonView: View {
     private func subline(_ next: Moment) -> String {
         let date = next.dueDate.formatted(.dateTime.month(.wide).day())
         let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.label.lowercased()
-        return next.type.kind == .holiday ? "\(next.type.label), \(date)" : "\(date), \(what)"
+        return next.type.kind == .holiday ? "\(next.type.title(partner: next.occasion?.partnerName)), \(date)" : "\(date), \(what)"
     }
 
     /// The portrait, written as sentences: what they love, sizes, good to know, what they mentioned.
@@ -966,7 +966,27 @@ struct AddOccasionView: View {
             Question(title: "What else matters for \(DisplayName.plain(person.name))?")
             section("Every year", choices.filter { $0.kind == .yearly })
             section("Holidays", choices.filter { $0.kind == .holiday })
+            ownHolidays
             section("Big days", OccasionOffer.bigDays.filter(choices.contains))
+        }
+    }
+
+    /// Holidays the user added (story 2.10) that this person isn't in yet.
+    @ViewBuilder private var ownHolidays: some View {
+        let own = CustomHolidays.all().filter { h in
+            !person.occasions.contains { $0.type == .custom && CustomHolidays.sameName($0.partnerName ?? "", h.name) }
+        }
+        if !own.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Your holidays")
+                ForEach(own) { h in
+                    OptionRow(title: h.name, caption: OccasionDates.date(month: h.month, day: h.day, year: 2028)
+                        .formatted(.dateTime.month(.wide).day())) {
+                        model.addToHoliday(person, ref: h.ref, year: Calendar.current.component(.year, from: Date()))
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 

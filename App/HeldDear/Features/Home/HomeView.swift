@@ -98,7 +98,8 @@ struct HomeView: View {
 
     @ViewBuilder private func featuredView(_ m: Moment, now: Date) -> some View {
         if m.type.kind == .holiday {
-            HolidayFeaturedView(type: m.type, members: model.holidayMembers(type: m.type, year: m.year), now: now)
+            HolidayFeaturedView(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName),
+                                members: model.holidayMembers(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName), year: m.year), now: now)
         } else {
             FeaturedView(moment: m, state: model.state(for: m), now: now,
                          openPerson: { if let p = m.person { model.push(.person(p.id, focus: m.id)) } })
@@ -272,7 +273,7 @@ struct FeaturedView: View {
         case 1: when = "tomorrow"
         default: when = OccasionDates.countdown(to: moment.dueDate, from: now)
         }
-        if moment.type.kind == .holiday { return "\(moment.type.label), \(when)" }
+        if moment.type.kind == .holiday { return "\(moment.type.title(partner: moment.occasion?.partnerName)), \(when)" }
         return "\(what), \(when)"
     }
 
@@ -458,7 +459,7 @@ struct HorizonBand: View {
     }
 
     private func label(_ m: Moment) -> String {
-        if m.type.kind == .holiday { return m.type.label }
+        if m.type.kind == .holiday { return m.type.title(partner: m.occasion?.partnerName) }
         let name = DisplayName.plain(m.person?.name ?? "")
         if m.type == .anniversary, let p = m.occasion?.partnerName { return "\(name) & \(p)" }
         return name
@@ -525,7 +526,7 @@ enum HolidayCollapse {
     static func collapse(_ moments: [Moment]) -> [Moment] {
         var chosen: [String: Moment] = [:]
         for m in moments {
-            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { continue }
+            guard let key = Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) else { continue }
             if let current = chosen[key] {
                 if current.status.isSettled && !m.status.isSettled { chosen[key] = m }
             } else {
@@ -533,7 +534,7 @@ enum HolidayCollapse {
             }
         }
         return moments.filter { m in
-            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { return true }
+            guard let key = Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) else { return true }
             return chosen[key]?.id == m.id
         }
     }
@@ -553,7 +554,7 @@ struct NavPage: View {
         case .person(let id, let focus):
             if let p = model.person(id) { PersonView(person: p, focus: focus) } else { Color.clear }
         case .holiday(let raw, let year):
-            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear }
+            if let ref = HolidayRef(raw: raw) { HolidayView(ref: ref, year: year) } else { Color.clear }
         case .people:
             PeopleAndIdeasView()
         case .ideas:

@@ -105,6 +105,8 @@ struct SettingsView: View {
     @AppStorage("yourName") private var yourName = ""
     @AppStorage("cardSignature") private var signedAs = ""
     @State private var makingCard = false
+    @State private var addingHoliday = false
+    @State private var holidayToEdit: CustomHoliday?
 
     var body: some View {
         ScrollView {
@@ -167,6 +169,21 @@ struct SettingsView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Your own holidays")
+                    let _ = model.revision
+                    let own = CustomHolidays.all()
+                    ForEach(own) { h in
+                        let count = model.customHolidayPeople(h.name).count
+                        OptionRow(title: h.name,
+                                  caption: "\(OccasionDates.date(month: h.month, day: h.day, year: 2028).formatted(.dateTime.month(.wide).day())) · \(count) \(count == 1 ? "person" : "people")") {
+                            holidayToEdit = h
+                        }
+                    }
+                    TextLink(title: "+ Add a holiday") { addingHoliday = true }.padding(.leading, -8)
+                    Text("Your own holidays keep the same date each year. Six weeks before, Held Dear reminds you to change it if it moves.")
+                        .textStyle(.caption, color: Brand.inkMuted)
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "People")
                     OptionRow(title: "Add from contacts", caption: "Pick several at once") { addingFromContacts = true }
                     OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
@@ -201,6 +218,8 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .fullScreenCover(isPresented: $addingHoliday) { OwnHolidayFlow(editing: nil) { addingHoliday = false }.environmentObject(model) }
+        .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
         .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
         .addFromContacts(isPresented: $addingFromContacts)
     }
