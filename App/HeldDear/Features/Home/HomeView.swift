@@ -211,11 +211,20 @@ struct FeaturedView: View {
             eyebrow: missed ? "Yesterday" : moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day()),
             title: displayName, open: openPerson, openHint: "Opens \(name)'s page",
             subline: subline(days: days, missed: missed),
-            progress: progress, status: statusLine(act: act, name: name)
+            progress: progress, status: statusLine(act: act, name: name),
+            showsActions: Self.hasActionNow(act)
         ) {
             mainButton(act: act, missed: missed, name: name)
         } link: {
             linkLine(act: act, days: days, missed: missed, name: name)
+        }
+    }
+
+    /// Planning, ideas and "all set" need no button on Home; a call, a message or a way back does.
+    static func hasActionNow(_ act: NextAct) -> Bool {
+        switch act {
+        case .allSet, .openPlan, .pick, .saveWish: return false
+        default: return true
         }
     }
 
@@ -700,6 +709,9 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
     let subline: String
     let progress: [PartSteps.Progress]
     let status: String
+    /// Home shows a button only when there's one real thing to do now (a call or message on the day, a way back).
+    /// Planning happens on the person's page, which the name and face open (Nov 21, 2026).
+    var showsActions = true
     @ViewBuilder var button: MainButton
     @ViewBuilder var link: LinkLine
 
@@ -715,13 +727,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 medallion.padding(.top, Brand.space3)
             }
             Button(action: open) {
-                // The oxblood › after the name says the name opens the page; it replaced the "page ›" line
-                // (approved Nov 21, 2026).
-                (Text(title).foregroundColor(Brand.ink)
-                 + Text("\u{00A0}›")
-                    .font(.system(size: NameSize.featured(title) * 0.42, weight: .light))
-                    .foregroundColor(Brand.action)
-                    .baselineOffset(NameSize.featured(title) * 0.14))
+                // The name opens the page. The › after it came off (Graham, Nov 21, 2026): the face and name are enough.
+                Text(title).foregroundColor(Brand.ink)
                     .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
                     .tracking(-2)
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
@@ -754,12 +761,14 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
             }
             .frame(height: statusHeight, alignment: .center)
             .padding(.top, Brand.space4)
-            button
-                .frame(height: buttonHeight)
-                .padding(.top, Brand.space3)
-            link
-                .frame(height: linkHeight)
-                .padding(.top, Brand.space2)
+            if showsActions {
+                button
+                    .frame(height: buttonHeight)
+                    .padding(.top, Brand.space3)
+                link
+                    .frame(height: linkHeight)
+                    .padding(.top, Brand.space2)
+            }
         }
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)
