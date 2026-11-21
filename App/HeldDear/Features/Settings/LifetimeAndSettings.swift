@@ -115,6 +115,7 @@ struct SettingsView: View {
     @State private var exporting = false
     @State private var importing = false
     @State private var keepInICloud = ICloudSync.isOn
+    @ObservedObject private var iCloudStatus = ICloudSync.Status.shared
     @State private var yourPhotoItem: PhotosPickerItem?
     @State private var yourPhotoFile = YouProfile.photoFile
     @State private var editingBirthday = false
@@ -270,6 +271,16 @@ struct SettingsView: View {
                     }
                     .tint(Brand.action)
                     .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
+                    if ICloudSync.isOnAtLaunch {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text([iCloudStatus.account, iCloudStatus.last].filter { !$0.isEmpty }.joined(separator: " · "))
+                                .textStyle(.caption, color: Brand.inkMuted)
+                            if let problem = iCloudStatus.problem {
+                                Text(problem).textStyle(.caption, color: Brand.ink).textSelection(.enabled)
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
                     OptionRow(title: "Import my data",
                               caption: importNote ?? "Puts back everything from an export file: people, days, plans, ideas, years and photos.") {
                         importing = true

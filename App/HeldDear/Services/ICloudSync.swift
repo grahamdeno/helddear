@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import UIKit
+import CloudKit
 
 /// Item 3.1, sync and backup through the user's own private iCloud. Held Dear runs no server for this: Apple's
 /// CloudKit container mirrors the store, photos travel as Photo records, and the You page settings travel in
@@ -26,6 +27,48 @@ enum ICloudSync {
     static var runningTests: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
 
     private static var observers: [NSObjectProtocol] = []
+
+    /// What iCloud last reported, for the You page (so a sync problem shows its reason instead of nothing).
+    @MainActor
+    final class Status: ObservableObject {
+        static let shared = Status()
+        @Published var account = "Checking iCloud…"
+        @Published var last = ""
+        @Published var problem: String?
+
+        func update(_ event: NSPersistentCloudKitContainer.Event) {
+            let kind: String
+            switch event.type {
+            case .setup: kind = "Set up"
+            case .import: kind = "Received"
+            case .export: kind = "Sent"
+            @unknown default: kind = "Synced"
+            }
+            if let end = event.endDate {
+                if let error = event.error as NSError? {
+                    problem = "\(kind) didn't finish: \(error.localizedDescription) (\(error.domain) \(error.code))"
+                } else {
+                    last = "\(kind) \(end.formatted(date: .omitted, time: .shortened))"
+                    if event.type != .setup { problem = nil }
+                }
+            }
+        }
+
+        func checkAccount() {
+            CKContainer(identifier: ICloudSync.containerID).accountStatus { status, error in
+                let text: String
+                switch status {
+                case .available: text = "Signed in to iCloud"
+                case .noAccount: text = "Not signed in to iCloud on this iPhone"
+                case .restricted: text = "iCloud is restricted on this iPhone"
+                case .temporarilyUnavailable: text = "iCloud is temporarily unavailable"
+                case .couldNotDetermine: text = "Couldn't check iCloud" + (error.map { ": \($0.localizedDescription)" } ?? "")
+                @unknown default: text = "iCloud status unknown"
+                }
+                DispatchQueue.main.async { self.account = text }
+            }
+        }
+    }
     private static var container: ModelContainer?
     private static var onChange: (() -> Void)?
     private static var tidyPending = false
@@ -53,6 +96,12 @@ enum ICloudSync {
         Settings.start()
 
         guard isOnAtLaunch else { return }
+        Status.shared.checkAccount()
+        observers.append(NotificationCenter.default.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification,
+                                                                object: container.persistent, queue: .main) { note in
+            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event else { return }
+            MainActor.assumeIsolated { Status.shared.update(event) }
+        })
         let note = NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange,
                                                           object: container.persistent.persistentStoreCoordinator,
                                                           queue: .main) { _ in
@@ -108,7 +157,9 @@ enum ICloudSync {
                 try persistent.initializeCloudKitSchema(options: [])
                 UserDefaults.standard.set(true, forKey: key)
             } catch {
-                // No iCloud account or no network: tried again next launch.
+                // No iCloud account or no network: tried again next launch. The reason shows on the You page.
+                let e = error as NSError
+                DispatchQueue.main.async { Status.shared.problem = "Setting up iCloud didn't finish: \(e.localizedDescription) (\(e.domain) \(e.code))" }
             }
         }
     }
