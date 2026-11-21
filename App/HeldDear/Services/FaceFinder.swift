@@ -24,10 +24,31 @@ final class FaceFinder {
         return made
     }
 
-    private static func upright(_ image: UIImage) -> CGImage? {
+    /// The person's photo cropped to a shape (width / height) with the face placed for a share image. Larger than
+    /// the portrait: up to 1600 pixels across.
+    func banner(for person: Person?, aspect: CGFloat) async -> UIImage? {
+        guard let person,
+              let source = PhotoStore.load(person.photoFiles.last) ?? ContactsService.shared.photo(contactID: person.contactID),
+              let upright = Self.upright(source, longest: 1600) else { return nil }
+        let cropped = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+            let size = CGSize(width: upright.width, height: upright.height)
+            let rect = FaceFrame.bannerRect(face: Self.face(in: upright), imageSize: size, aspect: aspect)
+            return upright.cropping(to: rect.integral)
+        }.value
+        return cropped.map { UIImage(cgImage: $0) }
+    }
+
+    nonisolated private static func face(in cg: CGImage) -> CGRect? {
+        let size = CGSize(width: cg.width, height: cg.height)
+        let request = VNDetectFaceRectanglesRequest()
+        try? VNImageRequestHandler(cgImage: cg, orientation: .up).perform([request])
+        return FaceFrame.largest((request.results ?? []).map { FaceFrame.pixelRect(normalized: $0.boundingBox, imageSize: size) })
+    }
+
+    private static func upright(_ image: UIImage, longest limit: CGFloat = 1024) -> CGImage? {
         let longest = max(image.size.width, image.size.height)
         guard longest > 0 else { return nil }
-        let scale = min(1, 1024 / longest)
+        let scale = min(1, limit / longest)
         let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
@@ -38,10 +59,7 @@ final class FaceFinder {
 
     nonisolated private static func cropOnFace(_ cg: CGImage) -> CGImage? {
         let size = CGSize(width: cg.width, height: cg.height)
-        let request = VNDetectFaceRectanglesRequest()
-        try? VNImageRequestHandler(cgImage: cg, orientation: .up).perform([request])
-        let faces = (request.results ?? []).map { FaceFrame.pixelRect(normalized: $0.boundingBox, imageSize: size) }
-        let square = FaceFrame.portraitSquare(face: FaceFrame.largest(faces), imageSize: size)
+        let square = FaceFrame.portraitSquare(face: face(in: cg), imageSize: size)
         return cg.cropping(to: square.integral)
     }
 }

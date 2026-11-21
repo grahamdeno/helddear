@@ -19,6 +19,19 @@ enum FaceFrame {
         return CGRect(x: x, y: y, width: side, height: side)
     }
 
+    /// A crop of the given shape (width / height) for a photo across the top of a share image: as much of the photo
+    /// as fits, with the face centered across and its middle about 38% of the way down. Pixel units, top-left origin.
+    static func bannerRect(face: CGRect?, imageSize: CGSize, aspect: CGFloat) -> CGRect {
+        let width = min(imageSize.width, imageSize.height * aspect)
+        let height = width / aspect
+        let centerX = face?.midX ?? imageSize.width / 2
+        let x = min(max(0, centerX - width / 2), imageSize.width - width)
+        let y: CGFloat
+        if let face { y = min(max(0, face.midY - height * 0.38), imageSize.height - height) }
+        else { y = (imageSize.height - height) / 2 }
+        return CGRect(x: x, y: y, width: width, height: height)
+    }
+
     /// Vision's boxes are normalized with the origin at the bottom left; this gives pixels from the top left.
     static func pixelRect(normalized box: CGRect, imageSize: CGSize) -> CGRect {
         CGRect(x: box.minX * imageSize.width, y: (1 - box.maxY) * imageSize.height,

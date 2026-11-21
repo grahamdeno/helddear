@@ -32,6 +32,7 @@ struct PersonView: View {
     @State private var occasionToEdit: Occasion?
     @State private var showIdeas = false
     @State private var sendingCard = false
+    @State private var sharingDay: Moment?
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -44,6 +45,9 @@ struct PersonView: View {
         .sheet(item: $addingTo) { m in
             PlanView(moment: m, onClose: { addingTo = nil }, startOnAdd: true)
                 .environmentObject(model)
+        }
+        .fullScreenCover(item: $sharingDay) { day in
+            ShareDayFlow(moment: day) { sharingDay = nil }.environmentObject(model)
         }
         .fullScreenCover(isPresented: $sendingCard) {
             ReasonCardFlow(person: person) { sendingCard = false }.environmentObject(model)
@@ -301,6 +305,10 @@ struct PersonView: View {
                 TextLink(title: "Edit") { editingPortrait = true }
             }
             .padding(.leading, -8)
+            if let day = model.nextPersonalMoment(for: person) {
+                TextLink(title: "Share \(DisplayName.plain(person.name))'s day") { sharingDay = day }
+                    .padding(.leading, -8)
+            }
         }
         .padding(Brand.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
