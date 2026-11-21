@@ -114,6 +114,7 @@ final class AppModel: ObservableObject {
         }
         CallService.shared.onConnected = { [weak self] in self?.callConnected() }
         AppModel.current = self
+        if !inMemory { ICloudSync.start(container) { [weak self] in self?.revision += 1 } }
         _ = Purchases.shared
         NotificationCenter.default.addObserver(forName: .CNContactStoreDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in

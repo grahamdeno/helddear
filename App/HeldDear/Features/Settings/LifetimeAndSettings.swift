@@ -112,6 +112,7 @@ struct SettingsView: View {
     @State private var exportItems: [Any]?
     @State private var exportFailed = false
     @State private var importing = false
+    @State private var keepInICloud = ICloudSync.isOn
     @State private var importNote: String?
     @State private var pendingImport: URL?
 
@@ -232,12 +233,23 @@ struct SettingsView: View {
                                                     : "Everything you've added, with photos, in one file. You choose where it goes.") {
                         exportData()
                     }
+                    Toggle(isOn: $keepInICloud) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Keep in iCloud").textStyle(.body)
+                            Text(keepInICloud == ICloudSync.isOnAtLaunch
+                                 ? "Your plans and photos, in your own iCloud, on your iPhones. Held Dear never sees them."
+                                 : "Takes effect the next time Held Dear opens. Everything stays on this iPhone either way.")
+                                .textStyle(.caption, color: Brand.inkMuted)
+                        }
+                    }
+                    .tint(Brand.action)
+                    .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
                     OptionRow(title: "Import my data",
                               caption: importNote ?? "Puts back everything from an export file: people, days, plans, ideas, years and photos.") {
                         importing = true
                     }
                 }
-                Text("Everything you add stays on this iPhone. Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
+                Text("Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail. Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
                     .textStyle(.caption, color: Brand.inkMuted)
                 Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
                     .textStyle(.caption, color: Brand.inkMuted)

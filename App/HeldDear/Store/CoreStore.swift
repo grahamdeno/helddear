@@ -359,6 +359,25 @@ extension WishObject: Identifiable {}
 extension ActObject: Identifiable {}
 extension LedgerEntryObject: Identifiable {}
 
+/// One photo's bytes, so photos reach the user's other devices through iCloud (item 3.1, Fable C5). The app still
+/// reads photos from files; a missing file is written back from here.
+@objc(PhotoObject)
+final class PhotoObject: StoredRecord {
+    var id: UUID { get { read("id", CoreStore.missingID) } set { write("id", newValue) } }
+    var name: String { get { read("name", "") } set { write("name", newValue) } }
+    var data: Data? { get { readOptional("data") } set { write("data", newValue) } }
+    var createdAt: Date { get { read("createdAt", Date.distantPast) } set { write("createdAt", newValue) } }
+
+    convenience init(name: String, data: Data) {
+        self.init(newOf: "Photo")
+        setPrimitiveValue(UUID(), forKey: "id")
+        self.name = name
+        self.data = data
+        self.createdAt = Date()
+    }
+}
+extension PhotoObject: Identifiable {}
+
 // MARK: - The model
 
 enum CoreStore {
@@ -368,7 +387,9 @@ enum CoreStore {
     static let missingID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     /// One model for every container, so records made before they're inserted belong to it.
-    static let model: NSManagedObjectModel = makeModel()
+    static let model: NSManagedObjectModel = makeModel(version: 31)
+    /// The first version 3 model (build 1030), kept only to move a store from it to 3.1.
+    static let modelV30: NSManagedObjectModel = makeModel(version: 30)
 
     private static func attr(_ name: String, _ type: NSAttributeType, default value: Any? = nil) -> NSAttributeDescription {
         let a = NSAttributeDescription()
@@ -401,7 +422,13 @@ enum CoreStore {
         return r
     }
 
-    private static func makeModel() -> NSManagedObjectModel {
+    /// Free text a person typed is encrypted in iCloud (Fable C8): only the user's own devices can read it.
+    static let encryptedFields: Set<String> = ["fullName", "manualPhone", "sizes", "goodToKnow", "relationship",
+                                               "mailingAddress", "loves", "partnerName", "fromNote", "note", "line",
+                                               "text", "url", "title", "label", "what", "personName", "name"]
+
+    /// 30: build 1030. 31 (item 3.1): adds Photo (each photo's bytes, for iCloud) and encrypts free text in iCloud.
+    private static func makeModel(version: Int) -> NSManagedObjectModel {
         let s = NSAttributeType.stringAttributeType, d = NSAttributeType.dateAttributeType
         let u = NSAttributeType.UUIDAttributeType, i = NSAttributeType.integer64AttributeType
         let b = NSAttributeType.booleanAttributeType
@@ -449,6 +476,16 @@ enum CoreStore {
 
         let m = NSManagedObjectModel()
         m.entities = [person, occasion, moment, wish, act, ledger]
+        if version >= 31 {
+            let data = attr("data", .binaryDataAttributeType)
+            data.allowsExternalBinaryDataStorage = true
+            let photo = entity("Photo", PhotoObject.self, [attr("id", u), attr("name", s, default: ""), data,
+                                                          attr("createdAt", d, default: Date(timeIntervalSince1970: 0))])
+            m.entities.append(photo)
+            for e in m.entities {
+                for (name, a) in e.attributesByName where encryptedFields.contains(name) { a.allowsCloudEncryption = true }
+            }
+        }
         return m
     }
 }
@@ -544,6 +581,7 @@ extension StoredRecord {
         case is MomentObject.Type: return "Moment"
         case is WishObject.Type: return "Wish"
         case is ActObject.Type: return "Act"
+        case is PhotoObject.Type: return "Photo"
         default: return "LedgerEntry"
         }
     }
