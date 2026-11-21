@@ -54,3 +54,22 @@ test("more cards come from any-occasion categories, never the occasion's own", (
   assert.deepEqual(anyOccasionCategories(cats, 7), [12, 15, 22]);
   assert.deepEqual(anyOccasionCategories(cats, 12), [15, 22]);
 });
+
+test("real Handwrytten names: personal categories win, photo templates and business are skipped", () => {
+  const real = [
+    { id: -1, name: "All Categories" }, { id: 1948, name: "Birthday (Photo Templates)" },
+    { id: 1892, name: "Birthday (Business)" }, { id: 1891, name: "Birthday (Personal)" },
+    { id: 1888, name: "Anniversary (Business)" }, { id: 1890, name: "Anniversary (Personal)" },
+    { id: 11, name: "Condolences" }, { id: 15, name: "Everyday" }, { id: 12, name: "Holidays" },
+    { id: 5, name: "Just For Fun" }, { id: 1949, name: "Everyday (Photo Templates)" }, { id: 6, name: "Thank You" },
+    { id: 1898, name: "Donor Thank You and Volunteer Appreciation" }, { id: 1440, name: "Get Well" },
+  ];
+  assert.equal(pickCategory(real, "birthday"), 1891);
+  assert.equal(pickCategory(real, "anniversary"), 1890);
+  assert.equal(pickCategory(real, "christmas"), 12);
+  assert.equal(pickCategory(real, "sympathy"), 11);
+  assert.equal(pickCategory(real, "thankYou"), 6);
+  assert.equal(pickCategory(real, "mothersDay"), 15);
+  assert.equal(pickCategory(real, "justBecause"), 15);
+  assert.deepEqual(anyOccasionCategories(real, 1891), [15, 5]);
+});
