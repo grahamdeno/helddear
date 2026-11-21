@@ -147,7 +147,7 @@ struct ZipCenters {
 
     init(bundleFile: String) {
         guard let url = Bundle.main.url(forResource: bundleFile, withExtension: "csv"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { centers = [:]; return }
+              let text = try? String(contentsOf: url, encoding: .utf8) else { self.init(centers: [:]); return }
         self.init(csv: text)
     }
 
