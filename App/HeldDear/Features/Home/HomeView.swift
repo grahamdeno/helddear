@@ -14,6 +14,11 @@ struct HomeView: View {
             content
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
+                    // Settings where people look for it: a quiet gear at the top left of Home (feedback on 1019).
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { model.route = .settings } label: { Image(systemName: "gearshape") }
+                            .accessibilityLabel("Settings")
+                    }
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         // One quiet + (approved Nov 20, 2026). People is on the timeline (Everyone ›); Ideas shares
                         // the People page; Settings is at the bottom of People.
