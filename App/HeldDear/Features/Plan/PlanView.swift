@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The occasion plan (roadmap Epic 2, stories 2.1 to 2.4): one screen of parts for a person's day, each with a step
 /// and an owner. Three screens in one cover: the plan, one part, and "Add something". Every rule (words, owners,
@@ -298,6 +299,7 @@ struct StepPill: View {
 private struct PartScreen: View {
     @EnvironmentObject var model: AppModel
     let act: Act
+    /// Everyone an item can be from: the household first, then others in the inner ring.
     let household: [Person]
     let personName: String
     let person: Person?
@@ -306,54 +308,97 @@ private struct PartScreen: View {
     let back: () -> Void
 
     @State private var note = ""
+    @State private var name = ""
     @State private var loaded = false
     @State private var showLifetime = false
     @State private var showMore = false
+    @State private var showOthers = false
+    @State private var noLinkCopied = false
     @FocusState private var noteFocused: Bool
+    @FocusState private var nameFocused: Bool
 
     private var family: PartSteps.Family { PartSteps.family(forKindRaw: act.kindRaw) }
-
-    /// "Gift from Heidi and Nora" once who it's from is set; otherwise the item's own name.
-    private var titleText: String {
-        let names = household.filter { ownerIDs.contains($0.id) }.map(\.name)
-        if act.kind == .kidsMade, act.label == nil, let n = PartOwners.kidsGiftName(names: names) { return n }
-        return PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)
-    }
     private var current: String { act.currentStep ?? "open" }
     private var ownerIDs: [UUID] { PartOwners.existing(act.ownerIDs, among: household.map(\.id)) }
 
+    /// The household (a partner and the children); everyone else is under "Someone else" (feedback on build 1017).
+    private var core: [Person] {
+        household.filter { [.partner, .child].contains(Relationship.group($0.relationship)) }
+    }
+    private var others: [Person] { household.filter { p in !core.contains { $0.id == p.id } } }
+
+    /// What it is when nothing's been typed: "Gift", or "Gift from Heidi and Nora" once who it's from is set.
+    private var autoName: String {
+        let names = household.filter { ownerIDs.contains($0.id) }.map { DisplayName.plain($0.name) }
+        if act.kind == .kidsMade, let n = PartOwners.kidsGiftName(names: names) { return n }
+        return PartSteps.defaultName(forKindRaw: act.kindRaw)
+    }
+
+    private var eyebrow: String {
+        var bits: [String] = []
+        if !personName.isEmpty { bits.append("For \(DisplayName.plain(personName))") }
+        if let m = act.moment { bits.append(m.label) }
+        bits.append(autoName)
+        return bits.joined(separator: " · ")
+    }
+
     var body: some View {
         FlowScreen {
-            if !inNav { TextLink(title: "‹ \(personName)'s plan") { saveNote(); back() } }
-            if !personName.isEmpty { Eyebrow(text: "For \(personName)") }
-            Text(titleText)
-                .font(Brand.display(52, relativeTo: .largeTitle)).tracking(-1)
-                .foregroundStyle(Brand.ink)
-                .lineLimit(3).minimumScaleFactor(0.6)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-            TextField("Add a note, like what it is or when it arrives.", text: $note, axis: .vertical)
-                .lineLimit(1...4)
-                .font(Brand.serif(18, relativeTo: .body, italic: true))
-                .foregroundStyle(Brand.ink)
-                .focused($noteFocused)
-                .frame(minHeight: 44, alignment: .topLeading)
-                .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
-            standsList
-            linkRow
+            if !inNav { TextLink(title: "‹ \(personName)'s plan") { save(); back() } }
+            VStack(alignment: .leading, spacing: Brand.space1) {
+                Eyebrow(text: eyebrow)
+                TextField("What is it?", text: $name, axis: .vertical)
+                    .lineLimit(1...3)
+                    .font(Brand.display(44, relativeTo: .largeTitle))
+                    .foregroundStyle(Brand.ink)
+                    .focused($nameFocused)
+                    .submitLabel(.done)
+                    .onChange(of: nameFocused) { _, focused in if !focused { saveName() } }
+                    .accessibilityLabel("What is it?")
+                Text("Name it here. The name shows on \(DisplayName.plain(personName))'s page.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
+            card("Where it stands") { standsList }
+            card("Who it's from", trailing: "Pick any") { ownersList }
+            card("Link and note") { linkAndNote }
             shelfList
             findsList
-            ownersList
-        } footer: {
-            PrimaryButton(title: "Done") { saveNote(); back() }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
-        .onDisappear { saveNote() }
+        .onDisappear { save() }
         .onAppear {
             guard !loaded else { return }
             note = act.note ?? ""
+            let info = PartSteps.displayInfo(kindRaw: act.kindRaw, label: act.label, title: act.title)
+            name = info.typed ? info.text : ""
             loaded = true
         }
+    }
+
+    /// A lighter card with a title, like the person page.
+    private func card<Content: View>(_ title: String, trailing: String? = nil, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Brand.space3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(Brand.serif(20, relativeTo: .title3)).foregroundStyle(Brand.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: Brand.space2)
+                if let trailing { Text(trailing).textStyle(.caption, color: Brand.inkMuted) }
+            }
+            content()
+        }
+        .padding(Brand.space4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
+    }
+
+    private func save() { saveNote(); saveName() }
+
+    private func saveName() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let info = PartSteps.displayInfo(kindRaw: act.kindRaw, label: act.label, title: act.title)
+        let currentTyped = info.typed ? info.text : ""
+        if trimmed != currentTyped { model.setLabel(act, trimmed) }
     }
 
     private func saveNote() {
@@ -382,74 +427,107 @@ private struct PartScreen: View {
         }
     }
 
-    /// Where it stands, as one row of steps you tap: the kind's own steps first, the rest under "More statuses".
     private var standsList: some View {
         VStack(alignment: .leading, spacing: Brand.space2) {
-            Eyebrow(text: "Where it stands")
             FlowLayout(spacing: 8) {
                 ForEach(shownSteps, id: \.self) { step in stepChip(step) }
                 if !showMore && !PartSteps.moreSteps(for: family).contains(current) {
                     Button { showMore = true } label: {
                         Text("More statuses").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
-                            .padding(.horizontal, 10).frame(minHeight: 44)
+                            .padding(.horizontal, 6).frame(minHeight: 44)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            Text("Tap a step to change it.").textStyle(.caption, color: Brand.inkMuted)
             if PartSteps.datedSteps.contains(current) {
                 DatePicker("\(PartSteps.word(for: current)) on", selection: dateBinding, displayedComponents: .date)
                     .textStyle(.body)
                     .tint(Brand.action)
-                    .frame(minHeight: 52)
+                    .frame(minHeight: 48)
+                    .overlay(alignment: .top) { Rectangle().fill(Brand.raisedLine).frame(height: 1) }
             }
         }
     }
 
     private func stepChip(_ step: String) -> some View {
-        let selected = step == current
-        return Button { pick(step) } label: {
-            HStack(spacing: 6) {
-                if selected { Image(systemName: "checkmark").font(.footnote.weight(.bold)) }
-                Text(PartSteps.word(for: step)).font(.callout.weight(.semibold)).lineLimit(1)
-            }
-            .foregroundStyle(selected ? Brand.page : Brand.ink)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 44)
-            .background {
-                if selected { Capsule().fill(Brand.ink) } else { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) }
-            }
-            .contentShape(Capsule())
-        }
-        .buttonStyle(PressStyle())
-        .accessibilityLabel(PartSteps.word(for: step))
-        .accessibilityValue(selected ? "Selected" : "Not selected")
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityHint("Where it stands. One choice.")
+        chip(PartSteps.word(for: step), selected: step == current) { pick(step) }
+            .accessibilityValue(step == current ? "Selected" : "Not selected")
+            .accessibilityHint("Where it stands. One choice.")
     }
 
-    /// The item's link: what was bought, or where to track it. Paste one any time (no clipboard prompt).
-    @ViewBuilder private var linkRow: some View {
-        let link = act.wishID.flatMap { id in person?.wishes.first { $0.id == id } }?.url.flatMap(URL.init(string:))
+    private var ownersList: some View {
         VStack(alignment: .leading, spacing: Brand.space2) {
-            Eyebrow(text: "Link")
+            FlowLayout(spacing: 8) {
+                chip("You", selected: ownerIDs.isEmpty) { model.setOwners(act, PartOwners.you()) }
+                ForEach(core, id: \.id) { p in giverChip(p) }
+                if showOthers || others.contains(where: { ownerIDs.contains($0.id) }) {
+                    ForEach(others, id: \.id) { p in giverChip(p) }
+                }
+            }
+            if !others.isEmpty && !others.contains(where: { ownerIDs.contains($0.id) }) {
+                Button { showOthers.toggle() } label: {
+                    Text(showOthers ? "Fewer people" : "Someone else…").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func giverChip(_ p: Person) -> some View {
+        let first = DisplayName.plain(p.name).split(separator: " ").first.map(String.init) ?? DisplayName.plain(p.name)
+        return chip(first, selected: ownerIDs.contains(p.id)) {
+            model.setOwners(act, PartOwners.toggled(ownerIDs, tapping: p.id))
+        }
+        .accessibilityLabel(DisplayName.plain(p.name))
+    }
+
+    /// The link (what was bought, or where to track it) and the note.
+    @ViewBuilder private var linkAndNote: some View {
+        let link = act.wishID.flatMap { id in person?.wishes.first { $0.id == id } }?.url.flatMap(URL.init(string:))
+        VStack(alignment: .leading, spacing: 0) {
             if let link {
                 Link(destination: link) {
-                    Text(link.host() ?? link.absoluteString).font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
-                        .frame(minHeight: 44, alignment: .leading)
+                    HStack {
+                        Text(link.host() ?? link.absoluteString).textStyle(.body, color: Brand.action).lineLimit(1)
+                        Spacer()
+                        Text("Open ›").textStyle(.caption, color: Brand.inkMuted)
+                    }
+                    .frame(minHeight: 48)
                 }
                 .accessibilityLabel("Open the link, \(link.host() ?? "")")
-            } else {
-                Text("Copy a link to what you ordered, or its tracking page, then paste it here.")
-                    .textStyle(.caption, color: Brand.inkMuted)
             }
-            PasteButton(payloadType: URL.self) { urls in
-                if let url = urls.first { model.attachLink(url, to: act) }
+            Button { pasteLink() } label: {
+                HStack {
+                    Text(link == nil ? "Paste a link" : "Paste a different link").textStyle(.body)
+                    Spacer()
+                    Text(noLinkCopied ? "Copy a link first" : "What you ordered, or tracking")
+                        .textStyle(.caption, color: noLinkCopied ? Brand.action : Brand.inkMuted)
+                }
+                .frame(minHeight: 48)
+                .overlay(alignment: .top) { if link != nil { Rectangle().fill(Brand.raisedLine).frame(height: 1) } }
+                .contentShape(Rectangle())
             }
-            .buttonBorderShape(.capsule)
-            .tint(Brand.action)
-            .labelStyle(.titleAndIcon)
+            .buttonStyle(.plain)
+            TextField("Add a note, like when it arrives", text: $note, axis: .vertical)
+                .lineLimit(1...4)
+                .font(Brand.serif(17, relativeTo: .body, italic: true))
+                .foregroundStyle(Brand.ink)
+                .focused($noteFocused)
+                .frame(minHeight: 48, alignment: .leading)
+                .overlay(alignment: .top) { Rectangle().fill(Brand.raisedLine).frame(height: 1) }
+                .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
         }
+    }
+
+    /// Reads a link only when one has been copied, so iOS asks only then.
+    private func pasteLink() {
+        guard UIPasteboard.general.hasURLs, let url = UIPasteboard.general.url else {
+            noLinkCopied = true
+            return
+        }
+        noLinkCopied = false
+        model.attachLink(url, to: act)
     }
 
     /// Finds (approved Nov 20, 2026): at most two, from the catalog in the app, fitted to the item, the giver and
@@ -461,7 +539,7 @@ private struct PartScreen: View {
                                       dismissed: Finds.dismissed(for: person.id))
             if !finds.isEmpty {
                 VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: act.kind == .kidsMade ? "Finds the kids could give" : "A find for \(person.name)")
+                    Eyebrow(text: act.kind == .kidsMade ? "Finds the kids could give" : "A find for \(DisplayName.plain(person.name))")
                     ForEach(finds) { find in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(find.name).textStyle(.bodyStrong)
@@ -478,7 +556,7 @@ private struct PartScreen: View {
                                 .buttonStyle(PressStyle())
                                 .accessibilityLabel("Use \(find.name)")
                                 Button { model.dismissFind(find, for: person) } label: {
-                                    Text("Not for \(person.name)").font(.callout).foregroundStyle(Brand.action)
+                                    Text("Not for \(DisplayName.plain(person.name))").font(.callout).foregroundStyle(Brand.action)
                                         .frame(minHeight: 44)
                                 }
                                 .buttonStyle(PressStyle())
@@ -492,7 +570,8 @@ private struct PartScreen: View {
                         }
                         .padding(Brand.space4)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+                        .background(Brand.raised, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+                        .overlay { RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
                     }
                 }
             }
@@ -530,30 +609,15 @@ private struct PartScreen: View {
         }
     }
 
-    private var ownersList: some View {
-        VStack(alignment: .leading, spacing: Brand.space2) {
-            Eyebrow(text: "Who it's from")
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: Brand.space2)], alignment: .leading,
-                      spacing: Brand.space2) {
-                chip("You", selected: ownerIDs.isEmpty) { model.setOwners(act, PartOwners.you()) }
-                ForEach(household, id: \.id) { p in
-                    chip(p.name, selected: ownerIDs.contains(p.id)) {
-                        model.setOwners(act, PartOwners.toggled(ownerIDs, tapping: p.id))
-                    }
-                }
-            }
-        }
-    }
-
     private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if selected { Image(systemName: "checkmark").font(.footnote.weight(.bold)) }
-                Text(title).font(.callout.weight(.semibold)).lineLimit(2).multilineTextAlignment(.center)
+                Text(title).font(.callout.weight(.semibold)).lineLimit(1)
             }
             .foregroundStyle(selected ? Brand.page : Brand.ink)
             .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(minHeight: 44)
             .background {
                 if selected { Capsule().fill(Brand.ink) } else { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) }
             }
