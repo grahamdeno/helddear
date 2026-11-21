@@ -53,7 +53,7 @@ struct IdeasList: View {
 
     private var shelf: [IdeaItem] {
         (moment.person?.openWishes ?? []).map {
-            IdeaItem(source: .shelf, title: $0.text, why: $0.savedLine, url: $0.url, imageFile: $0.imageFile, wishID: $0.id)
+            IdeaItem(source: .shelf, title: LinkPreviews.isOnlyALink($0.text) ? (LinkPreviews.link(in: $0.text).map(LinkPreviews.shortName) ?? $0.text) : $0.text, why: $0.savedLine, url: $0.url, imageFile: $0.imageFile, wishID: $0.id)
         }
     }
 
