@@ -10,6 +10,9 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
     /// `partnerName` (no new stored field, so no data migration).
     case event
     case wedding
+    /// A holiday the user adds (story 2.10): same date each year, shared like Christmas. Its name is kept in the
+    /// occasion's `partnerName`, like `event` (no new stored field, so no data migration).
+    case custom
 
     var id: String { rawValue }
 
@@ -18,7 +21,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
     var kind: Kind {
         switch self {
         case .birthday, .anniversary: .yearly
-        case .christmas, .valentines, .mothersDay, .fathersDay: .holiday
+        case .christmas, .valentines, .mothersDay, .fathersDay, .custom: .holiday
         case .newBaby, .graduation, .newHome, .retirement, .event, .wedding: .once
         }
     }
@@ -37,10 +40,17 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .retirement: "Retirement"
         case .event: "Event"
         case .wedding: "Wedding"
+        case .custom: "Holiday"
         }
     }
 
-    /// Holidays know their own date; everything else asks for one.
+    /// The name to show: a named day or a holiday the user added goes by its own name.
+    func title(partner: String?) -> String {
+        if self == .custom || self == .event, let partner, !partner.isEmpty { return partner }
+        return label
+    }
+
+    /// Holidays know their own date; everything else asks for one. A holiday the user added carries its own date.
     var needsDate: Bool { kind != .holiday }
 
     /// Fixed holiday dates. Mother's and Father's Day are computed per year.
@@ -59,6 +69,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .anniversary:
             return partner.map { "\(name) & \($0)'s anniversary" } ?? "\(name)'s anniversary"
         case .christmas, .valentines, .mothersDay, .fathersDay: return "\(label) for \(name)"
+        case .custom: return "\(title(partner: partner)) for \(name)"
         case .newBaby: return "\(name)'s new baby"
         case .graduation: return "\(name)'s graduation"
         case .newHome: return "\(name)'s new home"
@@ -82,6 +93,7 @@ enum OccasionType: String, Codable, CaseIterable, Identifiable {
         case .newBaby, .graduation, .event, .wedding: "Congratulations,"
         case .newHome: "Welcome home,"
         case .retirement: "Happy retirement,"
+        case .custom: "Happy holidays,"
         }
     }
 
