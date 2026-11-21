@@ -18,6 +18,20 @@ enum NextAct: Equatable {
     /// Far enough away that the hero shows months and a gentle secondary button.
     static let farDays = 99
 
+    /// The quiet line under Home's main button (Nov 21, 2026): how soon the next thing needs doing.
+    /// "Order by Thursday, December 10" for things you buy, "Mail by …" for a card, nothing otherwise or once started.
+    static func byLine(kindRaw: String?, step: String?, due: Date, calendar: Calendar = .current) -> String? {
+        guard let kindRaw, let kind = ActKind(rawValue: kindRaw) else { return nil }
+        if let step, step != "open", step != "idea" { return nil }
+        let cutoff = OccasionDates.adding(days: -OccasionDates.cutoffDays, to: due, calendar: calendar)
+        let when = cutoff.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        switch kind {
+        case .gift, .stocking, .fromSanta, .cake, .flowers: return "Order by \(when)"
+        case .card: return "Mail by \(when)"
+        default: return nil
+        }
+    }
+
     static func make(_ m: MomentState, now: Date, calendar: Calendar = .current) -> NextAct {
         let days = OccasionDates.daysBetween(now, m.dueDate, calendar: calendar)
         if m.status == .missed { return .lateNote }

@@ -54,7 +54,7 @@ struct HomeView: View {
                         // Home never scrolls (feedback on build 1026), and everyone keeps the medallion (feedback on
                         // build 1027, where dropping it to fit left most people without one). The page keeps its
                         // natural size and is scaled down only by what it lacks.
-                        ShrinkToFit { page(m, now: now, medallionSize: medallionOn ? 92 : 0) }
+                        ShrinkToFit { page(m, now: now, medallionSize: medallionOn ? 110 : 0) }
                             .frame(maxHeight: .infinity, alignment: .top)
                         .tag(m.id)
                     }
@@ -255,8 +255,18 @@ struct FeaturedView: View {
     /// One quiet link under the button, or nothing. It never moves the button.
     @ViewBuilder private func linkLine(act: NextAct, days: Int, missed: Bool, name: String) -> some View {
         switch act {
-        case .openPlan, .allSet, .pick, .saveWish:
-            TextLink(title: "\(name)'s page ›") { openPerson() }
+        case .openPlan:
+            // The name opens the page (its › says so); this line says how soon the next thing is due.
+            let nudge = moment.planNudge
+            let parts = moment.planParts
+            if nudge.isEnabled, let t = nudge.target, parts.indices.contains(t),
+               let line = NextAct.byLine(kindRaw: parts[t].kindRaw, step: parts[t].currentStep, due: moment.dueDate) {
+                Text(line).textStyle(.callout, color: Brand.inkMuted)
+            } else {
+                Color.clear
+            }
+        case .allSet, .pick, .saveWish:
+            Color.clear
         default:
             secondary(days: days, missed: missed, name: name)
         }
@@ -649,7 +659,8 @@ struct ShrinkToFit<Content: View>: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .background(GeometryReader { g in Color.clear.preference(key: ShrinkHeightKey.self, value: g.size.height) })
                 .scaleEffect(scale, anchor: .top)
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                // Centered in its space when it fits, so it sits evenly on every phone (Nov 21, 2026).
+                .frame(width: geo.size.width, height: geo.size.height, alignment: scale < 1 ? .top : .center)
         }
         .onPreferenceChange(ShrinkHeightKey.self) { natural = $0 }
     }
@@ -694,10 +705,15 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 medallion.padding(.top, Brand.space3)
             }
             Button(action: open) {
-                Text(title)
+                // The oxblood › after the name says the name opens the page; it replaced the "page ›" line
+                // (approved Nov 21, 2026).
+                (Text(title).foregroundColor(Brand.ink)
+                 + Text("\u{00A0}›")
+                    .font(.system(size: NameSize.featured(title) * 0.42, weight: .light))
+                    .foregroundColor(Brand.action)
+                    .baselineOffset(NameSize.featured(title) * 0.14))
                     .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
                     .tracking(-2)
-                    .foregroundStyle(Brand.ink)
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
