@@ -26,6 +26,7 @@ struct PersonView: View {
     @State private var editedLine = ""
     @State private var confirmRemove = false
     @State private var phoneText = ""
+    @State private var editingAddress = false
     @State private var showLifetime = false
     @State private var editingPortrait = false
     @State private var addingOccasion = false
@@ -69,6 +70,7 @@ struct PersonView: View {
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .sheet(isPresented: $editingAddress) { AddressEditor(person: person) }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
@@ -220,6 +222,7 @@ struct PersonView: View {
                 if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
+                if ContactsService.shared.mailAddress(contactID: person.contactID) == nil { addressRow }
                 section("Days") {
                     ForEach(sortedOccasions, id: \.id) { o in
                         if o.type == .birthday {
@@ -502,6 +505,14 @@ struct PersonView: View {
 
     private var linkRow: some View {
         OptionRow(title: "Link to a contact", caption: "For their number, address and photo") { linking = true }
+    }
+
+    /// Story 2.13: an address kept on this iPhone when Contacts has none for this person.
+    private var addressRow: some View {
+        let _ = model.revision
+        let saved = SavedAddresses.shared.address(for: person.id)
+        return OptionRow(title: saved == nil ? "Add a mailing address" : "Mailing address",
+                         caption: saved?.oneLine ?? "For mailed cards. It stays on this iPhone") { editingAddress = true }
     }
 
     private var phoneRow: some View {
@@ -791,6 +802,41 @@ final class MultiContactPickerPresenter: NSObject, CNContactPickerDelegate {
 }
 
 /// Edit the portrait: loves (comma separated), sizes, and one line of good to know.
+/// Change or clear the address kept for a person (story 2.13). Contacts are never written.
+struct AddressEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var address = MailAddress()
+    @State private var hadOne = false
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "\(DisplayName.plain(person.name))'s address",
+                     subtitle: "For mailed cards. It stays on this iPhone and is never added to Contacts.", style: .title)
+            AddressForm(address: $address)
+        } footer: {
+            PrimaryButton(title: "Save") {
+                SavedAddresses.shared.set(address, for: person.id)
+                model.revision += 1
+                dismiss()
+            }
+            .disabled(!address.isComplete)
+            if hadOne {
+                TextLink(title: "Clear the address") {
+                    SavedAddresses.shared.set(nil, for: person.id)
+                    model.revision += 1
+                    dismiss()
+                }
+            }
+        }
+        .onAppear {
+            if let saved = SavedAddresses.shared.address(for: person.id) { address = saved; hadOne = true }
+            else { address.firstName = DisplayName.plain(person.name).split(separator: " ").first.map(String.init) ?? "" }
+        }
+    }
+}
+
 struct PortraitEditor: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
