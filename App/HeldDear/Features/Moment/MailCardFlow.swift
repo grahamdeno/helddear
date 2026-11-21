@@ -4,10 +4,21 @@ import UIKit
 
 /// "Mail a real card": Handwrytten writes the message in pen and mails it with the user's return address.
 /// Pick a card, write the message, check the addresses, pay with Apple Pay. One decision per screen.
+/// What a mailed card is for: a day, or a reason (story 2.8).
+struct MailContext {
+    let person: Person?
+    let occasionKey: String
+    let opening: String
+    let greeting: String
+    let onMailed: (_ cardName: String) -> Void
+
+    static func occasionKey(for type: OccasionType) -> String { type.rawValue }
+}
+
 struct MailCardFlow: View {
     @EnvironmentObject var model: AppModel
-    let moment: Moment
-    var go: (MomentStep) -> Void
+    let context: MailContext
+    var go: (MomentStep) -> Void = { _ in }
     var close: () -> Void
 
     enum Step: Equatable { case loading, pick, message, recipient, sender, review, done(String), failed(String) }
@@ -22,7 +33,7 @@ struct MailCardFlow: View {
     @State private var checkout = ApplePayCheckout()
     @State private var reference = UUID().uuidString
 
-    private var name: String { moment.person?.name ?? "" }
+    private var name: String { DisplayName.plain(context.person?.name ?? "") }
     private var price: String {
         let cents = catalog?.priceCents ?? 699
         return (Double(cents) / 100).formatted(.currency(code: "USD"))
@@ -97,7 +108,7 @@ struct MailCardFlow: View {
             Question(title: "What should it say?", subtitle: "Handwrytten writes it in pen, word for word.", style: .title)
             VStack(alignment: .leading, spacing: 6) {
                 Text("Message").font(TypeStyle.caption.strong).foregroundStyle(Brand.inkMuted)
-                TextField(moment.type.cardOpening.replacingOccurrences(of: ",", with: "!"), text: $message, axis: .vertical)
+                TextField(context.opening.replacingOccurrences(of: ",", with: "!"), text: $message, axis: .vertical)
                     .lineLimit(4...8)
                     .textStyle(.body)
                     .padding(Brand.space4)
@@ -193,12 +204,12 @@ struct MailCardFlow: View {
     private func load() async {
         guard catalog == nil else { return }
         do {
-            let c = try await MailedCards.catalog(occasion: moment.type.rawValue)
+            let c = try await MailedCards.catalog(occasion: context.occasionKey)
             catalog = c
             card = c.cards.first
-            if message.isEmpty { message = moment.type.greeting(name: name) }
+            if message.isEmpty { message = context.greeting }
             if wishes.isEmpty, !sender.firstName.isEmpty { wishes = "Love, \(sender.firstName)" }
-            if let address = ContactsService.shared.mailAddress(contactID: moment.person?.contactID) { recipient = address }
+            if let address = ContactsService.shared.mailAddress(contactID: context.person?.contactID) { recipient = address }
             if recipient.firstName.isEmpty { recipient.firstName = name }
             step = c.cards.isEmpty ? .failed("No cards for this occasion are available right now.") : .pick
         } catch {
@@ -209,7 +220,7 @@ struct MailCardFlow: View {
     private func pay() {
         guard let card, let catalog else { return }
         paying = true
-        let m = message, w = wishes, r = recipient, s = sender, ref = reference, occ = moment.type.rawValue
+        let m = message, w = wishes, r = recipient, s = sender, ref = reference, occ = context.occasionKey
         checkout.start(priceCents: catalog.priceCents, label: "Mailed card") { payment in
             do {
                 return .success(try await MailedCards.placeOrder(reference: ref, card: card, message: m, wishes: w,
@@ -221,7 +232,7 @@ struct MailCardFlow: View {
             paying = false
             switch outcome {
             case .some(.success(let result)):
-                model.mailedCard(moment, cardName: card.name)
+                context.onMailed(card.name)
                 step = .done(result.mailing ?? "Mailing within 2 business days")
             case .some(.failure(let error)):
                 reference = UUID().uuidString

@@ -30,7 +30,8 @@ struct PersonHero: View {
         var result = [Page(id: 0, year: nil, asset: nil, caption: line)]
         let past = purchases.hasLifetime ? years : Array(years.prefix(1))
         for y in past {
-            let entry = person.sortedLedger.first { $0.year == y.year }
+            let entry = person.sortedLedger.first { $0.year == y.year && $0.occasionTypeRaw == OccasionType.birthday.rawValue }
+                ?? person.sortedLedger.first { $0.year == y.year }
             let words = entry.map { ($0.line?.isEmpty == false ? $0.line! : $0.what) }
             let caption = words.map { "\(y.year) · \($0)" } ?? String(y.year)
             result.append(Page(id: y.year, year: y.year, asset: y.assets.first, caption: caption))

@@ -645,6 +645,17 @@ final class AppModel: ObservableObject {
         commit()
     }
 
+    /// A card for a reason (story 2.8) goes in the person's yearly record as one line: "Get-well card, Nov 21".
+    func recordCard(_ person: Person, reason: CardReason, cardImage: UIImage? = nil, now: Date = Date()) {
+        let entry = LedgerEntry(year: Calendar.current.component(.year, from: now), type: .event,
+                                what: reason.recordLine(on: now), photoFile: nil, line: reason.recordLine(on: now),
+                                personName: person.name, momentID: nil)
+        entry.cardFile = cardImage.flatMap { PhotoStore.save($0, maxSide: 2100) }
+        context.insert(entry)
+        entry.person = person
+        commit()
+    }
+
     /// E1: adds the year to the person's ledger.
     func record(_ m: Moment, line: String?) {
         guard let person = m.person else { return }
