@@ -26,7 +26,6 @@ struct PersonView: View {
     @State private var addingOccasion = false
     @State private var occasionToEdit: Occasion?
     @State private var showIdeas = false
-    @State private var settingRelationship = false
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -52,7 +51,7 @@ struct PersonView: View {
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
                 OptionRow(title: "Relationship", caption: person.relationship ?? "Not set yet. Helps with suggestions and who gives what") {
-                    settingRelationship = true
+                    model.push(.relationship(person.id))
                 }
                 section("Occasions") {
                     ForEach(sortedOccasions, id: \.id) { o in
@@ -117,9 +116,6 @@ struct PersonView: View {
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
-        .sheet(isPresented: $settingRelationship) {
-            RelationshipPicker(person: person, backTitle: person.name) { settingRelationship = false }
-        }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
@@ -170,8 +166,9 @@ struct PersonView: View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             HStack(alignment: .bottom, spacing: Brand.space4) {
                 VStack(alignment: .leading, spacing: Brand.space2) {
-                    Text(person.name).font(Brand.display(person.name.count > 7 ? 64 : 96)).tracking(-1.5)
-                        .foregroundStyle(Brand.ink).lineLimit(1).minimumScaleFactor(0.5)
+                    Text(person.name).font(Brand.display(NameSize.page(person.name))).tracking(-1.5)
+                        .foregroundStyle(Brand.ink).lineLimit(NameSize.maxLines).minimumScaleFactor(0.8)
+                        .multilineTextAlignment(.leading)
                     if let next = model.nextMoment(for: person) {
                         Text(subline(next)).font(Brand.display(20, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                     }
@@ -746,7 +743,9 @@ struct AddOccasionView: View {
     private var choices: [OccasionType] {
         OccasionType.allCases.filter { t in
             t != .birthday && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
-                && (t.kind != .holiday || Holidays.enabled().contains(t))
+                && (t.kind != .holiday || (Holidays.enabled().contains(t)
+                    && OccasionOffer.offersHoliday(t, relationship: person.relationship)))
+                && (t.kind != .once || OccasionOffer.bigDays.contains(t))
         }
     }
 
@@ -755,7 +754,7 @@ struct AddOccasionView: View {
             Question(title: "What else matters for \(person.name)?")
             section("Every year", choices.filter { $0.kind == .yearly })
             section("Holidays", choices.filter { $0.kind == .holiday })
-            section("Life moments", choices.filter { $0.kind == .once })
+            section("Big days", OccasionOffer.bigDays.filter(choices.contains))
         }
     }
 
@@ -779,7 +778,7 @@ struct AddOccasionView: View {
         case .mothersDay: "Second Sunday in May"
         case .fathersDay: "Third Sunday in June"
         case .anniversary: "Theirs, or yours together"
-        case .event: "A recital, a big game, a show"
+        case .event: "A recital, a retirement, a new home"
         default: nil
         }
     }

@@ -124,10 +124,10 @@ struct FeaturedView: View {
                 .textStyle(.eyebrow)
             Button(action: openPerson) {
                 Text(displayName)
-                    .font(Brand.display(nameSize, relativeTo: .largeTitle))
+                    .font(Brand.display(NameSize.featured(displayName), relativeTo: .largeTitle))
                     .tracking(-2)
                     .foregroundStyle(Brand.ink)
-                    .lineLimit(1).minimumScaleFactor(0.4)
+                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.8)
                     .padding(.top, Brand.space3)
             }
             .buttonStyle(.plain)
@@ -164,9 +164,19 @@ struct FeaturedView: View {
                 }
             }
         case .openPlan(let ready, let total):
+            // The main button is the next real thing to do, not a way to open a page. The readiness line under it
+            // opens the person's page, as does the name (feedback on build 1011).
+            let nudge = moment.planNudge
+            let parts = moment.planParts
             VStack(spacing: Brand.space3) {
-                Text("\(ready) of \(total) ready.").textStyle(.callout, color: Brand.inkMuted)
-                PrimaryButton(title: act.title(name: name)) { tap(act) }
+                if nudge.isEnabled, let t = nudge.target, parts.indices.contains(t) {
+                    let target = parts[t].id
+                    PrimaryButton(title: nudge.buttonTitle) { model.push(.item(target)) }
+                } else {
+                    PrimaryButton(title: "See \(name)'s plan") { openPerson() }
+                }
+                TextLink(title: "\(ready) of \(total) ready · \(name)'s page ›") { openPerson() }
+                    .accessibilityLabel("\(ready) of \(total) ready. Opens \(name)'s page")
             }
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
             VStack(spacing: Brand.space4) {
@@ -225,14 +235,6 @@ struct FeaturedView: View {
         let name = moment.person?.name ?? ""
         if moment.type == .anniversary, let partner = moment.occasion?.partnerName { return "\(name) & \(partner)" }
         return name
-    }
-
-    private var nameSize: CGFloat {
-        switch displayName.count {
-        case ...5: 128
-        case 6...8: 100
-        default: 76
-        }
     }
 
     private func subline(days: Int, missed: Bool) -> String {
@@ -517,6 +519,8 @@ struct NavPage: View {
             SavedIdeasView()
         case .item(let id):
             if let act = model.act(id) { ItemView(act: act) } else { Color.clear }
+        case .relationship(let id):
+            if let p = model.person(id) { RelationshipPage(person: p) } else { Color.clear }
         }
     }
 }

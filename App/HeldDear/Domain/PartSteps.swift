@@ -256,6 +256,7 @@ enum PlanReadiness {
         case .newHome: "Plan the new home"
         case .retirement: "Plan the retirement"
         case .event: "Plan the day"
+        case .wedding: "Plan the wedding"
         }
     }
 

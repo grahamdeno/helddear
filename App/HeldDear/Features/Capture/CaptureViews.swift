@@ -15,12 +15,21 @@ struct AddBirthdayView: View {
     @State private var whichOne: ParsedBirthday?
     /// A new person and the date typed for them, waiting on what the date is for.
     @State private var firstDate: (parsed: ParsedBirthday, contact: ContactInfo?)?
+    /// The person just added, waiting on who they are to the user (one tap, or Skip for now).
+    @State private var whoFor: Person?
+    /// "Something else" chosen as the first date: its name, asked next.
+    @State private var namingEvent = false
+    @State private var eventName = ""
 
     private var parsed: ParsedBirthday? { BirthdayParser.parse(text) }
 
     var body: some View {
-        if let change = pendingChange {
+        if let person = whoFor {
+            RelationshipPicker(person: person, showsBack: false) { close() }
+        } else if let change = pendingChange {
             confirmChange(change.person, change.parsed)
+        } else if let first = firstDate, namingEvent {
+            nameEvent(first.parsed, contact: first.contact)
         } else if let first = firstDate {
             whatFor(first.parsed, contact: first.contact)
         } else if let p = whichOne {
@@ -124,20 +133,37 @@ struct AddBirthdayView: View {
         else { firstDate = (p, contact) }
     }
 
-    private func addFirst(_ type: OccasionType, _ p: ParsedBirthday, contact: ContactInfo?) {
-        model.addPerson(name: p.name, fullName: contact?.fullName, contactID: contact?.id, firstDate: type,
-                        month: p.month, day: p.day, year: type == .birthday ? (p.year ?? contact?.year) : p.year)
-        close()
+    private func nameEvent(_ p: ParsedBirthday, contact: ContactInfo?) -> some View {
+        let trimmed = eventName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return FlowScreen(onClose: { namingEvent = false }) {
+            Question(title: "What's the day?", subtitle: "A name is enough, like Ballet recital.")
+            LineField(label: "What is it?", text: $eventName, placeholder: "Ballet recital", showsDictation: true)
+        } footer: {
+            PrimaryButton(title: "Next") { addFirst(.event, p, contact: contact, eventName: trimmed) }
+                .disabled(trimmed.isEmpty)
+                .opacity(trimmed.isEmpty ? 0.45 : 1)
+        }
+    }
+
+    private func addFirst(_ type: OccasionType, _ p: ParsedBirthday, contact: ContactInfo?, eventName: String? = nil) {
+        namingEvent = false
+        let person = model.addPerson(name: p.name, fullName: contact?.fullName, contactID: contact?.id, firstDate: type,
+                                     month: p.month, day: p.day, year: type == .birthday ? (p.year ?? contact?.year) : p.year,
+                                     eventName: eventName)
+        if person.relationship == nil { firstDate = nil; whoFor = person } else { close() }
     }
 
     private func whatFor(_ p: ParsedBirthday, contact: ContactInfo?) -> some View {
         let date = OccasionDates.longDate(OccasionDates.date(month: p.month, day: p.day, year: 2028))
-        let types: [OccasionType] = [.birthday, .anniversary, .newBaby, .graduation, .newHome, .retirement]
+        let types = OccasionOffer.firstDate
         return FlowScreen(onClose: { firstDate = nil }) {
             Question(title: "What is \(date) for \(p.name)?", subtitle: "You can add more dates on \(p.name)'s page.")
             VStack(spacing: 0) {
                 ForEach(types, id: \.self) { t in
-                    OptionRow(title: t.label) { addFirst(t, p, contact: contact) }
+                    OptionRow(title: t == .event ? "Something else" : t.label,
+                              caption: t == .event ? "A recital, a retirement, a new home" : nil) {
+                        if t == .event { eventName = ""; namingEvent = true } else { addFirst(t, p, contact: contact) }
+                    }
                 }
             }
         }

@@ -70,10 +70,12 @@ enum Holidays {
 
 /// How the user is related to a person (roadmap requirement with story 1.6). Stored as plain words on Person.
 enum Relationship {
-    /// The words offered when asking "Who is Ben to you?", in the order shown.
-    static let choices = ["Wife", "Husband", "Partner", "Daughter", "Son", "Mother", "Father", "Grandmother",
-                          "Grandfather", "Sister", "Brother", "Aunt", "Uncle", "Cousin", "In-law", "Friend",
-                          "Teacher", "Coach", "Neighbor", "Coworker"]
+    /// The big choices when asking "Who is Ben to you?", in the order people add them, in everyday words
+    /// (approved Nov 20, 2026). "Someone else" opens `moreChoices`. The word tapped is the word kept.
+    static let mainChoices = ["Wife", "Husband", "Son", "Daughter", "Mom", "Dad", "Friend"]
+    static let moreChoices = ["Grandma", "Grandpa", "Brother", "Sister", "Aunt", "Uncle", "Cousin", "In-law",
+                              "Teacher", "Coach", "Neighbor", "Coworker"]
+    static var choices: [String] { mainChoices + moreChoices }
 
     enum Group: Equatable { case partner, child, parent, sibling, extended, community, unknown }
 

@@ -39,13 +39,7 @@ struct PersonPlanSection: View {
         return bits.joined(separator: " · ").uppercased()
     }
 
-    private var nudge: PlanNudge.Result {
-        PlanNudge.make(parts: moment.planParts.map { act in
-            let info = PartSteps.displayInfo(kindRaw: act.kindRaw, label: act.label, title: act.title)
-            return PlanNudge.Part(name: info.text, typed: info.typed, family: PartSteps.family(forKindRaw: act.kindRaw),
-                                  step: act.currentStep ?? "open")
-        }, daysLeft: days)
-    }
+    private var nudge: PlanNudge.Result { moment.planNudge }
 
     var body: some View {
         let _ = model.revision
