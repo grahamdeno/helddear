@@ -278,7 +278,16 @@ final class AppModel: ObservableObject {
     }
 
     func address(for person: Person?) -> String? {
-        ContactsService.shared.address(contactID: person?.contactID)
+        if let a = ContactsService.shared.address(contactID: person?.contactID) { return a }
+        guard let id = person?.id, let saved = SavedAddresses.shared.address(for: id) else { return nil }
+        return saved.oneLine
+    }
+
+    /// The person's ZIP code, from Contacts or the address kept in the app (story 2.14).
+    func zip(for person: Person?) -> String? {
+        if let a = ContactsService.shared.mailAddress(contactID: person?.contactID), let z = Places.zip(in: a.zip) { return z }
+        guard let id = person?.id else { return nil }
+        return Places.zip(in: SavedAddresses.shared.address(for: id)?.zip)
     }
 
     /// The photo set for cards: last year's record photo, every photo saved to the person (top one first), then the contact photo.

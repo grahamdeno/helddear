@@ -28,6 +28,9 @@ struct MailCardFlow: View {
     @State private var message = ""
     @State private var wishes = ""
     @State private var recipient = MailAddress()
+    /// The address came from Contacts, so there's nothing to keep (story 2.13: Contacts stay read only, never copied).
+    @State private var fromContacts = false
+    @State private var keepAddress = true
     @State private var sender = MailAddress.saved ?? MailAddress()
     @State private var paying = false
     @State private var checkout = ApplePayCheckout()
@@ -130,9 +133,18 @@ struct MailCardFlow: View {
         FlowScreen(onClose: close) {
             Question(title: title, subtitle: subtitle, style: .title)
             AddressForm(address: address)
+            if next == .sender, !fromContacts, context.person != nil {
+                Toggle(isOn: $keepAddress) {
+                    Text("Keep this address for \(name) on this iPhone").textStyle(.body)
+                }
+                .tint(Brand.action)
+            }
         } footer: {
             PrimaryButton(title: "Next") {
                 if next == .review { MailAddress.saved = sender }
+                if next == .sender, !fromContacts, keepAddress, let id = context.person?.id {
+                    SavedAddresses.shared.set(recipient, for: id)
+                }
                 step = next
             }
             .disabled(!address.wrappedValue.isComplete)
@@ -209,7 +221,12 @@ struct MailCardFlow: View {
             card = c.cards.first
             if message.isEmpty { message = context.greeting }
             if wishes.isEmpty, !sender.firstName.isEmpty { wishes = "Love, \(sender.firstName)" }
-            if let address = ContactsService.shared.mailAddress(contactID: context.person?.contactID) { recipient = address }
+            if let address = ContactsService.shared.mailAddress(contactID: context.person?.contactID) {
+                recipient = address
+                fromContacts = true
+            } else if let id = context.person?.id, let saved = SavedAddresses.shared.address(for: id) {
+                recipient = saved
+            }
             if recipient.firstName.isEmpty { recipient.firstName = name }
             step = c.cards.isEmpty ? .failed("No cards for this occasion are available right now.") : .pick
         } catch {
