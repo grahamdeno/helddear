@@ -25,6 +25,14 @@ final class OccasionOfferTests: XCTestCase {
     func testWeddingWords() {
         XCTAssertEqual(OccasionType.wedding.kind, .once)
         XCTAssertEqual(OccasionType.wedding.subject(name: "Sam"), "Sam's wedding")
-        XCTAssertEqual(OccasionType.event.subject(name: "Nora", partner: "Ballet recital"), "Nora's ballet recital")
+        XCTAssertEqual(OccasionType.event.subject(name: "Ada", partner: "Ballet recital"), "Ada's ballet recital")
+    }
+}
+
+final class AddADayBirthdayTests: XCTestCase {
+    func testBirthdayOfferedOnlyWhenMissing() {
+        XCTAssertTrue(OccasionOffer.offersBirthday(existing: [.anniversary]))
+        XCTAssertTrue(OccasionOffer.offersBirthday(existing: []))
+        XCTAssertFalse(OccasionOffer.offersBirthday(existing: [.birthday, .christmas]))
     }
 }

@@ -187,6 +187,9 @@ enum OccasionRules {
 /// everything rarer (a recital, a retirement, a new home) as Something else with its own name. Retirement and New
 /// home stay as types so days already saved keep working; they're no longer offered.
 enum OccasionOffer {
+    /// Birthday is offered in "Add a day" whenever the person doesn't have one yet (Fable D1, Nov 21, 2026), first.
+    static func offersBirthday(existing: [OccasionType]) -> Bool { !existing.contains(.birthday) }
+
     /// The first date when adding someone.
     static let firstDate: [OccasionType] = [.birthday, .anniversary, .graduation, .wedding, .newBaby, .event]
     /// Once-only days on "What else matters?".

@@ -954,7 +954,8 @@ struct AddOccasionView: View {
 
     private var choices: [OccasionType] {
         OccasionType.allCases.filter { t in
-            t != .birthday && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
+            (t != .birthday || OccasionOffer.offersBirthday(existing: person.occasions.map(\.type)))
+                && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
                 && (t.kind != .holiday || (Holidays.enabled().contains(t)
                     && OccasionOffer.offersHoliday(t, relationship: person.relationship)))
                 && (t.kind != .once || OccasionOffer.bigDays.contains(t))
@@ -964,7 +965,7 @@ struct AddOccasionView: View {
     private var pickStep: some View {
         FlowScreen(onClose: { dismiss() }) {
             Question(title: "What else matters for \(DisplayName.plain(person.name))?")
-            section("Every year", choices.filter { $0.kind == .yearly })
+            section("Every year", choices.filter { $0.kind == .yearly }.sorted { $0 == .birthday && $1 != .birthday })
             section("Holidays", choices.filter { $0.kind == .holiday })
             ownHolidays
             section("Big days", OccasionOffer.bigDays.filter(choices.contains))
@@ -1025,6 +1026,8 @@ struct AddOccasionView: View {
                 .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
             if t == .anniversary {
                 LineField(label: "With (optional)", text: $partner, placeholder: "Dad", showsDictation: false)
+            }
+            if t == .anniversary || t == .birthday {
                 Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
             }
         } footer: {
@@ -1037,7 +1040,7 @@ struct AddOccasionView: View {
 
     private func save(_ t: OccasionType) {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        let year: Int? = t.kind == .once ? c.year : (t == .anniversary && knowsYear ? c.year : nil)
+        let year: Int? = t.kind == .once ? c.year : ((t == .anniversary || t == .birthday) && knowsYear ? c.year : nil)
         model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
                           partnerName: t == .anniversary || t == .event ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
         dismiss()

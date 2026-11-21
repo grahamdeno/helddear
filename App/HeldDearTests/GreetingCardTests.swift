@@ -18,7 +18,7 @@ final class GreetingCardTests: XCTestCase {
     }
 
     func testSignature() {
-        XCTAssertEqual(GreetingCard.signature(" The DeNoyers "), "from The DeNoyers")
+        XCTAssertEqual(GreetingCard.signature(" The Hollands "), "from The Hollands")
         XCTAssertEqual(GreetingCard.signature("  "), "")
     }
 

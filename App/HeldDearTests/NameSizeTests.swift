@@ -5,9 +5,9 @@ import XCTest
 final class NameSizeTests: XCTestCase {
     func testPage_longNamesGetSmallerButNeverTiny() {
         XCTAssertEqual(NameSize.page("Mom"), 96)
-        XCTAssertEqual(NameSize.page("Haiden"), 96)
-        XCTAssertEqual(NameSize.page("Susan Holobaugh DeNoyer"), 52)
-        XCTAssertGreaterThan(NameSize.page("Christopher"), NameSize.page("Susan Holobaugh DeNoyer"))
+        XCTAssertEqual(NameSize.page("Marcus"), 96)
+        XCTAssertEqual(NameSize.page("Miriam Hollowell Danver"), 52)
+        XCTAssertGreaterThan(NameSize.page("Christopher"), NameSize.page("Miriam Hollowell Danver"))
     }
 
     func testSizesNeverGrowWithLength() {
@@ -24,7 +24,7 @@ final class NameSizeTests: XCTestCase {
     }
 
     func testPlainName_dropsEmojiKeepsLettersAndDigits() {
-        XCTAssertEqual(DisplayName.plain("Haiden 🕑"), "Haiden")
+        XCTAssertEqual(DisplayName.plain("Marcus 🕑"), "Marcus")
         XCTAssertEqual(DisplayName.plain("Zoë"), "Zoë")
         XCTAssertEqual(DisplayName.plain("Mom ❤️"), "Mom")
         XCTAssertEqual(DisplayName.plain("Room 2"), "Room 2")

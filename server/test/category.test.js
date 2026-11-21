@@ -28,6 +28,11 @@ test("maps card reasons to Handwrytten categories", () => {
   assert.equal(pickCategory(cats, "getWell"), 20);
 });
 
+test("a get-well card never falls back to sympathy designs", () => {
+  const only = [{ id: 40, name: "Sympathy" }, { id: 41, name: "Blank" }];
+  assert.equal(pickCategory(only, "getWell"), 41);
+});
+
 test("leaves out business cards", () => {
   assert.equal(isPersonal("Workiversary Cheers & Confetti"), false);
   assert.equal(isPersonal("Favorite Employee Anniversary Card"), false);
