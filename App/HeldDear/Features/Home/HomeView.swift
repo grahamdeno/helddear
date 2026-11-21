@@ -46,8 +46,9 @@ struct HomeView: View {
         let featured = moments.first { $0.id == selectedID } ?? heroState.flatMap { s in moments.first { $0.id == s.id } }
 
         if let featured {
+            // The featured day is pinned to the top, not centered, so its name stays in one place as you slide
+            // through people with more or less under their name (feedback on build 1013).
             VStack(spacing: 0) {
-                Spacer(minLength: Brand.space3)
                 Group {
                     if featured.type.kind == .holiday {
                         HolidayFeaturedView(type: featured.type,
@@ -58,6 +59,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, Brand.space5)
+                .padding(.top, Brand.space6)
                 otherReady(moments, featured: featured, now: now)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
@@ -72,7 +74,7 @@ struct HomeView: View {
     @ViewBuilder private func otherReady(_ moments: [Moment], featured: Moment, now: Date) -> some View {
         let ready = moments.filter { $0.id != featured.id && $0.type.kind != .holiday && MomentEngine.needsAction($0, now: now) }
         if let first = ready.first {
-            let names = ready.prefix(3).compactMap { $0.person?.name }.joined(separator: ", ")
+            let names = ready.prefix(3).compactMap { $0.person.map { DisplayName.plain($0.name) } }.joined(separator: ", ")
             Button { selectedID = first.id } label: {
                 Text("Also ready: \(names)").font(.callout.weight(.medium)).foregroundStyle(Brand.action)
                     .frame(minHeight: 44)
@@ -112,7 +114,7 @@ struct FeaturedView: View {
     var openPerson: () -> Void
 
     var body: some View {
-        let name = moment.person?.name ?? ""
+        let name = DisplayName.plain(moment.person?.name ?? "")
         let act = NextAct.make(state, now: now)
         let days = OccasionDates.daysBetween(now, moment.dueDate)
         let missed = state.status == .missed
@@ -125,7 +127,8 @@ struct FeaturedView: View {
                     .font(Brand.display(NameSize.featured(displayName), relativeTo: .largeTitle))
                     .tracking(-2)
                     .foregroundStyle(Brand.ink)
-                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.8)
+                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
+                    .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .padding(.top, Brand.space3)
             }
             .buttonStyle(.plain)
@@ -230,7 +233,7 @@ struct FeaturedView: View {
     }
 
     private var displayName: String {
-        let name = moment.person?.name ?? ""
+        let name = DisplayName.plain(moment.person?.name ?? "")
         if moment.type == .anniversary, let partner = moment.occasion?.partnerName { return "\(name) & \(partner)" }
         return name
     }
@@ -420,7 +423,7 @@ struct HorizonBand: View {
 
     private func label(_ m: Moment) -> String {
         if m.type.kind == .holiday { return m.type.label }
-        let name = m.person?.name ?? ""
+        let name = DisplayName.plain(m.person?.name ?? "")
         if m.type == .anniversary, let p = m.occasion?.partnerName { return "\(name) & \(p)" }
         return name
     }

@@ -216,6 +216,7 @@ struct HolidayFeaturedView: View {
                     .font(Brand.display(76, relativeTo: .largeTitle)).tracking(-2)
                     .foregroundStyle(Brand.ink)
                     .lineLimit(1).minimumScaleFactor(0.4)
+                    .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .padding(.top, Brand.space3)
             }
             .buttonStyle(.plain)
