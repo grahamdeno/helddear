@@ -25,9 +25,9 @@ struct PersonPortrait: View {
         .overlay {
             if fadeBottom {
                 Circle().fill(LinearGradient(stops: [
-                    .init(color: Brand.page.opacity(0), location: 0.3),
-                    .init(color: Brand.page.opacity(0.7), location: 0.7),
-                    .init(color: Brand.page, location: 0.96)
+                    .init(color: Brand.page.opacity(0), location: 0.45),
+                    .init(color: Brand.page.opacity(0.7), location: 0.78),
+                    .init(color: Brand.page, location: 0.98)
                 ], startPoint: .top, endPoint: .bottom))
             } else {
                 Circle().strokeBorder(Brand.raisedLine, lineWidth: 1)
