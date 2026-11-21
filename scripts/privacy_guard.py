@@ -31,6 +31,9 @@ FORBIDDEN = {
 
 # The only files allowed to make network requests, and to which host.
 NETWORK_ALLOWED = {"App/HeldDear/Services/MailedCards.swift", "App/HeldDear/Services/FamilyPages.swift"}
+# Link previews (Graham, Nov 21, 2026): only this file may ask a saved idea's own page for its title and image,
+# with Apple's LinkPresentation. No other network call is allowed in it.
+PREVIEW_ALLOWED = {"App/HeldDear/Services/LinkPreviews.swift"}
 NETWORK_RULES = {"network request"}
 ALLOWED_HOST = "helddear-mail.vercel.app"
 
@@ -43,6 +46,8 @@ def scan(text, name="<text>"):
             continue
         for pattern, why in FORBIDDEN.items():
             if name in NETWORK_ALLOWED and why in NETWORK_RULES:
+                continue
+            if name in PREVIEW_ALLOWED and why == "link preview fetch (network)":
                 continue
             if re.search(pattern, line):
                 hits.append(f"{name}:{i}: {why}: {stripped}")
@@ -99,6 +104,10 @@ def selftest():
     assert not scan('static let baseURL = URL(string: "https://helddear-mail.vercel.app")!', allowed)
     assert scan('let u = URL(string: "https://example.com/track")', allowed), "only Held Dear\'s server is allowed"
     assert scan("let s = URLSession.shared", "App/HeldDear/Features/Home/HomeView.swift"), "other files stay offline"
+    preview = "App/HeldDear/Services/LinkPreviews.swift"
+    assert not scan("let provider = LPMetadataProvider()", preview), "link previews may fetch a saved page"
+    assert scan("let s = URLSession.shared", preview), "link previews may not make other requests"
+    assert scan("let provider = LPMetadataProvider()", "App/HeldDear/Features/Plan/PlanView.swift"), "only LinkPreviews fetches previews"
     assert name_hits('XCTAssertEqual(NameSize.page("' + "Hei" + 'di"), 96)'), "real names are caught"
     assert not name_hits('XCTAssertEqual(NameSize.page("Ada"), 96)'), "invented names pass"
     print("Privacy guard selftest passed.")

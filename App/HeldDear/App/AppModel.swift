@@ -93,6 +93,8 @@ final class AppModel: ObservableObject {
     @Published var notificationsAllowed = true
     /// Bumped after any change so lists that read the store directly redraw.
     @Published var revision = 0
+    /// Ideas whose link preview was asked for this launch, so a page is asked once.
+    private var previewsAsked: Set<UUID> = []
 
     /// The Moment whose call the app just started.
     private var callMomentID: UUID?
@@ -439,11 +441,29 @@ final class AppModel: ObservableObject {
 
     // MARK: Wishes
 
+    /// A saved idea that's a link gets the page's title and image once (Nov 21, 2026). A link typed or pasted as the
+    /// idea's words becomes its link. Kept with the idea; the page isn't asked again.
+    func addPreview(to wish: Wish) {
+        if wish.url == nil, let found = LinkPreviews.link(in: wish.text) { wish.url = found.absoluteString }
+        guard let link = wish.url.flatMap(URL.init(string:)) else { return }
+        let needsTitle = wish.text.isEmpty || LinkPreviews.isOnlyALink(wish.text)
+        guard needsTitle || wish.imageFile == nil else { return }
+        guard !previewsAsked.contains(wish.id) else { return }
+        previewsAsked.insert(wish.id)
+        Task { @MainActor in
+            let preview = await LinkPreviews.fetch(link)
+            if needsTitle { wish.text = preview.title ?? LinkPreviews.shortName(link) }
+            if wish.imageFile == nil, let image = preview.image { wish.imageFile = PhotoStore.save(image, maxSide: 900) }
+            save()
+        }
+    }
+
     func addWish(to person: Person, text: String, url: String? = nil, imageFile: String? = nil, capturedAt: Date = Date()) {
         let wish = Wish(text: text, url: url, imageFile: imageFile, capturedAt: capturedAt)
         context.insert(wish)
         wish.person = person
         commit()
+        addPreview(to: wish)
     }
 
     /// Files wishes saved from the share sheet.

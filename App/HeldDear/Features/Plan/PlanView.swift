@@ -731,11 +731,8 @@ private struct PartScreen: View {
                             let chosen = act.wishID == wish.id
                             Button { if !model.pickWish(wish, for: act) { showLifetime = true } } label: {
                                 HStack(spacing: Brand.space3) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(wish.text).textStyle(chosen ? .bodyStrong : .body).multilineTextAlignment(.leading)
-                                        Text(wish.savedLine).textStyle(.caption, color: Brand.inkMuted)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    WishPreview(wish: wish, bold: chosen)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                     Text(chosen ? "Chosen" : "Use this").font(.callout.weight(.semibold))
                                         .foregroundStyle(chosen ? Brand.inkMuted : Brand.action)
                                 }

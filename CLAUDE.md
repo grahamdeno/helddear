@@ -91,6 +91,8 @@ SKU helddear001. iOS 26, iPhone only.
   same server, to make or manage a page for one person's day (first name, date, the user's name and line, an optional
   photo, family's notes). No accounts; keys stay on the phone, the server keeps only their hashes; everything is
   deleted 30 days after the day (Vercel Blob, daily cleanup cron). Family's notes are untrusted text, always escaped.
+- Link previews (Graham, Nov 21, 2026): only `Services/LinkPreviews.swift` may ask a saved idea's own page for its
+  title and image (Apple's LinkPresentation), once, kept with the idea. Nothing goes to Held Dear. The guard enforces it.
 - Mailed cards are paid with Apple Pay through Stripe, never in-app purchase (App Review 3.1.3(e)).
 - No guilt: no streaks, red badges, or "you forgot". A missed birthday gets a way back.
 - Horizon look (v3, Nov 12): warm stone pages, each main screen one composed page (no stacked feeds). Names and
