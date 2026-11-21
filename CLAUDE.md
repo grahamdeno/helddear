@@ -21,7 +21,7 @@ Anything below uploads a build or changes something live. Check this list before
 | Running `testflight.yml` by hand with `dry_run` off | Same upload | Test build only |
 | Running `testflight.yml` by hand with `dry_run` on | Archives and signs, uploads nothing | None |
 | Deploying `server/` to the Vercel project helddear-mail (production, helddear-mail.vercel.app) | Changes the live server for mailed cards and family pages | Ship |
-| Merge to `main` touching `server/**` | Unconfirmed whether Vercel deploys from `main` on its own. Treat as a deploy until Grok confirms | Ship |
+| Merge to `main` touching `server/**` | Does not deploy on its own (checked Nov 21, 2026: PRs #11 to #29 merged with no new Vercel deployment). Deploying is a separate redeploy of helddear-mail | Ship (for the redeploy) |
 | Changing helddear-mail environment variables (Handwrytten, Stripe, Blob keys) | Changes live secrets | Graham's go (secrets) |
 
 `build.yml` (pull requests, pushes to `main`) builds and tests only; it uploads and deploys nothing.

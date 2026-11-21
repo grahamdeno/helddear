@@ -8,12 +8,33 @@ struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
     @State private var selectedID: UUID?
+    /// What the small circle at the top shows: the featured person's face, or the featured holiday's mark.
+    @State private var portrait: TopCircle?
+    enum TopCircle: Equatable { case person(UUID), holiday(OccasionType, String?) }
 
     var body: some View {
         NavigationStack(path: $model.navPath) {
             content
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
+                    // The featured person's face, small and round, top center (approved Nov 21, 2026). It sits in
+                    // the bar, so nothing on the page moves.
+                    ToolbarItem(placement: .principal) {
+                        switch portrait {
+                        case .person(let id):
+                            if let person = model.person(id) {
+                                Button { model.push(.person(id, focus: nil)) } label: { PersonPortrait(person: person, size: 44) }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+                                    .transition(.opacity)
+                            }
+                        case .holiday(let type, let name):
+                            HolidayMark(type: type, name: name, size: 44).transition(.opacity)
+                        case nil:
+                            EmptyView()
+                        }
+                    }
+                    .sharedBackgroundVisibility(.hidden)
                     // You in the top right; Add lives on the timeline (approved Nov 21, 2026).
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { model.route = .settings } label: { YouCircle() }
@@ -59,6 +80,13 @@ struct HomeView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .task(id: featured.id) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        portrait = featured.type.kind == .holiday
+                            ? .holiday(featured.type, featured.occasion?.partnerName)
+                            : featured.person.map { .person($0.id) }
+                    }
+                }
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
                 otherReady(moments, featured: featured, now: now)
