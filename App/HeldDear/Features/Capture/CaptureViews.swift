@@ -13,12 +13,16 @@ struct AddBirthdayView: View {
     @State private var choices: [ContactInfo] = []
     @State private var pendingChange: (person: Person, parsed: ParsedBirthday)?
     @State private var whichOne: ParsedBirthday?
+    /// A new person and the date typed for them, waiting on what the date is for.
+    @State private var firstDate: (parsed: ParsedBirthday, contact: ContactInfo?)?
 
     private var parsed: ParsedBirthday? { BirthdayParser.parse(text) }
 
     var body: some View {
         if let change = pendingChange {
             confirmChange(change.person, change.parsed)
+        } else if let first = firstDate {
+            whatFor(first.parsed, contact: first.contact)
         } else if let p = whichOne {
             whichView(p)
         } else {
@@ -28,7 +32,7 @@ struct AddBirthdayView: View {
 
     private var entry: some View {
         FlowScreen(onClose: close) {
-            Question(title: "Add a birthday", subtitle: "Say or type a name and date.", style: .display)
+            Question(title: "Add someone", subtitle: "Say or type their name and a date to remember.", style: .display)
             LineField(label: "Name and date", text: $text, placeholder: "Mike, March 3", onSubmit: save)
             if showHint {
                 Text("Try: Mike, March 3").textStyle(.caption, color: Brand.inkMuted).padding(.top, -12)
@@ -73,15 +77,9 @@ struct AddBirthdayView: View {
             return
         }
         switch choices.count {
-        case 0:
-            model.addPerson(name: p.name, fullName: nil, contactID: nil, month: p.month, day: p.day, year: p.year)
-            close()
-        case 1:
-            let c = choices[0]
-            model.addPerson(name: p.name, fullName: c.fullName, contactID: c.id, month: p.month, day: p.day, year: p.year ?? c.year)
-            close()
-        default:
-            whichOne = p
+        case 0: chooseFirstDate(p, contact: nil)
+        case 1: chooseFirstDate(p, contact: choices[0])
+        default: whichOne = p
         }
     }
 
@@ -92,8 +90,8 @@ struct AddBirthdayView: View {
                 ForEach(choices) { c in
                     OptionRow(title: c.fullName, caption: c.month.map { m in OccasionDates.longDate(OccasionDates.date(month: m, day: c.day ?? 1, year: 2028)) },
                               action: {
-                                  model.addPerson(name: p.name, fullName: c.fullName, contactID: c.id, month: p.month, day: p.day, year: p.year ?? c.year)
-                                  close()
+                                  whichOne = nil
+                                  chooseFirstDate(p, contact: c)
                               },
                               leading: { Face(name: c.displayName, initials: String(c.displayName.prefix(1)).uppercased(),
                                               image: ContactsService.shared.thumbnail(contactID: c.id)) },
@@ -115,6 +113,33 @@ struct AddBirthdayView: View {
                 close()
             }
             TextLink(title: "No, keep \(old)") { pendingChange = nil }
+        }
+    }
+
+    /// The person is what's added; the date is whatever it's for. Typing "birthday" or "anniversary" answers it.
+    private func chooseFirstDate(_ p: ParsedBirthday, contact: ContactInfo?) {
+        let lower = text.lowercased()
+        if lower.contains("birthday") { addFirst(.birthday, p, contact: contact) }
+        else if lower.contains("anniversary") { addFirst(.anniversary, p, contact: contact) }
+        else { firstDate = (p, contact) }
+    }
+
+    private func addFirst(_ type: OccasionType, _ p: ParsedBirthday, contact: ContactInfo?) {
+        model.addPerson(name: p.name, fullName: contact?.fullName, contactID: contact?.id, firstDate: type,
+                        month: p.month, day: p.day, year: type == .birthday ? (p.year ?? contact?.year) : p.year)
+        close()
+    }
+
+    private func whatFor(_ p: ParsedBirthday, contact: ContactInfo?) -> some View {
+        let date = OccasionDates.longDate(OccasionDates.date(month: p.month, day: p.day, year: 2028))
+        let types: [OccasionType] = [.birthday, .anniversary, .newBaby, .graduation, .newHome, .retirement]
+        return FlowScreen(onClose: { firstDate = nil }) {
+            Question(title: "What is \(date) for \(p.name)?", subtitle: "You can add more dates on \(p.name)'s page.")
+            VStack(spacing: 0) {
+                ForEach(types, id: \.self) { t in
+                    OptionRow(title: t.label) { addFirst(t, p, contact: contact) }
+                }
+            }
         }
     }
 

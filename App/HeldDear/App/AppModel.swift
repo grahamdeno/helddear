@@ -298,6 +298,26 @@ final class AppModel: ObservableObject {
         return person
     }
 
+    /// Adds a person with their first date, whatever it's for: a birthday, an anniversary or a life moment. A
+    /// one-time moment typed without a year is its next one.
+    @discardableResult
+    func addPerson(name: String, fullName: String?, contactID: String?, firstDate type: OccasionType,
+                   month: Int, day: Int, year: Int?) -> Person {
+        if type == .birthday {
+            return addPerson(name: name, fullName: fullName, contactID: contactID, month: month, day: day, year: year)
+        }
+        let person: Person
+        if let existing = allPeople().first(where: { $0.contactID != nil && $0.contactID == contactID }) {
+            person = existing
+        } else {
+            person = Person(name: name, fullName: fullName, contactID: contactID, ring: .outer)
+            context.insert(person)
+        }
+        let when = year ?? (type.kind == .once ? Calendar.current.component(.year, from: OccasionDates.nextDate(month: month, day: day, onOrAfter: Calendar.current.startOfDay(for: Date()))) : nil)
+        addOccasion(person, type: type, month: month, day: day, year: when)
+        return person
+    }
+
     /// Adds a non-birthday occasion: an anniversary, a holiday, or a one-time life moment.
     func addOccasion(_ person: Person, type: OccasionType, month: Int, day: Int, year: Int?, partnerName: String? = nil) {
         if type.kind == .holiday, person.occasions.contains(where: { $0.type == type }) { return }

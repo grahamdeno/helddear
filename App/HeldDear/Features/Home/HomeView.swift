@@ -18,7 +18,7 @@ struct HomeView: View {
                         Button("People") { model.push(.people) }
                         Button("Ideas") { model.push(.ideas) }
                         Menu {
-                            Button { model.route = .addBirthday("") } label: { Label("Type a birthday", systemImage: "character.cursor.ibeam") }
+                            Button { model.route = .addBirthday("") } label: { Label("Add someone", systemImage: "person.badge.plus") }
                             Button { addingFromContacts = true } label: { Label("Add from Contacts", systemImage: "person.crop.circle.badge.plus") }
                             Button { model.route = .addWish(nil) } label: { Label("Save a wish", systemImage: "heart") }
                             Divider()
@@ -92,7 +92,7 @@ struct HomeView: View {
                 .font(Brand.serif(19, italic: true)).foregroundStyle(Brand.inkSoft).multilineTextAlignment(.center)
             Spacer()
             PrimaryButton(title: "Add from Contacts") { addingFromContacts = true }
-            SecondaryButton(title: "Type a birthday") { model.route = .addBirthday("") }
+            SecondaryButton(title: "Add someone") { model.route = .addBirthday("") }
             if ContactsService.shared.access == .denied {
                 TextLink(title: "Let Held Dear see your contacts in Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }

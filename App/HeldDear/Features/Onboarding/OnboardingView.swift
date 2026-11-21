@@ -14,11 +14,11 @@ struct OnboardingView: View {
             case .noneFound:
                 SetupMessage(title: "None of your contacts have birthdays yet",
                              detail: "Add the people you care about one at a time. It takes a few seconds each.",
-                             button: "Add a birthday") { addFirstAfterSetup = true; go(.notify) }
+                             button: "Add someone") { addFirstAfterSetup = true; go(.notify) }
             case .denied:
                 SetupMessage(title: "Add people one at a time instead",
                              detail: "You can let Held Dear see your contacts later in Settings.",
-                             button: "Add a birthday") { addFirstAfterSetup = true; go(.notify) }
+                             button: "Add someone") { addFirstAfterSetup = true; go(.notify) }
             case .choose: ChooseInnerRingView { go(model.allPeople().contains { $0.ring == .inner } ? .getAhead : .notify) }
             case .getAhead: GetAheadView { go(.notify) }
             case .notify: NotificationsSetupView(onDone: finish)
