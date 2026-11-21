@@ -51,16 +51,11 @@ struct HomeView: View {
                 let line = pagedLine(moments, featured: featured, now: now)
                 TabView(selection: Binding(get: { featured.id }, set: { selectedID = $0 })) {
                     ForEach(line, id: \.id) { m in
-                        // Home never scrolls (feedback on build 1026). The first layout that fits is used: the
-                        // medallion, a smaller one, none, and last the plain page shrunk just enough to fit.
-                        ViewThatFits(in: .vertical) {
-                            // The medallion is 92 points (Graham, Nov 21: the smaller size for everyone).
-                            page(m, now: now, medallionSize: medallionOn ? 92 : 0)
-                            if medallionOn { page(m, now: now, medallionSize: 72) }
-                            page(m, now: now, medallionSize: 0, circle: false)
-                            ShrinkToFit { page(m, now: now, medallionSize: 0, circle: false) }
-                        }
-                        .frame(maxHeight: .infinity, alignment: .top)
+                        // Home never scrolls (feedback on build 1026), and everyone keeps the medallion (feedback on
+                        // build 1027, where dropping it to fit left most people without one). The page keeps its
+                        // natural size and is scaled down only by what it lacks.
+                        ShrinkToFit { page(m, now: now, medallionSize: medallionOn ? 92 : 0) }
+                            .frame(maxHeight: .infinity, alignment: .top)
                         .tag(m.id)
                     }
                 }
