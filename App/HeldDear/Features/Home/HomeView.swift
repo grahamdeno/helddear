@@ -87,12 +87,13 @@ struct HomeView: View {
         return line
     }
 
-    /// The medallion: the face (warm-toned) or the holiday's mark, 120 points, between the date and the name.
+    /// The medallion: the face (warm-toned, fading into the page at the bottom) or the holiday's mark, between the
+    /// date and the name.
     @ViewBuilder private func medallion(_ m: Moment) -> some View {
         if m.type.kind == .holiday {
-            HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 120)
+            HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 120).padding(.bottom, 30)
         } else if let person = m.person {
-            Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 120, toned: true) }
+            Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 150, toned: true, fadeBottom: true) }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
         }
@@ -627,7 +628,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
-                    .padding(.top, medallion == nil ? Brand.space3 : -64)
+                    .padding(.top, medallion == nil ? Brand.space3 : -90)
             }
             .buttonStyle(.plain)
             .zIndex(1)
