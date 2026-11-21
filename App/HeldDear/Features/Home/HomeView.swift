@@ -211,8 +211,7 @@ struct FeaturedView: View {
             eyebrow: missed ? "Yesterday" : moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day()),
             title: displayName, open: openPerson, openHint: "Opens \(name)'s page",
             subline: subline(days: days, missed: missed),
-            progress: progress, status: statusLine(act: act, name: name),
-            showsActions: Self.hasActionNow(act)
+            progress: progress, status: statusLine(act: act, name: name)
         ) {
             mainButton(act: act, missed: missed, name: name)
         } link: {
@@ -275,15 +274,8 @@ struct FeaturedView: View {
     @ViewBuilder private func linkLine(act: NextAct, days: Int, missed: Bool, name: String) -> some View {
         switch act {
         case .openPlan:
-            // The name opens the page (its › says so); this line says how soon the next thing is due.
-            let nudge = moment.planNudge
-            let parts = moment.planParts
-            if nudge.isEnabled, let t = nudge.target, parts.indices.contains(t),
-               let line = NextAct.byLine(kindRaw: parts[t].kindRaw, step: parts[t].currentStep, due: moment.dueDate) {
-                Text(line).textStyle(.callout, color: Brand.inkMuted)
-            } else {
-                Color.clear
-            }
+            // The button stays; the "order by" line under it came off (Graham, Nov 21, 2026: one of the two, not both).
+            Color.clear
         case .allSet, .pick, .saveWish:
             Color.clear
         default:
