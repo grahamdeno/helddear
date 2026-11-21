@@ -733,6 +733,34 @@ final class ContactPickerPresenter: NSObject, CNContactPickerDelegate {
     }
 }
 
+/// Apple's contact picker with checkmarks: implementing the plural delegate method turns on picking several.
+/// A separate delegate from ContactPickerPresenter, which links one contact to one person.
+final class MultiContactPickerPresenter: NSObject, CNContactPickerDelegate {
+    static let shared = MultiContactPickerPresenter()
+    private var onPick: (([CNContact]) -> Void)?
+
+    func present(onPick: @escaping ([CNContact]) -> Void) {
+        guard let top = ContactPickerPresenter.topViewController() else { return }
+        self.onPick = onPick
+        let picker = CNContactPickerViewController()
+        picker.delegate = self
+        top.present(picker, animated: true)
+    }
+
+    nonisolated func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
+        Task { @MainActor in
+            let callback = self.onPick
+            self.onPick = nil
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            callback?(contacts)
+        }
+    }
+
+    nonisolated func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+        Task { @MainActor in self.onPick = nil }
+    }
+}
+
 /// Edit the portrait: loves (comma separated), sizes, and one line of good to know.
 struct PortraitEditor: View {
     @EnvironmentObject var model: AppModel

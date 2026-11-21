@@ -63,7 +63,15 @@ struct RootView: View {
                 .environmentObject(model)
                 .modelContainer(model.container)
         }
-        .onChange(of: model.route) { _, route in
+        .onChange(of: model.route) { old, route in
+            if route == nil, case .addBirthday? = old, !model.contactsToDate.isEmpty {
+                let next = model.contactsToDate.removeFirst()
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    if model.route == nil { model.route = .addBirthday("\(next), ") }
+                }
+                return
+            }
             guard let route, let nav = model.navTarget(for: route) else { return }
             model.route = nil
             model.push(nav)

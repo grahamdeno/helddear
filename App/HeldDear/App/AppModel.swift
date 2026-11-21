@@ -81,6 +81,8 @@ final class AppModel: ObservableObject {
     var runningInMemoryThisLaunch: Bool { storeOutcome == .inMemoryThisLaunch }
 
     @Published var route: Route?
+    /// Picked contacts still waiting for a date, shown one after another after Add a birthday closes.
+    var contactsToDate: [String] = []
     /// Pages pushed from Home, oldest first.
     @Published var navPath: [Nav] = []
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
