@@ -333,6 +333,54 @@ thing, so I don't look them up each time.
 
 Out of scope: suggesting places I haven't used; web search.
 
+#### 2.13 An address for people Contacts doesn't have one for (approved Nov 21, 2026)
+
+As someone who mails cards, I want to keep an address for a person whose contact card doesn't have one, so I'm not
+typing it at every checkout.
+
+- Given a linked contact with an address, then the address is read live from Contacts and never copied (as now).
+- Given no address in Contacts, or no linked contact, then the details page has an Address field, kept on the phone,
+  that can be changed or cleared.
+- Given I mail a card, then the address comes from Contacts or this field; an address typed at checkout is offered to
+  save to the field.
+- Data: a new stored field on Person with a default; nothing renamed. Migration reviewed by Opus, approved by Graham.
+
+Out of scope: writing addresses to Contacts (Contacts stay read only).
+
+#### 2.14 Places near the person (approved Nov 21, 2026)
+
+As someone planning for people in different towns, I want remembered places offered only when they're near the
+person the day is for.
+
+- Given a place with a ZIP code and a person with a ZIP code (from Contacts or 2.13), then the place is offered only
+  within 50 miles of the person.
+- Given either ZIP code is missing, then the place is offered as it is today.
+- Distance comes from the US Census ZIP code centers (public data, about 1 MB) built into the app; no address leaves
+  the phone. Unit tests: a known distance, and a place 300 miles away isn't offered.
+
+Out of scope: places outside the US; finding new places.
+
+### Epic 3: Your data in your own iCloud (approved for 1.0, Nov 21, 2026; all three stories)
+
+**Goal:** plans aren't lost with the phone, show on a second iPhone, and can be shared with someone who plans with
+you. **The promise becomes:** "Your data stays yours: on your phone and in your own iCloud. Held Dear's server only
+sees what one order needs."
+
+- **3.1 Sync and backup.** Plans, people, ideas and records sync through the user's private iCloud. Turning iCloud on
+  keeps everything already on the phone; turning it off keeps a copy on the phone.
+- **3.2 Share a plan.** Invite someone to a person's plan, like sharing a note; they see and update parts, owners and
+  statuses; sharing can be stopped any time.
+- **3.3 The promise everywhere.** App Privacy answers, privacy policy, privacy guard rules (iCloud allowed; no Held
+  Dear server beyond the two exceptions), onboarding words.
+
+**Risks (written down before building):** 3.1 is a data migration (iCloud sync needs ids that aren't unique-
+constrained and defaults on every stored field), every install moves once; Opus reviews in full, Graham approves.
+3.2 isn't built into SwiftData; it needs CloudKit sharing below SwiftData or a move to Core Data, tested on two phones
+with two Apple IDs. Photos count against the user's iCloud storage. Fable runs a strategy and security review before
+any build.
+
+Out of scope: a Held Dear account or server for sync.
+
 #### Requirements
 - **R1. Several recipients:** an occasion can hold several people. Enforced by a unit test on the data model.
 - **R2. Mailed cards on, family pages off in 1.0 (changed Nov 21, 2026, Graham's decision):** mailed cards ship on
