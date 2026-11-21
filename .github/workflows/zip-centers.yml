@@ -1,11 +1,11 @@
 # Builds the ZIP code centers file for story 2.14 from US Census public data. Runs only on pushes to
-# data/zip-centers. Uploads a workflow artifact for Claude to download; uploads and deploys nothing else.
+# data/zip-centers. Commits the file back to data/zip-centers only; uploads and deploys nothing.
 name: zip-centers
 on:
   push:
     branches: [data/zip-centers]
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,7 +37,17 @@ jobs:
           print(len(rows), "zips")
           PY
           head -3 zip-centers.csv; wc -c zip-centers.csv
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: zip-centers
-          path: zip-centers.csv
+          path: repo
+      - name: Commit the file to data/zip-centers
+        run: |
+          set -e
+          mkdir -p repo/App/HeldDear/Resources
+          cp zip-centers.csv repo/App/HeldDear/Resources/zip-centers.csv
+          cd repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add App/HeldDear/Resources/zip-centers.csv
+          git commit -m "ZIP code centers from the Census ZCTA gazetteer (story 2.14)" || echo "no change"
+          git push origin HEAD:data/zip-centers
