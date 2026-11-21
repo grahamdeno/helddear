@@ -8,33 +8,12 @@ struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
     @State private var selectedID: UUID?
-    /// What the small circle at the top shows: the featured person's face, or the featured holiday's mark.
-    @State private var portrait: TopCircle?
-    enum TopCircle: Equatable { case person(UUID), holiday(OccasionType, String?) }
 
     var body: some View {
         NavigationStack(path: $model.navPath) {
             content
                 .background(Brand.page.ignoresSafeArea())
                 .toolbar {
-                    // The featured person's face, small and round, top center (approved Nov 21, 2026). It sits in
-                    // the bar, so nothing on the page moves.
-                    ToolbarItem(placement: .principal) {
-                        switch portrait {
-                        case .person(let id):
-                            if let person = model.person(id) {
-                                Button { model.push(.person(id, focus: nil)) } label: { PersonPortrait(person: person, size: 44) }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
-                                    .transition(.opacity)
-                            }
-                        case .holiday(let type, let name):
-                            HolidayMark(type: type, name: name, size: 44).transition(.opacity)
-                        case nil:
-                            EmptyView()
-                        }
-                    }
-                    .sharedBackgroundVisibility(.hidden)
                     // You in the top right; Add lives on the timeline (approved Nov 21, 2026).
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { model.route = .settings } label: { YouCircle() }
@@ -71,22 +50,19 @@ struct HomeView: View {
                 TabView(selection: Binding(get: { featured.id }, set: { selectedID = $0 })) {
                     ForEach(line, id: \.id) { m in
                         ScrollView {
-                            featuredView(m, now: now)
-                                .padding(.horizontal, Brand.space5)
-                                .padding(.top, Brand.space6)
+                            // The person's face (or the holiday's mark) sits on the page right above the date and
+                            // slides with it; in the bar it made the bar taller and pushed the page down (build 1024).
+                            VStack(spacing: Brand.space2) {
+                                topCircle(m)
+                                featuredView(m, now: now)
+                            }
+                            .padding(.horizontal, Brand.space5)
                         }
                         .scrollBounceBehavior(.basedOnSize)
                         .tag(m.id)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .task(id: featured.id) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        portrait = featured.type.kind == .holiday
-                            ? .holiday(featured.type, featured.occasion?.partnerName)
-                            : featured.person.map { .person($0.id) }
-                    }
-                }
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
                 otherReady(moments, featured: featured, now: now)
@@ -108,9 +84,22 @@ struct HomeView: View {
         return line
     }
 
+    @ViewBuilder private func topCircle(_ m: Moment) -> some View {
+        if m.type.kind == .holiday {
+            HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 40)
+        } else if let person = m.person {
+            Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 40) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+        } else {
+            Color.clear.frame(width: 40, height: 40)
+        }
+    }
+
     @ViewBuilder private func featuredView(_ m: Moment, now: Date) -> some View {
         if m.type.kind == .holiday {
-            HolidayFeaturedView(type: m.type, members: model.holidayMembers(type: m.type, year: m.year), now: now)
+            HolidayFeaturedView(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName),
+                                members: model.holidayMembers(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName), year: m.year), now: now)
         } else {
             FeaturedView(moment: m, state: model.state(for: m), now: now,
                          openPerson: { if let p = m.person { model.push(.person(p.id, focus: m.id)) } })
@@ -284,7 +273,7 @@ struct FeaturedView: View {
         case 1: when = "tomorrow"
         default: when = OccasionDates.countdown(to: moment.dueDate, from: now)
         }
-        if moment.type.kind == .holiday { return "\(moment.type.label), \(when)" }
+        if moment.type.kind == .holiday { return "\(moment.type.title(partner: moment.occasion?.partnerName)), \(when)" }
         return "\(what), \(when)"
     }
 
@@ -470,7 +459,7 @@ struct HorizonBand: View {
     }
 
     private func label(_ m: Moment) -> String {
-        if m.type.kind == .holiday { return m.type.label }
+        if m.type.kind == .holiday { return m.type.title(partner: m.occasion?.partnerName) }
         let name = DisplayName.plain(m.person?.name ?? "")
         if m.type == .anniversary, let p = m.occasion?.partnerName { return "\(name) & \(p)" }
         return name
@@ -537,7 +526,7 @@ enum HolidayCollapse {
     static func collapse(_ moments: [Moment]) -> [Moment] {
         var chosen: [String: Moment] = [:]
         for m in moments {
-            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { continue }
+            guard let key = Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) else { continue }
             if let current = chosen[key] {
                 if current.status.isSettled && !m.status.isSettled { chosen[key] = m }
             } else {
@@ -545,7 +534,7 @@ enum HolidayCollapse {
             }
         }
         return moments.filter { m in
-            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { return true }
+            guard let key = Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) else { return true }
             return chosen[key]?.id == m.id
         }
     }
@@ -565,7 +554,7 @@ struct NavPage: View {
         case .person(let id, let focus):
             if let p = model.person(id) { PersonView(person: p, focus: focus) } else { Color.clear }
         case .holiday(let raw, let year):
-            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear }
+            if let ref = HolidayRef(raw: raw) { HolidayView(ref: ref, year: year) } else { Color.clear }
         case .people:
             PeopleAndIdeasView()
         case .ideas:

@@ -216,7 +216,7 @@ final class AppModel: ObservableObject {
     func title(of nav: Nav) -> String {
         switch nav {
         case .person(let id, _): return person(id).map { DisplayName.plain($0.name) } ?? "Back"
-        case .holiday(let raw, _): return OccasionType(rawValue: raw)?.label ?? "Back"
+        case .holiday(let raw, _): return HolidayRef(raw: raw)?.label ?? "Back"
         case .people: return "Everyone"
         case .ideas: return "Ideas"
         case .relationship: return "Who they are"
@@ -247,14 +247,16 @@ final class AppModel: ObservableObject {
             .filter { $0.dueDate >= today }.sorted { $0.dueDate < $1.dueDate }.first
     }
 
-    /// Upcoming shared holidays, one each: the type, its date and how many people are in it.
-    func upcomingHolidays(now: Date = Date()) -> [(type: OccasionType, year: Int, date: Date, people: Int)] {
+    /// Upcoming shared holidays, one each: which holiday, its date and how many people are in it.
+    func upcomingHolidays(now: Date = Date()) -> [(ref: HolidayRef, year: Int, date: Date, people: Int)] {
         let today = Calendar.current.startOfDay(for: now)
         let moments = allMoments().filter { $0.type.kind == .holiday && $0.person != nil && $0.dueDate >= today }
-        let groups = Dictionary(grouping: moments) { "\($0.type.rawValue)-\($0.year)" }
+        let groups = Dictionary(grouping: moments) { m in
+            Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) ?? m.type.rawValue
+        }
         return groups.values.compactMap { g in
             guard let f = g.first else { return nil }
-            return (f.type, f.year, f.dueDate, g.count)
+            return (HolidayRef(type: f.type, name: f.occasion?.partnerName), f.year, f.dueDate, g.count)
         }.sorted { $0.date < $1.date }
     }
 
@@ -274,7 +276,7 @@ final class AppModel: ObservableObject {
         ContactsService.shared.address(contactID: person?.contactID)
     }
 
-    /// D2's photo set: last year's ledger photo, photos saved to the person, then the contact photo. Up to three.
+    /// The photo set for cards: last year's record photo, every photo saved to the person (top one first), then the contact photo.
     func photoChoices(for person: Person) -> [PhotoChoice] {
         var choices: [PhotoChoice] = []
         if let entry = person.sortedLedger.first(where: { $0.photoFile != nil }), let file = entry.photoFile,
@@ -286,11 +288,11 @@ final class AppModel: ObservableObject {
                 choices.append(PhotoChoice(id: "saved-\(file)", image: image, file: file, label: "Saved for \(person.name)"))
             }
         }
-        choices = Array(choices.prefix(2))
+        // Every saved photo is offered (feedback on build 1021), after last year's.
         if let contact = ContactsService.shared.photo(contactID: person.contactID) {
             choices.append(PhotoChoice(id: "contact", image: contact, file: nil, label: "\(person.name)'s contact photo"))
         }
-        return Array(choices.prefix(3))
+        return choices
     }
 
     // MARK: People and dates
@@ -554,8 +556,8 @@ final class AppModel: ObservableObject {
     // MARK: Shared holidays (roadmap Epic 1)
 
     /// Every person's moment for one holiday in one year, by name.
-    func holidayMembers(type: OccasionType, year: Int) -> [Moment] {
-        allMoments().filter { $0.type == type && $0.year == year && $0.person != nil }
+    func holidayMembers(ref: HolidayRef, year: Int) -> [Moment] {
+        allMoments().filter { ref.matches(type: $0.type, partner: $0.occasion?.partnerName) && $0.year == year && $0.person != nil }
             .sorted { ($0.person?.name ?? "").localizedCaseInsensitiveCompare($1.person?.name ?? "") == .orderedAscending }
     }
 
@@ -570,17 +572,65 @@ final class AppModel: ObservableObject {
     }
 
     /// Adds a person to a shared holiday and starts their plan.
-    func addToHoliday(_ person: Person, type: OccasionType, year: Int) {
-        if !person.occasions.contains(where: { $0.type == type }) {
-            let occasion = Occasion(type: type, month: type.fixedHoliday?.month ?? 1, day: type.fixedHoliday?.day ?? 1)
+    func addToHoliday(_ person: Person, ref: HolidayRef, year: Int) {
+        if !person.occasions.contains(where: { ref.matches(type: $0.type, partner: $0.partnerName) }) {
+            let custom = ref.type == .custom ? CustomHolidays.find(ref.name ?? "") : nil
+            if ref.type == .custom && custom == nil { return }
+            let occasion = Occasion(type: ref.type, month: custom?.month ?? ref.type.fixedHoliday?.month ?? 1,
+                                    day: custom?.day ?? ref.type.fixedHoliday?.day ?? 1)
+            occasion.partnerName = custom?.name
             context.insert(occasion)
             occasion.person = person
             MomentEngine.refresh(context)
         }
-        if let m = holidayMembers(type: type, year: year).first(where: { $0.person?.id == person.id }) {
+        if let m = holidayMembers(ref: ref, year: year).first(where: { $0.person?.id == person.id }) {
             startHolidayPlan(m)
         }
         commit()
+    }
+
+    // MARK: Holidays the user adds (story 2.10)
+
+    /// Adds a holiday with the same date each year, for the people chosen.
+    func addCustomHoliday(_ holiday: CustomHoliday, people: [Person], now: Date = Date()) {
+        CustomHolidays.upsert(holiday)
+        let year = Calendar.current.component(.year, from: now)
+        for p in people { addToHoliday(p, ref: holiday.ref, year: year) }
+        MomentEngine.refresh(context)
+        commit()
+    }
+
+    /// Renames or moves a holiday: every person's day follows, including this year's if it hasn't happened.
+    func updateCustomHoliday(old: String, to holiday: CustomHoliday) {
+        CustomHolidays.upsert(holiday, replacing: old)
+        let occasions = (try? context.fetch(FetchDescriptor<Occasion>())) ?? []
+        for o in occasions where o.type == .custom && CustomHolidays.sameName(o.partnerName ?? "", old) {
+            o.partnerName = holiday.name
+            o.month = holiday.month
+            o.day = holiday.day
+            let today = Calendar.current.startOfDay(for: Date())
+            for m in o.moments where !m.status.isSettled && m.dueDate >= today {
+                m.dueDate = OccasionDates.date(month: holiday.month, day: holiday.day, year: m.year)
+                m.headsUpAt = nil
+            }
+        }
+        MomentEngine.refresh(context)
+        commit()
+    }
+
+    /// Removes a holiday from every timeline. Past years stay in each person's record.
+    func removeCustomHoliday(_ name: String) {
+        CustomHolidays.remove(name)
+        let occasions = (try? context.fetch(FetchDescriptor<Occasion>())) ?? []
+        for o in occasions where o.type == .custom && CustomHolidays.sameName(o.partnerName ?? "", name) {
+            context.delete(o)
+        }
+        commit()
+    }
+
+    /// How many people are in a holiday the user added.
+    func customHolidayPeople(_ name: String) -> [Person] {
+        allPeople().filter { p in p.occasions.contains { $0.type == .custom && CustomHolidays.sameName($0.partnerName ?? "", name) } }
     }
 
     /// Adds a part to the end of a plan: not started, from You.

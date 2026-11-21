@@ -31,6 +31,9 @@ struct Find: Equatable, Identifiable {
     var dependable: Bool = false
     /// When it was added to the catalog, newest first in Finds.
     var added: String = "2026-11-20"
+    /// The shop's product photo, bundled in the app's assets under this name, only once the shop has agreed
+    /// (Nov 21, 2026). Nil shows no photo; nothing is ever fetched.
+    var photo: String? = nil
 }
 
 /// Who a find suits, in the words the Finds filter shows.

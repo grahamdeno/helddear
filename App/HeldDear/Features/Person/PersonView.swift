@@ -226,7 +226,7 @@ struct PersonView: View {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
                         } else {
                             OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
-                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
+                                      : o.type.title(partner: o.partnerName),
                                       caption: occasionCaption(o)) { occasionToEdit = o }
                         }
                     }
@@ -240,7 +240,9 @@ struct PersonView: View {
                     }
                     SecondaryButton(title: "Save an idea") { model.route = .addWish(person.id) }
                 }
-                section("Photos for the card") {
+                section("Photos of \(DisplayName.plain(person.name))") {
+                    Text("The first is the photo at the top of \(DisplayName.plain(person.name))'s page. Cards offer all of them. Press and hold one to change which is first.")
+                        .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                     photoStrip
                     Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
                         Text("Show \(DisplayName.plain(person.name))'s age on the card").textStyle(.body)
@@ -355,7 +357,7 @@ struct PersonView: View {
     private func subline(_ next: Moment) -> String {
         let date = next.dueDate.formatted(.dateTime.month(.wide).day())
         let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.label.lowercased()
-        return next.type.kind == .holiday ? "\(next.type.label), \(date)" : "\(date), \(what)"
+        return next.type.kind == .holiday ? "\(next.type.title(partner: next.occasion?.partnerName)), \(date)" : "\(date), \(what)"
     }
 
     /// The portrait, written as sentences: what they love, sizes, good to know, what they mentioned.
@@ -574,10 +576,28 @@ struct PersonView: View {
                 .accessibilityLabel("Add a photo")
                 ForEach(person.photoFiles.reversed(), id: \.self) { file in
                     if let image = PhotoStore.load(file) {
+                        let isTop = file == person.photoFiles.last
                         Image(uiImage: image).resizable().scaledToFill()
                             .frame(width: 88, height: 88)
                             .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                            .overlay(alignment: .bottomLeading) {
+                                if isTop {
+                                    Text("Top").font(.caption2.weight(.semibold)).foregroundStyle(Brand.page)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Brand.ink, in: Capsule())
+                                        .padding(6)
+                                }
+                            }
+                            .accessibilityLabel(isTop ? "Photo at the top of the page" : "Photo")
                             .contextMenu {
+                                if !isTop {
+                                    // The newest saved photo is the top one, so moving it to the end makes it first.
+                                    Button("Use at the top") {
+                                        person.photoFiles.removeAll { $0 == file }
+                                        person.photoFiles.append(file)
+                                        model.save()
+                                    }
+                                }
                                 Button("Remove photo", role: .destructive) {
                                     person.photoFiles.removeAll { $0 == file }
                                     PhotoStore.delete(file)
@@ -946,7 +966,27 @@ struct AddOccasionView: View {
             Question(title: "What else matters for \(DisplayName.plain(person.name))?")
             section("Every year", choices.filter { $0.kind == .yearly })
             section("Holidays", choices.filter { $0.kind == .holiday })
+            ownHolidays
             section("Big days", OccasionOffer.bigDays.filter(choices.contains))
+        }
+    }
+
+    /// Holidays the user added (story 2.10) that this person isn't in yet.
+    @ViewBuilder private var ownHolidays: some View {
+        let own = CustomHolidays.all().filter { h in
+            !person.occasions.contains { $0.type == .custom && CustomHolidays.sameName($0.partnerName ?? "", h.name) }
+        }
+        if !own.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Your holidays")
+                ForEach(own) { h in
+                    OptionRow(title: h.name, caption: OccasionDates.date(month: h.month, day: h.day, year: 2028)
+                        .formatted(.dateTime.month(.wide).day())) {
+                        model.addToHoliday(person, ref: h.ref, year: Calendar.current.component(.year, from: Date()))
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 

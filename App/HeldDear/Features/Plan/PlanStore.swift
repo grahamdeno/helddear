@@ -28,7 +28,7 @@ extension Moment {
 
     /// The occasion's name on screen: "Birthday", "Christmas", or an event's own name ("Ballet recital").
     var label: String {
-        guard type == .event, let name = occasion?.partnerName, !name.isEmpty else { return type.label }
+        guard type == .event || type == .custom, let name = occasion?.partnerName, !name.isEmpty else { return type.label }
         return name
     }
 }

@@ -103,6 +103,10 @@ struct SettingsView: View {
     @State private var addingFromContacts = false
     @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
     @AppStorage("yourName") private var yourName = ""
+    @AppStorage("cardSignature") private var signedAs = ""
+    @State private var makingCard = false
+    @State private var addingHoliday = false
+    @State private var holidayToEdit: CustomHoliday?
 
     var body: some View {
         ScrollView {
@@ -117,6 +121,17 @@ struct SettingsView: View {
                         .frame(minHeight: 52)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                     Text("Shown in the circle on Home. Kept on this iPhone.").textStyle(.caption, color: Brand.inkMuted)
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Cards from you")
+                    OptionRow(title: "Make a card", caption: "For Christmas or any reason. Text it or post it.") { makingCard = true }
+                    TextField("Sign cards as (like The DeNoyers)", text: $signedAs)
+                        .textStyle(.body)
+                        .padding(.horizontal, Brand.space4)
+                        .frame(minHeight: 52)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                        .accessibilityLabel("Sign cards as")
+                    Text("Your cards end with \"from\" and this. Empty uses your name.").textStyle(.caption, color: Brand.inkMuted)
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Held Dear Lifetime")
@@ -154,6 +169,21 @@ struct SettingsView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Your own holidays")
+                    let _ = model.revision
+                    let own = CustomHolidays.all()
+                    ForEach(own) { h in
+                        let count = model.customHolidayPeople(h.name).count
+                        OptionRow(title: h.name,
+                                  caption: "\(OccasionDates.date(month: h.month, day: h.day, year: 2028).formatted(.dateTime.month(.wide).day())) · \(count) \(count == 1 ? "person" : "people")") {
+                            holidayToEdit = h
+                        }
+                    }
+                    TextLink(title: "+ Add a holiday") { addingHoliday = true }.padding(.leading, -8)
+                    Text("Your own holidays keep the same date each year. Six weeks before, Held Dear reminds you to change it if it moves.")
+                        .textStyle(.caption, color: Brand.inkMuted)
+                }
+                VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "People")
                     OptionRow(title: "Add from contacts", caption: "Pick several at once") { addingFromContacts = true }
                     OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
@@ -188,6 +218,9 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .fullScreenCover(isPresented: $addingHoliday) { OwnHolidayFlow(editing: nil) { addingHoliday = false }.environmentObject(model) }
+        .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
+        .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
         .addFromContacts(isPresented: $addingFromContacts)
     }
 }

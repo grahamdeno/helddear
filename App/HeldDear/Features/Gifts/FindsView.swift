@@ -81,6 +81,13 @@ struct FindCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if let name = find.photo, let image = UIImage(named: name) {
+                Image(uiImage: image).resizable().scaledToFill()
+                    .frame(maxWidth: .infinity).frame(height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .accessibilityHidden(true)
+                    .padding(.bottom, 4)
+            }
             HStack(alignment: .firstTextBaseline) {
                 Text(find.name).font(Brand.serif(20, relativeTo: .title3)).foregroundStyle(Brand.ink)
                     .multilineTextAlignment(.leading)

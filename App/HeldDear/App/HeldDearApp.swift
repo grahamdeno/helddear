@@ -109,7 +109,7 @@ struct RouteView: View {
         case .plan(let id):
             if let m = model.moment(id) { PlanView(moment: m) } else { Color.clear.onAppear { model.route = nil } }
         case .holiday(let raw, let year):
-            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear.onAppear { model.route = nil } }
+            if let ref = HolidayRef(raw: raw) { HolidayView(ref: ref, year: year) } else { Color.clear.onAppear { model.route = nil } }
         case .rings:
             NavigationStack { RingsView().toolbar { CloseToolbar { model.route = nil } }.plainBar() }
         case .lifetime:

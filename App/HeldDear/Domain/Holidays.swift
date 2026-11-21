@@ -21,9 +21,11 @@ enum Holidays {
         defaults.set(offeredIn1_0.map(\.rawValue).filter(now.contains), forKey: defaultsKey)
     }
 
-    /// The key that joins every person's moment for one holiday in one year.
-    static func groupKey(type: OccasionType, year: Int) -> String? {
-        type.kind == .holiday ? "\(type.rawValue)-\(year)" : nil
+    /// The key that joins every person's moment for one holiday in one year. A holiday the user added is told
+    /// apart by its name.
+    static func groupKey(type: OccasionType, year: Int, partner: String? = nil) -> String? {
+        guard type.kind == .holiday else { return nil }
+        return "\(HolidayRef(type: type, name: partner).raw)-\(year)"
     }
 
     /// Lead time for the single holiday heads-up (roadmap 1.4): six weeks.
@@ -57,13 +59,17 @@ enum Holidays {
     }
 
     /// The heads-up six weeks out: "Christmas is in 6 weeks. 5 people to plan for."
-    static func headsUpText(type: OccasionType, people: Int) -> String {
-        "\(type.label) is in 6 weeks. \(people) \(people == 1 ? "person" : "people") to plan for."
+    static func headsUpText(type: OccasionType, people: Int, partner: String? = nil) -> String {
+        let base = "\(type.title(partner: partner)) is in 6 weeks. \(people) \(people == 1 ? "person" : "people") to plan for."
+        // A holiday the user added keeps one date; this is the one reminder to change it if it moves (story 2.10).
+        return type == .custom ? base + " If the date moves this year, change it in You." : base
     }
 
     /// The morning of: "Merry Christmas. Held Dear has your messages ready for 5 people."
-    static func dayOfText(type: OccasionType, people: Int) -> String {
-        let opening = type.cardOpening.hasSuffix(",") ? String(type.cardOpening.dropLast()) : type.cardOpening
+    /// A holiday the user added: "Today is Hanukkah. …" (the app doesn't guess its greeting).
+    static func dayOfText(type: OccasionType, people: Int, partner: String? = nil) -> String {
+        let opening = type == .custom ? "Today is \(type.title(partner: partner))"
+            : (type.cardOpening.hasSuffix(",") ? String(type.cardOpening.dropLast()) : type.cardOpening)
         return "\(opening). Held Dear has your messages ready for \(people) \(people == 1 ? "person" : "people")."
     }
 }

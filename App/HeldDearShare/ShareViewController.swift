@@ -39,6 +39,14 @@ final class ShareModel: ObservableObject {
             if let t = item.attributedContentText?.string, !t.isEmpty, title.isEmpty { title = t }
             if let t = item.attributedTitle?.string, !t.isEmpty { title = t }
             for provider in item.attachments ?? [] {
+                // A shared page often comes with its own picture (the product photo Safari or a shop app shows in
+                // the share sheet). Keep it with the idea; nothing is fetched (Nov 21, 2026).
+                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                    provider.loadPreviewImage(options: [NSItemProviderPreferredImageSizeKey: NSValue(cgSize: CGSize(width: 900, height: 900))]) { item, _ in
+                        let img = (item as? UIImage) ?? (item as? Data).flatMap(UIImage.init(data:))
+                        Task { @MainActor in if self.image == nil, let img { self.image = img } }
+                    }
+                }
                 if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     _ = provider.loadObject(ofClass: URL.self) { url, _ in
                         Task { @MainActor in

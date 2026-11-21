@@ -38,6 +38,16 @@ final class FaceFinder {
         return cropped.map { UIImage(cgImage: $0) }
     }
 
+    /// Any picked photo, cropped to a shape with the face placed (the same framing as a person's photo).
+    func banner(of image: UIImage, aspect: CGFloat) async -> UIImage? {
+        guard let upright = Self.upright(image, longest: 1600) else { return nil }
+        let cropped = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+            let size = CGSize(width: upright.width, height: upright.height)
+            return upright.cropping(to: FaceFrame.bannerRect(face: Self.face(in: upright), imageSize: size, aspect: aspect).integral)
+        }.value
+        return cropped.map { UIImage(cgImage: $0) }
+    }
+
     nonisolated private static func face(in cg: CGImage) -> CGRect? {
         let size = CGSize(width: cg.width, height: cg.height)
         let request = VNDetectFaceRectanglesRequest()
