@@ -49,6 +49,23 @@ enum DataExport {
         var line: String?, momentID: UUID?, personName: String, createdAt: Date, personID: UUID?
     }
 
+    /// What you set on the You page, kept in settings rather than the store (Opus review of PR #37: "everything"
+    /// includes these).
+    struct Settings: Codable, Equatable {
+        var yourName: String?
+        var cardSignature: String?
+        var customHolidays: [CustomHoliday]
+        var enabledHolidays: [String]
+        var hiddenPhotoIDs: [String]
+
+        static func read(_ d: UserDefaults = .standard) -> Settings {
+            Settings(yourName: d.string(forKey: "yourName"), cardSignature: d.string(forKey: "cardSignature"),
+                     customHolidays: CustomHolidays.all(d),
+                     enabledHolidays: Holidays.enabled(d).map(\.rawValue),
+                     hiddenPhotoIDs: d.stringArray(forKey: "hiddenPhotoIDs") ?? [])
+        }
+    }
+
     struct Document: Codable, Equatable {
         var format = "held-dear-export"
         var formatVersion = 1
@@ -62,6 +79,7 @@ enum DataExport {
         var acts: [ActRecord]
         var wishes: [WishRecord]
         var ledger: [LedgerRecord]
+        var settings: Settings? = nil
     }
     struct Counts: Codable, Equatable {
         var people: Int, occasions: Int, moments: Int, acts: Int, wishes: Int, ledger: Int, photos: Int
@@ -140,6 +158,7 @@ enum DataExport {
         try fm.createDirectory(at: photoDir, withIntermediateDirectories: true)
 
         var doc = try document(from: context, now: now)
+        doc.settings = Settings.read()
         var copied = 0
         var missing: [String] = []
         for name in photoFileNames(doc) {
