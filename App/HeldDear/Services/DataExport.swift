@@ -57,12 +57,17 @@ enum DataExport {
         var customHolidays: [CustomHoliday]
         var enabledHolidays: [String]
         var hiddenPhotoIDs: [String]
+        /// Remembered places (story 2.12) and addresses kept for people (story 2.13), by person id.
+        var places: [Place]? = nil
+        var addresses: [String: MailAddress]? = nil
 
         static func read(_ d: UserDefaults = .standard) -> Settings {
             Settings(yourName: d.string(forKey: "yourName"), cardSignature: d.string(forKey: "cardSignature"),
                      customHolidays: CustomHolidays.all(d),
                      enabledHolidays: Holidays.enabled(d).map(\.rawValue),
-                     hiddenPhotoIDs: d.stringArray(forKey: "hiddenPhotoIDs") ?? [])
+                     hiddenPhotoIDs: d.stringArray(forKey: "hiddenPhotoIDs") ?? [],
+                     places: PlaceStore(defaults: d).all,
+                     addresses: SavedAddresses(defaults: d).all)
         }
     }
 
