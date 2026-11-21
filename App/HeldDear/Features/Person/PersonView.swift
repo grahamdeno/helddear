@@ -100,7 +100,7 @@ struct PersonView: View {
                     .padding(.horizontal, -Brand.space5)
                 VStack(alignment: .leading, spacing: Brand.space5) {
                     if !moments.isEmpty {
-                        PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { selectedID = $0 }))
+                        PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }))
                     }
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
