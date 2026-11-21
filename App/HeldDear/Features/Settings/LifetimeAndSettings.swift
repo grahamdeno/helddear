@@ -112,6 +112,7 @@ struct SettingsView: View {
     @State private var holidayToEdit: CustomHoliday?
     @State private var exportItems: [Any]?
     @State private var exportFailed = false
+    @State private var exporting = false
     @State private var importing = false
     @State private var yourPhotoItem: PhotosPickerItem?
     @State private var yourPhotoFile = YouProfile.photoFile
@@ -132,7 +133,7 @@ struct SettingsView: View {
                         .padding(.horizontal, Brand.space4)
                         .frame(minHeight: 52)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    Text("Shown in the circle on Home. Kept on this iPhone.").textStyle(.caption, color: Brand.inkMuted)
+                    Text("Shown in the circle on Home.").textStyle(.caption, color: Brand.inkMuted)
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Your photo and dates")
@@ -253,7 +254,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Your data")
                     OptionRow(title: "Export my data",
-                              caption: exportFailed ? "The export didn't work. Nothing was changed. Try again."
+                              caption: exporting ? "Getting your file ready…" : exportFailed ? "The export didn't work. Nothing was changed. Try again."
                                                     : "Everything you've added, with photos, in one file. You choose where it goes.") {
                         exportData()
                     }
@@ -338,11 +339,16 @@ struct SettingsView: View {
 
     /// Writes the file and opens the share sheet. The file goes nowhere else.
     private func exportData() {
-        do {
-            exportItems = [try DataExport.exportForSharing(context: model.context).zip]
-            exportFailed = false
-        } catch {
-            exportFailed = true
+        guard !exporting else { return }
+        exporting = true
+        Task {
+            do {
+                exportItems = [try await DataExport.exportInBackground(context: model.context)]
+                exportFailed = false
+            } catch {
+                exportFailed = true
+            }
+            exporting = false
         }
     }
 }

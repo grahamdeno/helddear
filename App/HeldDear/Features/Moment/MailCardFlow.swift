@@ -51,7 +51,7 @@ struct MailCardFlow: View {
             case .pick: pick
             case .message: messageStep
             case .recipient: addressStep(title: "Where does it go?", subtitle: "\(name)'s mailing address.", address: $recipient, next: .sender)
-            case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept on this iPhone for next time.", address: $sender, next: .review)
+            case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept for next time.", address: $sender, next: .review)
             case .review: review
             case .done(let mailing): done(mailing)
             case .failed(let why): failed(why)
