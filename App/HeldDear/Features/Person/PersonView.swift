@@ -9,7 +9,10 @@ struct PersonView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let person: Person
+    /// The occasion (a Moment's id) to show first, when the page was opened from it.
+    var focus: UUID? = nil
     @State private var showRing = false
+    @State private var addingTo: Moment?
     @State private var linking = false
     @State private var editingDate = false
     @State private var photoItem: PhotosPickerItem?
@@ -31,6 +34,9 @@ struct PersonView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
+                ForEach(Array(planMoments.enumerated()), id: \.element.id) { i, m in
+                    PersonPlanSection(moment: m, primary: i == 0) { addingTo = m }
+                }
                 portrait
                 PersonYears(person: person)
                     .padding(.horizontal, -Brand.space5)
@@ -49,11 +55,6 @@ struct PersonView: View {
                     settingRelationship = true
                 }
                 section("Occasions") {
-                    if let next = model.nextMoment(for: person) {
-                        OptionRow(title: PlanReadiness.planRowTitle(for: next.type), caption: planCaption(next)) {
-                            model.route = .plan(next.id)
-                        }
-                    }
                     ForEach(sortedOccasions, id: \.id) { o in
                         if o.type == .birthday {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
@@ -94,6 +95,10 @@ struct PersonView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $addingTo) { m in
+            PlanView(moment: m, onClose: { addingTo = nil }, startOnAdd: true)
+                .environmentObject(model)
+        }
         .sheet(isPresented: $showRing) { RingSheet(person: person).presentationDetents([.medium]) }
         .onChange(of: linking) { _, open in
             guard open else { return }
@@ -140,6 +145,24 @@ struct PersonView: View {
         } message: {
             Text("Their wishes and yearly record go too. Your contacts are not changed.")
         }
+    }
+
+    /// The occasions planned on this page: the one it was opened from first, then what's coming in the next four
+    /// months. At most two, so the page stays one composed page.
+    private var planMoments: [Moment] {
+        let today = Calendar.current.startOfDay(for: Date())
+        let horizon = Calendar.current.date(byAdding: .day, value: 120, to: today) ?? today
+        var moments = person.occasions.flatMap(\.moments)
+            .filter { $0.dueDate >= today && $0.dueDate <= horizon && $0.status != .missed }
+            .sorted { $0.dueDate < $1.dueDate }
+        if let focus {
+            if let i = moments.firstIndex(where: { $0.id == focus }) {
+                moments.insert(moments.remove(at: i), at: 0)
+            } else if let m = person.occasions.flatMap(\.moments).first(where: { $0.id == focus }) {
+                moments.insert(m, at: 0)
+            }
+        }
+        return Array(moments.prefix(2))
     }
 
     private var header: some View {
@@ -196,8 +219,6 @@ struct PersonView: View {
                     .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
             }
             if let next = model.nextMoment(for: person), next.status != .missed {
-                PrimaryButton(title: "Plan \(person.name)'s day") { model.route = .plan(next.id) }
-                    .padding(.top, Brand.space2)
                 let days = OccasionDates.daysBetween(Date(), next.dueDate)
                 HStack(spacing: Brand.space4) {
                     if days >= 6 && AppFeatures.serverFeatures {

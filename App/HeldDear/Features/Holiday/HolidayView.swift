@@ -7,7 +7,7 @@ struct HolidayView: View {
     let type: OccasionType
     let year: Int
 
-    private enum Screen: Equatable { case list, person(UUID), add }
+    private enum Screen: Equatable { case list, add }
     @State private var screen: Screen = .list
     @State private var started = false
 
@@ -19,12 +19,6 @@ struct HolidayView: View {
     var body: some View {
         switch screen {
         case .list: listScreen.onAppear(perform: startPlans)
-        case .person(let id):
-            if let m = members.first(where: { $0.id == id }) {
-                PlanView(moment: m, onClose: { screen = .list })
-            } else {
-                Color.clear.onAppear { screen = .list }
-            }
         case .add: addScreen
         }
     }
@@ -41,6 +35,7 @@ struct HolidayView: View {
 
     private struct Row: Identifiable {
         let id: UUID
+        let personID: UUID
         let name: String
         let ready: Int
         let total: Int
@@ -54,7 +49,7 @@ struct HolidayView: View {
             let progress = parts.map {
                 PartSteps.progress(step: $0.currentStep ?? "open", family: PartSteps.family(forKindRaw: $0.kindRaw))
             }
-            return Row(id: m.id, name: p.name, ready: progress.filter { $0 == .ready }.count, total: parts.count, progress: progress)
+            return Row(id: m.id, personID: p.id, name: p.name, ready: progress.filter { $0 == .ready }.count, total: parts.count, progress: progress)
         }
     }
 
@@ -64,7 +59,7 @@ struct HolidayView: View {
         let things = rows.map(\.total).reduce(0, +)
         let thingsReady = rows.map(\.ready).reduce(0, +)
         let next = Holidays.nextUp(rows.map { (name: $0.name, ready: $0.ready, total: $0.total) })
-        return FlowScreen(onClose: { model.route = nil }) {
+        return FlowScreen {
             Eyebrow(text: eyebrow)
             Text(type.label)
                 .font(Brand.display(60, relativeTo: .largeTitle)).tracking(-1)
@@ -88,7 +83,7 @@ struct HolidayView: View {
             }
         } footer: {
             if let next {
-                PrimaryButton(title: "Plan \(rows[next].name) next") { screen = .person(rows[next].id) }
+                PrimaryButton(title: "Plan \(rows[next].name) next") { open(rows[next]) }
             } else if !rows.isEmpty {
                 PrimaryButton(title: "Everyone is ready") {}
                     .disabled(true).opacity(0.45)
@@ -103,13 +98,16 @@ struct HolidayView: View {
         return bits.joined(separator: " · ").uppercased()
     }
 
+    /// A person's row opens their own page, with this holiday shown first.
+    private func open(_ row: Row) { model.push(.person(row.personID, focus: row.id)) }
+
     private func readyText(_ row: Row) -> String {
         if row.total == 0 { return "Nothing planned yet" }
         return row.ready == row.total ? "Ready" : "\(row.ready) of \(row.total) ready"
     }
 
     private func personRow(_ row: Row) -> some View {
-        Button { screen = .person(row.id) } label: {
+        Button { open(row) } label: {
             HStack(spacing: Brand.space3) {
                 Text(String(row.name.prefix(1)))
                     .font(Brand.display(20, relativeTo: .title3)).foregroundStyle(Brand.ink)
@@ -213,7 +211,7 @@ struct HolidayFeaturedView: View {
 
         VStack(spacing: 0) {
             Text(due.formatted(.dateTime.weekday(.wide).month(.wide).day())).textStyle(.eyebrow)
-            Button { model.route = .holiday(type.rawValue, year) } label: {
+            Button { model.push(.holiday(type.rawValue, year)) } label: {
                 Text(type.label)
                     .font(Brand.display(76, relativeTo: .largeTitle)).tracking(-2)
                     .foregroundStyle(Brand.ink)
@@ -242,7 +240,7 @@ struct HolidayFeaturedView: View {
                 .textStyle(.callout, color: Brand.inkSoft)
                 .multilineTextAlignment(.center)
                 .padding(.top, Brand.space2)
-            PrimaryButton(title: "Plan \(type.label)") { model.route = .holiday(type.rawValue, year) }
+            PrimaryButton(title: "Plan \(type.label)") { model.push(.holiday(type.rawValue, year)) }
                 .padding(.top, Brand.space6)
         }
         .frame(maxWidth: .infinity)

@@ -52,6 +52,19 @@ enum Route: Identifiable, Equatable {
     }
 }
 
+/// A page pushed from Home (version B, approved Nov 20, 2026). Home is the only root; every other page slides in
+/// with a back link that names where you came from.
+enum Nav: Hashable {
+    /// A person's page; `focus` is the occasion (a Moment's id) to show first.
+    case person(UUID, focus: UUID?)
+    /// A shared holiday's page: the occasion type's raw value and the year.
+    case holiday(String, Int)
+    case people
+    case ideas
+    /// One item in a plan (an Act's id).
+    case item(UUID)
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     let container: ModelContainer
@@ -64,6 +77,8 @@ final class AppModel: ObservableObject {
     var runningInMemoryThisLaunch: Bool { storeOutcome == .inMemoryThisLaunch }
 
     @Published var route: Route?
+    /// Pages pushed from Home, oldest first.
+    @Published var navPath: [Nav] = []
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
     @Published var firstVisitCardDismissed: Bool { didSet { defaults.set(firstVisitCardDismissed, forKey: "firstVisitCardDismissed") } }
     @Published var notificationsAllowed = true
@@ -167,6 +182,49 @@ final class AppModel: ObservableObject {
     }
 
     func allMoments() -> [Moment] { (try? context.fetch(FetchDescriptor<Moment>())) ?? [] }
+
+    // MARK: Pages pushed from Home
+
+    /// The page a route opens when it's a page rather than a flow: people, holidays and plans slide in from Home.
+    func navTarget(for route: Route) -> Nav? {
+        switch route {
+        case .person(let id): return .person(id, focus: nil)
+        case .plan(let id): return moment(id)?.person.map { .person($0.id, focus: id) }
+        case .holiday(let raw, let year): return .holiday(raw, year)
+        case .rings: return .people
+        default: return nil
+        }
+    }
+
+    func push(_ nav: Nav) {
+        guard navPath.last != nav else { return }
+        navPath.append(nav)
+    }
+
+    /// The back link's words on a pushed page: the page before it, or Home.
+    func backTitle(for nav: Nav) -> String {
+        guard let i = navPath.firstIndex(of: nav), i > 0 else { return "Home" }
+        return title(of: navPath[i - 1])
+    }
+
+    func title(of nav: Nav) -> String {
+        switch nav {
+        case .person(let id, _): return person(id)?.name ?? "Back"
+        case .holiday(let raw, _): return OccasionType(rawValue: raw)?.label ?? "Back"
+        case .people: return "People"
+        case .ideas: return "Ideas"
+        case .item(let id): return act(id).map { PartSteps.displayName(kindRaw: $0.kindRaw, label: $0.label, title: $0.title) } ?? "Back"
+        }
+    }
+
+    func act(_ id: UUID) -> Act? { allMoments().flatMap(\.acts).first { $0.id == id } }
+
+    /// Who an item can be from: inner-ring household people, other than the person it's for.
+    func household(for person: Person?) -> [Person] {
+        allPeople().filter {
+            $0.id != person?.id && Relationship.isHouseholdGiver(relationship: $0.relationship, isInner: $0.ring == .inner)
+        }
+    }
 
     func moment(_ id: UUID) -> Moment? { allMoments().first { $0.id == id } }
     func person(_ id: UUID) -> Person? { allPeople().first { $0.id == id } }
