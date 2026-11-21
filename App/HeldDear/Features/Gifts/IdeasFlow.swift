@@ -14,9 +14,12 @@ struct IdeasFlow: View {
         NavigationStack(path: $path) {
             IdeasList(moment: moment) { path.append($0) }
                 .navigationDestination(for: IdeaItem.self) { item in
+                    // A pushed idea gets the same named back link as every other page; no second close.
                     IdeaDetail(moment: moment, item: item)
+                        .backLink("Ideas")
                 }
                 .toolbar { CloseToolbar { model.route = nil } }
+                .plainBar()
         }
         .tint(Brand.ink)
     }
@@ -216,7 +219,7 @@ struct IdeaDetail: View {
         if choosing {
             ArrivalStep(moment: moment, item: item)
         } else {
-            FlowScreen(onClose: { model.route = nil }) {
+            FlowScreen {
                 if item.imageFile != nil {
                     IdeaThumb(item: item, side: 120).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -269,7 +272,7 @@ struct ArrivalStep: View {
     }
 
     private var ask: some View {
-        FlowScreen(onClose: { model.route = nil }) {
+        FlowScreen {
             Question(title: "When will it arrive?", subtitle: "Held Dear keeps the date with \(name)'s day.")
             DatePicker("Arrives by", selection: $arrives, in: Date()..., displayedComponents: .date)
                 .datePickerStyle(.graphical).tint(Brand.action)
@@ -284,7 +287,7 @@ struct ArrivalStep: View {
     }
 
     private var done: some View {
-        FlowScreen(onClose: { model.route = nil }) {
+        FlowScreen {
             VStack(alignment: .leading, spacing: Brand.space2) {
                 Text("\(name) · \(OccasionDates.shortDate(moment.dueDate))").textStyle(.eyebrow)
                 Text("Ordered.").font(Brand.display(52)).foregroundStyle(Brand.ink)

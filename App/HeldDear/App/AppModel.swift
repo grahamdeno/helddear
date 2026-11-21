@@ -601,6 +601,15 @@ final class AppModel: ObservableObject {
         commit()
     }
 
+    /// Takes one part out of a plan for good (feedback on build 1019). The rest of the plan, and the day, stay.
+    func removePart(_ act: Act) {
+        guard act.role == .plan else { return }
+        let moment = act.moment
+        context.delete(act)
+        if let moment { PlanStore.syncStatus(moment) }
+        commit()
+    }
+
     func setNote(_ act: Act, _ text: String) {
         PlanStore.setNote(act, to: text)
         commit()

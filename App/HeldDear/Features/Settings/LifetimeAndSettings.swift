@@ -102,11 +102,22 @@ struct SettingsView: View {
     @State private var showLifetime = false
     @State private var addingFromContacts = false
     @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
+    @AppStorage("yourName") private var yourName = ""
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Settings").textStyle(.title).accessibilityAddTraits(.isHeader)
+                Text("You").textStyle(.title).accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Your name")
+                    TextField("Your first name", text: $yourName)
+                        .textContentType(.givenName)
+                        .textStyle(.body)
+                        .padding(.horizontal, Brand.space4)
+                        .frame(minHeight: 52)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                    Text("Shown in the circle on Home. Kept on this iPhone.").textStyle(.caption, color: Brand.inkMuted)
+                }
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Held Dear Lifetime")
                     OptionRow(title: purchases.hasLifetime ? "Lifetime is on" : "Held Dear Lifetime",

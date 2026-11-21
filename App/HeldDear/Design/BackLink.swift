@@ -21,6 +21,8 @@ struct BackLink: ViewModifier {
                             Text(title).lineLimit(1)
                         }
                         .foregroundStyle(Brand.action)
+                        // The bar gives a leading item little width; keep the words whole (feedback on build 1019).
+                        .fixedSize()
                         .frame(minHeight: 44)
                     }
                     .buttonStyle(.plain)

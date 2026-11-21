@@ -113,7 +113,8 @@ struct PersonPlanSection: View {
     }
 
     private func row(_ item: Item, first: Bool) -> some View {
-        Button { model.push(.item(item.id)) } label: {
+        let act = moment.planParts.first { $0.id == item.id }
+        return Button { model.push(.item(item.id)) } label: {
             HStack(spacing: Brand.space3) {
                 StepCircle(progress: item.progress, size: 20)
                 VStack(alignment: .leading, spacing: 1) {
@@ -135,6 +136,13 @@ struct PersonPlanSection: View {
         .buttonStyle(PressStyle())
         .accessibilityLabel(PartOwners.rowLabel(name: item.name, owner: item.owner, step: item.step))
         .accessibilityHint("Opens this item")
+        // Press and hold to take it out of the plan; the item page has the same choice at the bottom.
+        .contextMenu {
+            if let act {
+                Button(role: .destructive) { model.removePart(act) } label: { Label("Remove from plan", systemImage: "trash") }
+            }
+        }
+        .accessibilityAction(named: "Remove from plan") { if let act { model.removePart(act) } }
     }
 }
 
