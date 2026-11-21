@@ -314,6 +314,8 @@ private struct PartScreen: View {
     @State private var showMore = false
     @State private var showOthers = false
     @State private var noLinkCopied = false
+    @State private var confirmRemove = false
+    @State private var removed = false
     @FocusState private var noteFocused: Bool
     @FocusState private var nameFocused: Bool
 
@@ -363,9 +365,21 @@ private struct PartScreen: View {
             card("Link and note") { linkAndNote }
             shelfList
             findsList
+            TextLink(title: "Remove from plan") { confirmRemove = true }
+                .padding(.leading, -8)
+                .padding(.top, Brand.space2)
+        }
+        .confirmationDialog("Remove \(name.isEmpty ? autoName : name) from the plan?", isPresented: $confirmRemove,
+                            titleVisibility: .visible) {
+            Button("Remove", role: .destructive) {
+                removed = true
+                back()
+                // After the page has gone, so nothing on screen reads the removed item.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { model.removePart(act) }
+            }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
-        .onDisappear { save() }
+        .onDisappear { if !removed { save() } }
         .onAppear {
             guard !loaded else { return }
             note = act.note ?? ""
