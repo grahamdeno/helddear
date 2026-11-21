@@ -225,11 +225,14 @@ final class AppModel: ObservableObject {
 
     func act(_ id: UUID) -> Act? { allMoments().flatMap(\.acts).first { $0.id == id } }
 
-    /// Who an item can be from: inner-ring household people, other than the person it's for.
+    /// Who an item can be from: the household (a partner and the children) first, then anyone else in the inner
+    /// ring, other than the person it's for. The item page shows the household and puts the rest under "Someone
+    /// else" (feedback on build 1017).
     func household(for person: Person?) -> [Person] {
-        allPeople().filter {
-            $0.id != person?.id && Relationship.isHouseholdGiver(relationship: $0.relationship, isInner: $0.ring == .inner)
-        }
+        let people = allPeople().filter { $0.id != person?.id }
+        let core = people.filter { [.partner, .child].contains(Relationship.group($0.relationship)) }
+        let inner = people.filter { $0.ring == .inner && !core.contains($0) }
+        return core + inner
     }
 
     func moment(_ id: UUID) -> Moment? { allMoments().first { $0.id == id } }
@@ -588,6 +591,13 @@ final class AppModel: ObservableObject {
 
     func setOwners(_ act: Act, _ ids: [UUID]) {
         PlanStore.setOwners(act, to: ids)
+        commit()
+    }
+
+    /// What an item is, in the user's words ("Silk painting kit"). Empty goes back to the kind's own name.
+    func setLabel(_ act: Act, _ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        act.label = trimmed.isEmpty ? nil : trimmed
         commit()
     }
 
