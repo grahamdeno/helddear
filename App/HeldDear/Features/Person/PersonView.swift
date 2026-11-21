@@ -76,7 +76,7 @@ struct PersonView: View {
             Button("Save") { entryToEdit?.line = editedLine.nilIfEmpty; model.save() }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Remove \(person.name) from Held Dear?", isPresented: $confirmRemove, titleVisibility: .visible) {
+        .confirmationDialog("Remove \(DisplayName.plain(person.name)) from Held Dear?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
                 model.route = nil
                 model.navPath = []
@@ -116,7 +116,9 @@ struct PersonView: View {
                             Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
                         }
                         .frame(minHeight: 64)
-                        .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
+                        .padding(.horizontal, Brand.space4)
+                        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(PressStyle())
@@ -173,7 +175,7 @@ struct PersonView: View {
                 section("Photos for the card") {
                     photoStrip
                     Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
-                        Text("Show \(person.name)'s age on the card").textStyle(.body)
+                        Text("Show \(DisplayName.plain(person.name))'s age on the card").textStyle(.body)
                     }
                     .tint(Brand.action)
                     .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
@@ -184,7 +186,7 @@ struct PersonView: View {
                         ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
                     }
                 }
-                TextLink(title: "Remove \(person.name)") { confirmRemove = true }
+                TextLink(title: "Remove \(DisplayName.plain(person.name))") { confirmRemove = true }
                     .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, Brand.space5)
@@ -239,6 +241,10 @@ struct PersonView: View {
             }
             .padding(.leading, -8)
         }
+        .padding(Brand.space4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
         .padding(.top, Brand.space2)
     }
 
@@ -288,7 +294,7 @@ struct PersonView: View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             if person.loves.isEmpty {
                 Button { editingPortrait = true } label: {
-                    Text("What does \(person.name) love? Add it and every idea gets better.")
+                    Text("What does \(DisplayName.plain(person.name)) love? Add it and every idea gets better.")
                         .font(Brand.serif(22, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                         .multilineTextAlignment(.leading)
                 }
@@ -299,7 +305,7 @@ struct PersonView: View {
                         .multilineTextAlignment(.leading)
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Edit what \(person.name) loves")
+                .accessibilityHint("Edit what \(DisplayName.plain(person.name)) loves")
             }
             if person.sizes != nil || person.goodToKnow != nil {
                 HStack(alignment: .top, spacing: Brand.space4) {
@@ -392,7 +398,7 @@ struct PersonView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             if let image = Keepsake.image(person: person, entry: entry) {
-                ShareLink(item: Image(uiImage: image), preview: SharePreview("\(person.name), \(entry.year)", image: Image(uiImage: image))) {
+                ShareLink(item: Image(uiImage: image), preview: SharePreview("\(DisplayName.plain(person.name)), \(entry.year)", image: Image(uiImage: image))) {
                     Text("Share as keepsake").font(TypeStyle.callout.strong)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .foregroundStyle(Brand.action)
@@ -412,7 +418,7 @@ struct PersonView: View {
                     .frame(width: 56, height: 56)
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add a photo for \(person.name)'s card").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
+                    Text("Add a photo for \(DisplayName.plain(person.name))'s card").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
                     Text("It stays on this iPhone").textStyle(.caption, color: Brand.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -558,7 +564,7 @@ struct RingSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
                 Face(person: person, size: 52)
-                Text("How close is \(person.name)?").textStyle(.title)
+                Text("How close is \(DisplayName.plain(person.name))?").textStyle(.title)
             }
             VStack(spacing: Brand.space2) {
                 ForEach(Ring.allCases) { ring in
@@ -604,7 +610,7 @@ struct BirthdayEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("\(person.name)'s birthday").textStyle(.headline)
+            Text("\(DisplayName.plain(person.name))'s birthday").textStyle(.headline)
             DatePicker("Birthday", selection: $date, displayedComponents: .date)
                 .datePickerStyle(.wheel).labelsHidden()
                 .frame(maxWidth: .infinity)
@@ -677,7 +683,7 @@ struct PortraitEditor: View {
 
     var body: some View {
         FlowScreen(onClose: { dismiss() }) {
-            Question(title: "What does \(person.name) love?",
+            Question(title: "What does \(DisplayName.plain(person.name)) love?",
                      subtitle: "Your words, kept on this iPhone. Held Dear uses them for ideas and card words.")
             LineField(label: "Loves, separated by commas", text: $loves, placeholder: "Gardening, dark chocolate, the Cubs")
             LineField(label: "Sizes", text: $sizes, placeholder: "M tops, 8.5 shoes", showsDictation: false)
@@ -839,7 +845,7 @@ struct AddOccasionView: View {
 
     private var pickStep: some View {
         FlowScreen(onClose: { dismiss() }) {
-            Question(title: "What else matters for \(person.name)?")
+            Question(title: "What else matters for \(DisplayName.plain(person.name))?")
             section("Every year", choices.filter { $0.kind == .yearly })
             section("Holidays", choices.filter { $0.kind == .holiday })
             section("Big days", OccasionOffer.bigDays.filter(choices.contains))
@@ -909,7 +915,7 @@ struct PersonYears: View {
         let past = Array(person.sortedLedger.filter { $0.year < year }.prefix(3).reversed())
         let thisYear = person.sortedLedger.first { $0.year == year }
         VStack(alignment: .leading, spacing: Brand.space3) {
-            Text("\(person.name)'s years").textStyle(.eyebrow)
+            Text("\(DisplayName.plain(person.name))'s years").textStyle(.eyebrow)
             ZStack(alignment: .top) {
                 Rectangle().fill(Brand.ink).frame(height: 1.5).offset(y: 44)
                 HStack(alignment: .top, spacing: Brand.space2) {

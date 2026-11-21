@@ -108,7 +108,8 @@ struct PersonPlanSection: View {
         .padding(.horizontal, Brand.space4)
         .padding(.top, Brand.space3)
         .padding(.bottom, Brand.space1)
-        .background(Brand.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
     }
 
     private func row(_ item: Item, first: Bool) -> some View {
@@ -128,7 +129,7 @@ struct PersonPlanSection: View {
                 }
             }
             .frame(minHeight: 48)
-            .overlay(alignment: .top) { if !first { Rectangle().fill(Brand.line).frame(height: 1) } }
+            .overlay(alignment: .top) { if !first { Rectangle().fill(Brand.raisedLine).frame(height: 1) } }
             .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle())
@@ -181,9 +182,10 @@ struct PersonDayCards: View {
     @Binding var selectedID: UUID?
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Brand.space3) {
-                ForEach(moments, id: \.id) { m in card(m) }
+                ForEach(moments, id: \.id) { m in card(m).id(m.id) }
                 // Room after the last card so it can settle at the left too (feedback on build 1015).
                 Color.clear
                     .containerRelativeFrame(.horizontal) { width, _ in max(0, width - Self.cardWidth - Brand.space5 - Brand.space3 * 2) }
@@ -196,6 +198,8 @@ struct PersonDayCards: View {
         .scrollTargetBehavior(.viewAligned)
         // The card that settles at the left is the selected day, so the plan below swaps as you slide.
         .scrollPosition(id: $selectedID, anchor: .leading)
+        .onAppear { if let id = selectedID { proxy.scrollTo(id, anchor: .leading) } }
+        }
         .padding(.horizontal, -Brand.space5)
     }
 
@@ -241,8 +245,8 @@ struct PersonDayCards: View {
             }
             .padding(Brand.space4)
             .frame(width: Self.cardWidth, alignment: .leading)
-            .background(on ? Brand.ink : Brand.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Brand.ink : Brand.line, lineWidth: 1) }
+            .background(on ? Brand.ink : Brand.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Brand.ink : Brand.raisedLine, lineWidth: 1) }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(PressStyle())
