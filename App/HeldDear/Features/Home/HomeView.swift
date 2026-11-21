@@ -89,13 +89,25 @@ struct HomeView: View {
 
     /// The medallion: the face (warm-toned, fading into the page at the bottom) or the holiday's mark, between the
     /// date and the name.
+    /// A ring around it fills in oxblood as the plan gets ready, in place of the bar (approved Nov 21, 2026).
     @ViewBuilder private func medallion(_ m: Moment) -> some View {
+        let parts = m.type.kind == .holiday
+            ? model.holidayMembers(type: m.type, year: m.year).flatMap(\.planParts)
+            : m.planParts
+        let ready = parts.filter(\.isReady).count
         if m.type.kind == .holiday {
-            HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 110).padding(.bottom, 16)
+            ReadyRing(ready: ready, total: parts.count, size: 110) {
+                HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 110)
+            }
+            .padding(.bottom, 16)
         } else if let person = m.person {
-            Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 126, toned: true, fadeBottom: true) }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+            Button { model.push(.person(person.id, focus: nil)) } label: {
+                ReadyRing(ready: ready, total: parts.count, size: 126) {
+                    PersonPortrait(person: person, size: 126, toned: true, fadeBottom: true)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
         }
     }
 
@@ -588,6 +600,32 @@ struct NavPage: View {
 /// builds 1013 and 1014): the date line, the name (its size varies, its space doesn't), the line under it, the
 /// readiness bar with one line, the main button, and one link. A place with nothing in it stays empty and keeps its
 /// height. Every place grows with the text size.
+/// A thin ring around Home's medallion: a stone track, filled in oxblood by how much of the plan is ready.
+/// No plan, no ring.
+struct ReadyRing<Content: View>: View {
+    let ready: Int
+    let total: Int
+    let size: CGFloat
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ZStack {
+            content
+            if total > 0 {
+                Circle().stroke(Brand.line, lineWidth: 3)
+                    .frame(width: size + 16, height: size + 16)
+                Circle().trim(from: 0, to: CGFloat(min(ready, total)) / CGFloat(total))
+                    .stroke(Brand.action, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: size + 16, height: size + 16)
+            }
+        }
+        .frame(width: size + 20, height: size + 20)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(total > 0 ? "\(ready) of \(total) ready" : "")
+    }
+}
+
 private struct FeaturedMedallionKey: EnvironmentKey { static let defaultValue: AnyView? = nil }
 extension EnvironmentValues {
     /// Home's medallion, drawn between the date and the name when it's on.
@@ -639,7 +677,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 .frame(height: sublineHeight)
                 .padding(.top, Brand.space2)
             VStack(spacing: Brand.space2) {
-                if !progress.isEmpty {
+                // With the medallion, the ring around the face shows this instead.
+                if !progress.isEmpty && medallion == nil {
                     HStack(spacing: 4) {
                         ForEach(Array(progress.enumerated()), id: \.offset) { _, p in
                             Rectangle().fill(color(p)).frame(height: 6)
