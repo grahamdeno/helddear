@@ -49,17 +49,28 @@ struct HomeView: View {
             // The featured day is pinned to the top, not centered, so its name stays in one place as you slide
             // through people with more or less under their name (feedback on build 1013).
             VStack(spacing: 0) {
-                Group {
-                    if featured.type.kind == .holiday {
-                        HolidayFeaturedView(type: featured.type,
-                                            members: model.holidayMembers(type: featured.type, year: featured.year), now: now)
-                    } else {
-                        FeaturedView(moment: featured, state: model.state(for: featured), now: now,
-                                     openPerson: { if let p = featured.person { model.push(.person(p.id, focus: featured.id)) } })
+                ScrollView {
+                    Group {
+                        if featured.type.kind == .holiday {
+                            HolidayFeaturedView(type: featured.type,
+                                                members: model.holidayMembers(type: featured.type, year: featured.year), now: now)
+                        } else {
+                            FeaturedView(moment: featured, state: model.state(for: featured), now: now,
+                                         openPerson: { if let p = featured.person { model.push(.person(p.id, focus: featured.id)) } })
+                        }
                     }
+                    .padding(.horizontal, Brand.space5)
+                    .padding(.top, Brand.space6)
                 }
-                .padding(.horizontal, Brand.space5)
-                .padding(.top, Brand.space6)
+                .scrollBounceBehavior(.basedOnSize)
+                // Flick the featured day sideways to move to the next or previous day on the timeline.
+                .contentShape(Rectangle())
+                .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { v in
+                    guard abs(v.translation.width) > 60, abs(v.translation.width) > abs(v.translation.height) * 1.5 else { return }
+                    step(v.translation.width < 0 ? 1 : -1, from: featured, in: moments, now: now)
+                })
+                .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
+                .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
                 otherReady(moments, featured: featured, now: now)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
@@ -68,6 +79,15 @@ struct HomeView: View {
         } else {
             emptyState
         }
+    }
+
+    /// The next or previous day on the timeline, in date order.
+    private func step(_ by: Int, from featured: Moment, in moments: [Moment], now: Date) {
+        let line = moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) }.sorted { $0.dueDate < $1.dueDate }
+        guard let i = line.firstIndex(where: { $0.id == featured.id }) else { return }
+        let j = i + by
+        guard line.indices.contains(j) else { return }
+        withAnimation(.snappy) { selectedID = line[j].id }
     }
 
     /// Others waiting on the user right now, as one quiet line. Tapping features the first.
@@ -119,87 +139,68 @@ struct FeaturedView: View {
         let days = OccasionDates.daysBetween(now, moment.dueDate)
         let missed = state.status == .missed
 
-        VStack(spacing: 0) {
-            Text(missed ? "Yesterday" : moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                .textStyle(.eyebrow)
-            Button(action: openPerson) {
-                Text(displayName)
-                    .font(Brand.display(NameSize.featured(displayName), relativeTo: .largeTitle))
-                    .tracking(-2)
-                    .foregroundStyle(Brand.ink)
-                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
-                    .frame(height: NameSize.featuredSlot, alignment: .bottom)
-                    .padding(.top, Brand.space3)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens \(name)'s page")
-            Text(subline(days: days, missed: missed))
-                .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
-                .multilineTextAlignment(.center)
-                .padding(.top, Brand.space2)
-            if let wish = moment.person?.openWishes.first, !missed, act != .allSet {
-                (Text("\(name) mentioned wanting ") + Text(wish.text).italic() + Text("."))
-                    .font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
-                    .multilineTextAlignment(.center).lineLimit(3)
-                    .frame(maxWidth: 320)
-                    .padding(.top, Brand.space6)
-            }
-            actionArea(act: act, days: days, missed: missed, name: name)
-                .padding(.top, Brand.space6)
+        FeaturedSlots(
+            eyebrow: missed ? "Yesterday" : moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day()),
+            title: displayName, open: openPerson, openHint: "Opens \(name)'s page",
+            subline: subline(days: days, missed: missed),
+            progress: progress, status: statusLine(act: act, name: name)
+        ) {
+            mainButton(act: act, missed: missed, name: name)
+        } link: {
+            linkLine(act: act, days: days, missed: missed, name: name)
         }
-        .frame(maxWidth: .infinity)
-        .multilineTextAlignment(.center)
     }
 
-    /// The one thing to do now, in words and (when there is something to do) one button.
-    @ViewBuilder private func actionArea(act: NextAct, days: Int, missed: Bool, name: String) -> some View {
+    /// One segment per plan part, for the readiness bar. Empty when there's no plan.
+    private var progress: [PartSteps.Progress] {
+        moment.planParts.map { PartSteps.progress(step: $0.currentStep ?? "open", family: PartSteps.family(forKindRaw: $0.kindRaw)) }
+    }
+
+    /// The one line beside the readiness bar.
+    private func statusLine(act: NextAct, name: String) -> String {
+        switch act {
+        case .allSet: return state.isPlanMoment ? "Everything for \(name) is ready." : plannedLine(name: name)
+        case .openPlan(let ready, let total): return "\(ready) of \(total) ready"
+        case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now): return ideaLine(name: name)
+        case .pick, .saveWish: return "Nothing to do yet."
+        default:
+            let p = progress
+            return p.isEmpty ? "" : "\(p.filter { $0 == .ready }.count) of \(p.count) ready"
+        }
+    }
+
+    /// The main button: always in the same place. It's the next real thing to do.
+    @ViewBuilder private func mainButton(act: NextAct, missed: Bool, name: String) -> some View {
         switch act {
         case .allSet:
-            VStack(spacing: Brand.space2) {
-                Text(state.isPlanMoment ? "Everything for \(name) is ready." : plannedLine(name: name))
-                    .font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
-                    .multilineTextAlignment(.center).frame(maxWidth: 320)
-                Text("Nothing to do until the day.").textStyle(.callout, color: Brand.inkMuted)
-                TextLink(title: "Change the plan") {
-                    model.route = state.isPlanMoment ? .plan(moment.id) : .moment(moment.id, .choose)
-                }
+            SecondaryButton(title: "Change the plan") {
+                model.route = state.isPlanMoment ? .plan(moment.id) : .moment(moment.id, .choose)
             }
-        case .openPlan(let ready, let total):
-            // The main button is the next real thing to do, not a way to open a page. The readiness line under it
-            // opens the person's page, as does the name (feedback on build 1011).
+        case .openPlan:
             let nudge = moment.planNudge
             let parts = moment.planParts
-            VStack(spacing: Brand.space3) {
-                if nudge.isEnabled, let t = nudge.target, parts.indices.contains(t) {
-                    let target = parts[t].id
-                    PrimaryButton(title: nudge.buttonTitle) { model.push(.item(target)) }
-                } else {
-                    PrimaryButton(title: "See \(name)'s plan") { openPerson() }
-                }
-                TextLink(title: "\(ready) of \(total) ready · \(name)'s page ›") { openPerson() }
-                    .accessibilityLabel("\(ready) of \(total) ready. Opens \(name)'s page")
+            if nudge.isEnabled, let t = nudge.target, parts.indices.contains(t) {
+                let target = parts[t].id
+                PrimaryButton(title: nudge.buttonTitle) { model.push(.item(target)) }
+            } else {
+                PrimaryButton(title: "See \(name)'s plan") { openPerson() }
             }
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
-            VStack(spacing: Brand.space4) {
-                Text(ideaLine(name: name)).font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.ink)
-                    .multilineTextAlignment(.center).frame(maxWidth: 330)
-                PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
-                TextLink(title: "Plan \(name)'s day") { model.route = .plan(moment.id) }
-                secondary(days: days, missed: missed, name: name)
-            }
+            PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
         case .pick, .saveWish:
-            VStack(spacing: Brand.space3) {
-                Text("Nothing to do yet. When you see something \(name) would love, share it to Held Dear.")
-                    .font(Brand.serif(19, relativeTo: .body, italic: true)).foregroundStyle(Brand.inkSoft)
-                    .multilineTextAlignment(.center).frame(maxWidth: 320)
-                SecondaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
-                TextLink(title: "Plan \(name)'s day") { model.route = .plan(moment.id) }
-            }
+            SecondaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
         default:
-            VStack(spacing: 0) {
-                PrimaryButton(title: act.title(name: name)) { tap(act) }
-                secondary(days: days, missed: missed, name: name)
-            }
+            PrimaryButton(title: act.title(name: name)) { tap(act) }
+        }
+    }
+
+    /// One quiet link under the button, or nothing. It never moves the button.
+    @ViewBuilder private func linkLine(act: NextAct, days: Int, missed: Bool, name: String) -> some View {
+        switch act {
+        case .openPlan, .allSet, .pick, .saveWish:
+            TextLink(title: "\(name)'s page ›") { openPerson() }
+        default:
+            secondary(days: days, missed: missed, name: name)
         }
     }
 
@@ -258,13 +259,10 @@ struct FeaturedView: View {
                 Text("Send \(name) the family page").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
                     .frame(minHeight: 44)
             }
-            .padding(.top, Brand.space2)
         } else if !missed && days >= 6 && AppFeatures.serverFeatures {
             TextLink(title: "Or mail \(name) a card") { model.route = .moment(moment.id, .mailCard) }
-                .padding(.top, Brand.space2)
         } else if !missed && days > 0 && !state.greetingDone {
             TextLink(title: "Or make \(name) a card") { model.route = .moment(moment.id, .photo) }
-                .padding(.top, Brand.space2)
         }
     }
 
@@ -528,6 +526,81 @@ struct NavPage: View {
             if let p = model.person(id) { PersonView(person: p, showsDetails: true) } else { Color.clear }
         case .relationship(let id):
             if let p = model.person(id) { RelationshipPage(person: p) } else { Color.clear }
+        }
+    }
+}
+
+/// Home's featured day, laid out in fixed places so nothing moves as you slide from one day to the next (feedback on
+/// builds 1013 and 1014): the date line, the name (its size varies, its space doesn't), the line under it, the
+/// readiness bar with one line, the main button, and one link. A place with nothing in it stays empty and keeps its
+/// height. Every place grows with the text size.
+struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
+    let eyebrow: String
+    let title: String
+    let open: () -> Void
+    let openHint: String
+    let subline: String
+    let progress: [PartSteps.Progress]
+    let status: String
+    @ViewBuilder var button: MainButton
+    @ViewBuilder var link: LinkLine
+
+    @ScaledMetric(relativeTo: .title3) private var sublineHeight: CGFloat = 34
+    @ScaledMetric(relativeTo: .callout) private var statusHeight: CGFloat = 54
+    @ScaledMetric(relativeTo: .body) private var buttonHeight: CGFloat = 56
+    @ScaledMetric(relativeTo: .callout) private var linkHeight: CGFloat = 44
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(eyebrow).textStyle(.eyebrow)
+            Button(action: open) {
+                Text(title)
+                    .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
+                    .tracking(-2)
+                    .foregroundStyle(Brand.ink)
+                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
+                    .frame(height: NameSize.featuredSlot, alignment: .bottom)
+                    .padding(.top, Brand.space3)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(openHint)
+            Text(subline)
+                .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .frame(height: sublineHeight)
+                .padding(.top, Brand.space2)
+            VStack(spacing: Brand.space2) {
+                if !progress.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(Array(progress.enumerated()), id: \.offset) { _, p in
+                            Rectangle().fill(color(p)).frame(height: 6)
+                        }
+                    }
+                    .frame(maxWidth: 320)
+                    .accessibilityHidden(true)
+                }
+                if !status.isEmpty {
+                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(2).minimumScaleFactor(0.85)
+                }
+            }
+            .frame(height: statusHeight, alignment: .center)
+            .padding(.top, Brand.space4)
+            button
+                .frame(height: buttonHeight)
+                .padding(.top, Brand.space3)
+            link
+                .frame(height: linkHeight)
+                .padding(.top, Brand.space2)
+        }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
+    }
+
+    private func color(_ p: PartSteps.Progress) -> Color {
+        switch p {
+        case .ready: Brand.ink
+        case .started: Brand.inkMuted
+        case .notStarted: Brand.line
         }
     }
 }

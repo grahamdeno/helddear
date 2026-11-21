@@ -209,42 +209,20 @@ struct HolidayFeaturedView: View {
         let thingsReady = rows.map(\.ready).reduce(0, +)
         let year = Calendar.current.component(.year, from: due)
 
-        VStack(spacing: 0) {
-            Text(due.formatted(.dateTime.weekday(.wide).month(.wide).day())).textStyle(.eyebrow)
-            Button { model.push(.holiday(type.rawValue, year)) } label: {
-                Text(type.label)
-                    .font(Brand.display(76, relativeTo: .largeTitle)).tracking(-2)
-                    .foregroundStyle(Brand.ink)
-                    .lineLimit(1).minimumScaleFactor(0.4)
-                    .frame(height: NameSize.featuredSlot, alignment: .bottom)
-                    .padding(.top, Brand.space3)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens \(type.label)")
-            Text(Holidays.subline(daysLeft: days, people: members.count))
-                .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
-                .multilineTextAlignment(.center)
-                .padding(.top, Brand.space2)
-            HStack(spacing: 4) {
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
-                    Rectangle()
-                        .fill(r.total > 0 && r.ready == r.total ? Brand.ink : (r.ready > 0 ? Brand.inkMuted.opacity(0.5) : Brand.line))
-                        .frame(height: 8)
-                        .frame(maxWidth: .infinity)
-                        .layoutPriority(Double(max(r.total, 1)))
-                }
-            }
-            .frame(maxWidth: 320)
-            .padding(.top, Brand.space5)
-            .accessibilityHidden(true)
-            Text(Holidays.summary(peopleReady: peopleReady, people: members.count, thingsReady: thingsReady, things: things))
-                .textStyle(.callout, color: Brand.inkSoft)
-                .multilineTextAlignment(.center)
-                .padding(.top, Brand.space2)
-            PrimaryButton(title: "Plan \(type.label)") { model.push(.holiday(type.rawValue, year)) }
-                .padding(.top, Brand.space6)
+        let progress = members.flatMap { m in
+            m.planParts.map { PartSteps.progress(step: $0.currentStep ?? "open", family: PartSteps.family(forKindRaw: $0.kindRaw)) }
         }
-        .frame(maxWidth: .infinity)
-        .multilineTextAlignment(.center)
+        // The same fixed places as a person's day, so sliding between them doesn't move anything.
+        FeaturedSlots(
+            eyebrow: due.formatted(.dateTime.weekday(.wide).month(.wide).day()),
+            title: type.label, open: { model.push(.holiday(type.rawValue, year)) }, openHint: "Opens \(type.label)",
+            subline: Holidays.subline(daysLeft: days, people: members.count),
+            progress: progress,
+            status: Holidays.summary(peopleReady: peopleReady, people: members.count, thingsReady: thingsReady, things: things)
+        ) {
+            PrimaryButton(title: "Plan \(type.label)") { model.push(.holiday(type.rawValue, year)) }
+        } link: {
+            EmptyView()
+        }
     }
 }
