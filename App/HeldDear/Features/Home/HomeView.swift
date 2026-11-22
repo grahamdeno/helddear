@@ -23,6 +23,9 @@ struct HomeView: View {
                             .accessibilityLabel("You and settings")
                     }
                     .sharedBackgroundVisibility(.hidden)
+                    // A way back to whoever needs you, when you've moved to someone else (Nov 21, 2026).
+                    ToolbarItem(placement: .topBarLeading) { needsYouChip }
+                        .sharedBackgroundVisibility(.hidden)
                 }
                 .tint(Brand.ink)
                 .addFromContacts(isPresented: $addingFromContacts)
@@ -65,7 +68,6 @@ struct HomeView: View {
                 .padding(.top, -40)
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
-                otherReady(moments, featured: featured, now: now)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
                             selectedID: featured.id, now: now, seasons: model.seasons(now: now),
@@ -177,16 +179,40 @@ struct HomeView: View {
         withAnimation(.snappy) { selectedID = line[j].id }
     }
 
-    /// Others waiting on the user right now, as one quiet line. Tapping features the first.
-    @ViewBuilder private func otherReady(_ moments: [Moment], featured: Moment, now: Date) -> some View {
-        let ready = moments.filter { $0.id != featured.id && $0.type.kind != .holiday && MomentEngine.needsAction($0, now: now) }
-        if let first = ready.first {
-            let names = ready.prefix(3).compactMap { $0.person.map { DisplayName.plain($0.name) } }.joined(separator: ", ")
-            Button { selectedID = first.id } label: {
-                Text("Also ready: \(names)").font(.callout.weight(.medium)).foregroundStyle(Brand.action)
-                    .frame(minHeight: 44)
+    /// The people (not shared holidays) with a step due now, soonest first, other than the one on screen.
+    private func waiting(now: Date) -> [Moment] {
+        let moments = HolidayCollapse.collapse(MomentEngine.visibleMoments(model.context, now: now))
+        let states = moments.map(model.state(for:))
+        let hero = HeroPicker.pick(states, now: now).flatMap { s in moments.first { $0.id == s.id } }
+        let shownID = selectedID ?? hero?.id
+        return moments
+            .filter { $0.id != shownID && $0.type.kind != .holiday && MomentEngine.needsAction($0, now: now) }
+            .sorted { $0.dueDate < $1.dueDate }
+    }
+
+    /// "‹ Ana needs you · Dec 17", top left, only when someone else needs you. One tap goes back to them.
+    @ViewBuilder private var needsYouChip: some View {
+        let _ = model.revision
+        let now = Date()
+        let list = waiting(now: now)
+        if let first = list.first, let person = first.person {
+            let name = DisplayName.plain(person.name)
+            let words = list.count == 1 ? "\(name) needs you · \(first.dueDate.formatted(.dateTime.month(.abbreviated).day()))"
+                : "\(name) and \(list.count - 1) \(list.count == 2 ? "other" : "others") need you"
+            Button { withAnimation(.snappy) { selectedID = first.id } } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left").font(.caption.weight(.bold)).foregroundStyle(Brand.action)
+                    PersonPortrait(person: person, size: 22)
+                    Text(words).font(.footnote.weight(.medium)).foregroundStyle(Brand.ink).lineLimit(1)
+                }
+                .padding(.leading, 8).padding(.trailing, 12)
+                .frame(minHeight: 36)
+                .background(Brand.card, in: Capsule())
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
             }
-            .padding(.top, Brand.space2)
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Back to \(name), who needs you, \(OccasionDates.longDate(first.dueDate))")
         }
     }
 
