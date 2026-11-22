@@ -822,6 +822,13 @@ final class AppModel: ObservableObject {
 
     func openURL(_ url: URL) {
         if url.scheme == "helddear", url.host() == "lifetime" { route = .lifetime; return }
+        if url.scheme == "helddear", url.host() == "holiday",
+           let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+           let raw = items.first(where: { $0.name == "raw" })?.value, HolidayRef(raw: raw) != nil,
+           let year = items.first(where: { $0.name == "year" })?.value.flatMap(Int.init) {
+            route = .holiday(raw, year)
+            return
+        }
         guard url.scheme == "helddear", url.host() == "moment",
               let idString = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "id" })?.value,
               let id = UUID(uuidString: idString) else { return }
@@ -830,26 +837,52 @@ final class AppModel: ObservableObject {
 
     // MARK: Snapshots for the share extension and widget
 
+    /// One day as the widgets show it.
+    private func widgetEntry(_ m: Moment, now: Date) -> WidgetSnapshot.Entry? {
+        let days = OccasionDates.daysBetween(now, m.dueDate)
+        if m.type.kind == .holiday {
+            let ref = HolidayRef(type: m.type, name: m.occasion?.partnerName)
+            let members = holidayMembers(ref: ref, year: m.year)
+            let parts = members.flatMap(\.planParts)
+            return WidgetSnapshot.Entry(momentID: m.id, name: ref.label, occasion: ref.label, dueDate: m.dueDate,
+                                        detail: nil, soonLine: nil, holidayRaw: ref.raw, year: m.year,
+                                        ready: parts.filter(\.isReady).count, total: parts.count, people: members.count)
+        }
+        guard let p = m.person else { return nil }
+        let detail = m.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() }
+        var soon: String?
+        if days <= 3 {
+            let weekday = m.dueDate.formatted(.dateTime.weekday(.wide))
+            switch NextAct.make(state(for: m), now: now) {
+            case .orderBy: soon = "Order today"
+            case .mailBy: soon = "Mail the card today"
+            default: soon = days == 0 ? "Message ready today" : "Message ready \(weekday)"
+            }
+        }
+        let parts = m.planParts
+        let nudge = m.planNudge
+        return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.label, dueDate: m.dueDate, detail: detail,
+                                    soonLine: soon, personID: p.id, ready: parts.filter(\.isReady).count, total: parts.count,
+                                    nextStep: nudge.isEnabled && nudge.target != nil ? nudge.buttonTitle : nil)
+    }
+
     func writeSnapshots(now: Date = Date()) {
         let people = allPeople().map { SharedPerson(id: $0.id, name: $0.name, isInner: $0.ring == .inner) }
         AppGroup.write(people, to: AppGroup.peopleURL)
-        let next = MomentEngine.visibleMoments(context, now: now).filter { $0.dueDate >= Calendar.current.startOfDay(for: now) }.prefix(3).compactMap { m -> WidgetSnapshot.Entry? in
-            guard let p = m.person else { return nil }
-            let detail = m.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() }
-            var soon: String?
-            let days = OccasionDates.daysBetween(now, m.dueDate)
-            if days <= 3 {
-                let weekday = m.dueDate.formatted(.dateTime.weekday(.wide))
-                switch NextAct.make(state(for: m), now: now) {
-                case .orderBy: soon = "Order today"
-                case .mailBy: soon = "Mail the card today"
-                default: soon = days == 0 ? "Message ready today" : "Message ready \(weekday)"
-                }
+        let today = Calendar.current.startOfDay(for: now)
+        // A shared holiday is one entry, like Home (Nov 21, 2026).
+        let coming = HolidayCollapse.collapse(MomentEngine.visibleMoments(context, now: now).filter { $0.dueDate >= today })
+        let entries = coming.prefix(6).compactMap { m -> WidgetSnapshot.Entry? in widgetEntry(m, now: now) }
+        let holidays = coming.filter { $0.type.kind == .holiday }.compactMap { widgetEntry($0, now: now) }
+        AppGroup.write(WidgetSnapshot(next: Array(entries), writtenAt: now, holidays: holidays), to: AppGroup.widgetURL)
+        let people = entries.compactMap(\.personID).compactMap { id in allPeople().first { $0.id == id } }
+        Task { @MainActor in
+            for p in people {
+                guard let image = await FaceFinder.shared.portrait(for: p, side: 160) else { continue }
+                try? image.jpegData(compressionQuality: 0.8)?.write(to: AppGroup.faceURL(p.id), options: .atomic)
             }
-            return WidgetSnapshot.Entry(momentID: m.id, name: p.name, occasion: m.label,
-                                        dueDate: m.dueDate, detail: detail, soonLine: soon)
+            WidgetCenter.shared.reloadAllTimelines()
         }
-        AppGroup.write(WidgetSnapshot(next: Array(next), writtenAt: now), to: AppGroup.widgetURL)
         WidgetCenter.shared.reloadAllTimelines()
     }
 }
