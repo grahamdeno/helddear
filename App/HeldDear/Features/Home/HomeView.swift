@@ -444,7 +444,8 @@ struct HorizonBand: View {
         let cal = Calendar.current
         let start = cal.date(from: cal.dateComponents([.year, .month], from: now))!
         let months = (0..<12).map { cal.date(byAdding: .month, value: $0, to: start)! }
-        let marks = layout(start: start)
+        let fit = layout(start: start)
+        let marks = fit.marks
 
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -485,21 +486,21 @@ struct HorizonBand: View {
                     HStack(spacing: 0) {
                         Color.clear.frame(width: half)
                         ZStack(alignment: .topLeading) {
-                            Rectangle().fill(Brand.ink).frame(width: Self.lead * 2 + Self.monthWidth * 12, height: 1.5)
+                            Rectangle().fill(Brand.ink).frame(width: fit.layout.totalWidth, height: 1.5)
                                 .offset(y: Self.axisY)
                             ForEach(Array(months.enumerated()), id: \.offset) { i, month in
                                 Text(month.formatted(.dateTime.month(.abbreviated)))
                                     .font(.caption.weight(.semibold)).foregroundStyle(Brand.inkMuted)
-                                    .offset(x: Self.lead + CGFloat(i) * Self.monthWidth, y: Self.axisY + 10)
+                                    .offset(x: fit.layout.monthStarts[i], y: Self.axisY + 10)
                                 Rectangle().fill(Brand.ink).frame(width: 1.5, height: 10)
-                                    .offset(x: Self.lead + CGFloat(i) * Self.monthWidth, y: Self.axisY - 10)
+                                    .offset(x: fit.layout.monthStarts[i], y: Self.axisY - 10)
                             }
                             Circle().fill(Brand.ink).frame(width: 7, height: 7)
-                                .offset(x: x(for: now, start: start) - 3.5, y: Self.axisY - 3)
+                                .offset(x: fit.layout.x(month: 0, fraction: monthFraction(now)) - 3.5, y: Self.axisY - 3)
                                 .accessibilityHidden(true)
                             ForEach(marks, id: \.moment.id) { mark in markView(mark) }
                         }
-                        .frame(width: Self.lead * 2 + Self.monthWidth * 12, height: Self.axisY + 34, alignment: .topLeading)
+                        .frame(width: fit.layout.totalWidth, height: Self.axisY + 34, alignment: .topLeading)
                         Color.clear.frame(width: half)
                     }
                 }
@@ -556,29 +557,35 @@ struct HorizonBand: View {
         return ceil((text as NSString).size(withAttributes: [.font: font]).width) + 2
     }
 
-    private func x(for date: Date, start: Date) -> CGFloat {
+    private func monthIndex(_ date: Date, start: Date) -> Int {
         let cal = Calendar.current
-        let monthIndex = cal.dateComponents([.month], from: start, to: cal.date(from: cal.dateComponents([.year, .month], from: date))!).month ?? 0
-        let day = cal.component(.day, from: date)
-        let daysInMonth = cal.range(of: .day, in: .month, for: date)?.count ?? 30
-        return Self.lead + (CGFloat(monthIndex) + CGFloat(day - 1) / CGFloat(daysInMonth)) * Self.monthWidth
+        return cal.dateComponents([.month], from: start, to: cal.date(from: cal.dateComponents([.year, .month], from: date))!).month ?? 0
     }
 
-    /// Names placed so none touch and no line crosses a name (BandLayout); shorter wording, then just the line,
-    /// when a stretch is crowded. Laid out again when the selection changes, since the selected name is larger.
-    private func layout(start: Date) -> [Mark] {
+    private func monthFraction(_ date: Date) -> CGFloat {
+        let cal = Calendar.current
+        let daysInMonth = cal.range(of: .day, in: .month, for: date)?.count ?? 30
+        return CGFloat(cal.component(.day, from: date) - 1) / CGFloat(daysInMonth)
+    }
+
+    /// Every name shows (Nov 22, 2026): BandLayout widens a crowded month until its names fit, so the line just
+    /// gets longer to slide through there. Laid out again when the selection changes, since the selected name is
+    /// larger.
+    private func layout(start: Date) -> (marks: [Mark], layout: BandLayout.Fit) {
         let shown = moments.sorted(by: { $0.dueDate < $1.dueDate })
-            .map { (m: $0, x: x(for: $0.dueDate, start: start)) }
-            .filter { $0.x < Self.lead + Self.monthWidth * 12 }
-        let wordings = shown.map { labels($0.m) }
-        let items = zip(shown, wordings).map { s, words in
-            BandLayout.Item(x: s.x, widths: words.map { measure($0, selected: s.m.id == selectedID) })
+            .filter { (0..<12).contains(monthIndex($0.dueDate, start: start)) }
+        let wordings = shown.map { labels($0) }
+        let days = zip(shown, wordings).map { m, words in
+            BandLayout.Day(month: monthIndex(m.dueDate, start: start), fraction: monthFraction(m.dueDate),
+                           widths: words.map { measure($0, selected: m.id == selectedID) })
         }
-        let placed = BandLayout.place(items, tops: Self.levels)
-        return zip(shown.indices, placed).map { i, p in
-            Mark(moment: shown[i].m, x: shown[i].x, top: p.level.map { Self.levels[$0] } ?? (Self.levels.max() ?? 96),
-                 leftLabel: p.left, text: p.level == nil ? nil : wordings[i][p.option])
+        let fit = BandLayout.fit(days, months: 12, base: Self.monthWidth, lead: Self.lead, tops: Self.levels)
+        let marks = shown.indices.map { i in
+            let p = fit.placed[i]
+            return Mark(moment: shown[i], x: fit.xs[i], top: p.level.map { Self.levels[$0] } ?? (Self.levels.max() ?? 96),
+                        leftLabel: p.left, text: p.level == nil ? nil : wordings[i][p.option])
         }
+        return (marks, fit)
     }
 
     /// The full wording, then shorter ones: "Ana & M.", a holiday's first word.

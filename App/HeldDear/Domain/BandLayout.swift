@@ -74,4 +74,53 @@ enum BandLayout {
         }
         return out
     }
+
+    // MARK: Every name shows (Graham, Nov 22, 2026)
+
+    /// A day on the year-long line: which month (0 = this month), how far through it, and its wordings' widths.
+    struct Day {
+        var month: Int
+        var fraction: CGFloat
+        var widths: [CGFloat]
+    }
+
+    struct Fit {
+        /// Each month's width; a crowded month is wider so its names fit.
+        var monthWidths: [CGFloat]
+        /// Where each month starts on the line.
+        var monthStarts: [CGFloat]
+        var xs: [CGFloat]
+        var placed: [Placed]
+        var totalWidth: CGFloat
+
+        /// Where a date falls, given its month and how far through it.
+        func x(month: Int, fraction: CGFloat) -> CGFloat {
+            guard monthStarts.indices.contains(month) else { return monthStarts.last.map { $0 + (monthWidths.last ?? 0) } ?? 0 }
+            return monthStarts[month] + fraction * monthWidths[month]
+        }
+    }
+
+    /// Places every name, widening any month whose names don't fit until they do (or the month is as wide as it may
+    /// get). Quiet months keep the base width, so the line keeps its rhythm.
+    static func fit(_ days: [Day], months: Int, base: CGFloat, lead: CGFloat, tops: [CGFloat],
+                    maxMonth: CGFloat = 1000) -> Fit {
+        var widths = Array(repeating: base, count: months)
+        func build() -> Fit {
+            var starts: [CGFloat] = []
+            var at = lead
+            for w in widths { starts.append(at); at += w }
+            let xs = days.map { d in starts.indices.contains(d.month) ? starts[d.month] + d.fraction * widths[d.month] : at }
+            let placed = place(zip(xs, days).map { Item(x: $0, widths: $1.widths) }, tops: tops)
+            return Fit(monthWidths: widths, monthStarts: starts, xs: xs, placed: placed, totalWidth: at + lead)
+        }
+        var result = build()
+        for _ in 0..<16 {
+            let crowded = Set(zip(days, result.placed).filter { $1.level == nil }.map { $0.0.month })
+            let growable = crowded.filter { widths.indices.contains($0) && widths[$0] < maxMonth }
+            if growable.isEmpty { break }
+            for m in growable { widths[m] = min(maxMonth, widths[m] * 1.3) }
+            result = build()
+        }
+        return result
+    }
 }

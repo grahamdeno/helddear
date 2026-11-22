@@ -66,4 +66,23 @@ final class BandLayoutTests: XCTestCase {
         assertClear(items)
         XCTAssertNotNil(placed.last?.level)
     }
+
+    func testEveryNameShowsWhenAMonthIsCrowded() {
+        // Twelve names in one December week, and one in March.
+        var days = (0..<12).map { BandLayout.Day(month: 0, fraction: 0.6 + CGFloat($0) * 0.01, widths: [60, 30]) }
+        days.append(BandLayout.Day(month: 3, fraction: 0.5, widths: [60]))
+        let fit = BandLayout.fit(days, months: 12, base: 118, lead: 24, tops: tops)
+        XCTAssertTrue(fit.placed.allSatisfy { $0.level != nil }, "every name has a place")
+        XCTAssertGreaterThan(fit.monthWidths[0], 118, "the crowded month grew")
+        XCTAssertEqual(fit.monthWidths[3], 118, "a quiet month keeps its width")
+        XCTAssertEqual(fit.monthStarts[1], 24 + fit.monthWidths[0])
+    }
+
+    func testQuietYearKeepsBaseWidths() {
+        let days = [BandLayout.Day(month: 1, fraction: 0.2, widths: [50]), BandLayout.Day(month: 5, fraction: 0.7, widths: [50])]
+        let fit = BandLayout.fit(days, months: 12, base: 118, lead: 24, tops: tops)
+        XCTAssertEqual(fit.monthWidths, Array(repeating: 118, count: 12))
+        XCTAssertEqual(fit.totalWidth, 24 * 2 + 118 * 12)
+    }
 }
+
