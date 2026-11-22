@@ -247,10 +247,6 @@ struct SettingsView: View {
                     .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
                 }
                 VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Photos")
-                    PhotoAccessRow().refreshing()
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
                     Eyebrow(text: "Alerts")
                     OptionRow(title: model.notificationsAllowed ? "Alerts are on" : "Alerts are off",
                               caption: "Change them in the Settings app") {

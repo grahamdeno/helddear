@@ -177,10 +177,17 @@ enum ICloudSync {
             cloud.synchronize()
             pull(local: local, cloud: cloud, onlyMissing: true)
             push(local: local, cloud: cloud)
+            // Only the keys iCloud says changed come in (an older value of one setting must never undo a newer one,
+            // as when hidden photos came back, Nov 21, 2026). A change here goes to iCloud right away.
             observers.append(NotificationCenter.default.addObserver(
-                forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: cloud, queue: .main) { _ in
-                pull(local: local, cloud: cloud, onlyMissing: false)
+                forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: cloud, queue: .main) { note in
+                let changed = (note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]) ?? []
+                pull(local: local, cloudValue: { key in changed.contains(key) ? cloud.object(forKey: key) : nil }, onlyMissing: false)
                 MainActor.assumeIsolated { ICloudSync.onChange?() }
+            })
+            observers.append(NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification, object: local, queue: .main) { _ in
+                push(local: local, cloud: cloud, onlyChanged: true)
             })
             observers.append(NotificationCenter.default.addObserver(
                 forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in
@@ -201,11 +208,15 @@ enum ICloudSync {
             }
         }
 
-        static func push(local: UserDefaults, cloud: NSUbiquitousKeyValueStore) {
+        static func push(local: UserDefaults, cloud: NSUbiquitousKeyValueStore, onlyChanged: Bool = false) {
+            var sent = false
             for key in keys {
-                if let value = local.object(forKey: key) { cloud.set(value, forKey: key) }
+                guard let value = local.object(forKey: key) else { continue }
+                if onlyChanged, let current = cloud.object(forKey: key) as? NSObject, current.isEqual(value) { continue }
+                cloud.set(value, forKey: key)
+                sent = true
             }
-            cloud.synchronize()
+            if sent || !onlyChanged { cloud.synchronize() }
         }
     }
 }
