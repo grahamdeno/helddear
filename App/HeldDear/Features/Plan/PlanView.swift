@@ -323,6 +323,7 @@ private struct PartScreen: View {
     @State private var addingPlace = false
     @State private var chosenPlace: Place?
     @State private var placeToForget: Place?
+    @State private var editingPlaces = false
     @State private var removed = false
     @FocusState private var noteFocused: Bool
     @FocusState private var nameFocused: Bool
@@ -541,14 +542,15 @@ private struct PartScreen: View {
                 if !offered.isEmpty {
                     FlowLayout(spacing: 8) {
                         ForEach(offered) { place in
-                            chip(place.name, selected: false) { use(place) }
-                                .contextMenu {
-                                    Button("Remove from your places", role: .destructive) { placeToForget = place }
-                                }
-                                .accessibilityAction(named: "Remove from your places") { placeToForget = place }
+                            chip(editingPlaces ? "\(place.name)  ×" : place.name, selected: false) {
+                                if editingPlaces { placeToForget = place } else { use(place) }
+                            }
+                            .accessibilityAction(named: "Remove from your places") { placeToForget = place }
                         }
                     }
-                    Text("Press and hold a place to remove it.").textStyle(.caption, color: Brand.inkMuted)
+                    // An Edit link in place of press and hold (Nov 21, 2026): tap a place's × to remove it.
+                    TextLink(title: editingPlaces ? "Done" : "Edit your places") { editingPlaces.toggle() }
+                        .padding(.leading, -8)
                 }
                 if !picks.isEmpty {
                     Eyebrow(text: "Dependable picks")

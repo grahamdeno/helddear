@@ -101,7 +101,7 @@ struct PersonPlanSection: View {
                 Text(PlanGroup.summary(ready: ready, total: rows.count)).textStyle(.caption, color: Brand.inkMuted)
             }
             .padding(.bottom, Brand.space1)
-            ForEach(Array(rows.enumerated()), id: \.element.id) { i, item in
+            ForEach(Array(rows.filter { !model.removing.contains($0.id) }.enumerated()), id: \.element.id) { i, item in
                 row(item, first: i == 0)
             }
         }
@@ -136,13 +136,9 @@ struct PersonPlanSection: View {
         .buttonStyle(PressStyle())
         .accessibilityLabel(PartOwners.rowLabel(name: item.name, owner: item.owner, step: item.step))
         .accessibilityHint("Opens this item")
-        // Press and hold to take it out of the plan; the item page has the same choice at the bottom.
-        .contextMenu {
-            if let act {
-                Button(role: .destructive) { model.removePart(act) } label: { Label("Remove from plan", systemImage: "trash") }
-            }
-        }
-        .accessibilityAction(named: "Remove from plan") { if let act { model.removePart(act) } }
+        // Swipe left to take it out of the plan, with Undo (Nov 21, 2026); the item page has the same choice.
+        .swipeToRemove { if let act { model.removePartWithUndo(act, name: item.name) } }
+        .accessibilityAction(named: "Remove from plan") { if let act { model.removePartWithUndo(act, name: item.name) } }
     }
 }
 

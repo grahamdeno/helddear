@@ -11,6 +11,7 @@ struct HeldDearApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .overlay(alignment: .bottom) { UndoBanner() }
                 .environmentObject(model)
                 .onOpenURL { model.openURL($0) }
                 .task { await model.refresh() }
