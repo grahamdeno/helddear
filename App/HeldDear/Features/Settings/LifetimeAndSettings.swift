@@ -110,6 +110,8 @@ struct SettingsView: View {
     @AppStorage(AppFeatures.homeMedallionKey) private var medallionOn = true
     @AppStorage("cardSignature") private var signedAs = ""
     @State private var makingCard = false
+    @State private var savedCards: [SavedCard] = CardDrafts.all()
+    @State private var openCard: SavedCard?
     @State private var addingHoliday = false
     @State private var holidayToEdit: CustomHoliday?
     @State private var exportItems: [Any]?
@@ -136,6 +138,12 @@ struct SettingsView: View {
                 lifetimeCard
                 group("Make") {
                     YouRow(icon: "photo.on.rectangle", title: "Make a digital card", detail: nil, caption: "To text or post, for Christmas or any reason") { makingCard = true }
+                    if !savedCards.isEmpty {
+                        YouDivider()
+                        NavigationLink { subpage("Your cards") { cardsPage } } label: {
+                            YouRowLabel(icon: "rectangle.stack", title: "Your cards", detail: "\(savedCards.count)")
+                        }
+                    }
                 }
                 group("Your people and days") {
                     NavigationLink { subpage("People") { peoplePage } } label: {
@@ -213,7 +221,12 @@ struct SettingsView: View {
         }
         .fullScreenCover(isPresented: $addingHoliday) { OwnHolidayFlow(editing: nil) { addingHoliday = false }.environmentObject(model) }
         .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
-        .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
+        .fullScreenCover(isPresented: $makingCard, onDismiss: { savedCards = CardDrafts.all() }) {
+            MakeCardFlow { makingCard = false }.environmentObject(model)
+        }
+        .fullScreenCover(item: $openCard, onDismiss: { savedCards = CardDrafts.all() }) { card in
+            MakeCardFlow(close: { openCard = nil }, saved: card).environmentObject(model)
+        }
         .addFromContacts(isPresented: $addingFromContacts)
     }
 
@@ -371,6 +384,43 @@ struct SettingsView: View {
             OptionRow(title: "Add from contacts", caption: "Pick several at once") { addingFromContacts = true }
             OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
         }
+    }
+
+    @ViewBuilder private var cardsPage: some View {
+        let drafts = savedCards.filter { !$0.made }
+        let made = savedCards.filter(\.made)
+        ForEach([("Drafts", drafts), ("Made", made)], id: \.0) { title, cards in
+            if !cards.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    Eyebrow(text: title).padding(.bottom, Brand.space2)
+                    ForEach(cards) { card in
+                        OptionRow(title: card.heading.isEmpty ? "A card" : card.heading,
+                                  caption: card.updated.formatted(.dateTime.month(.abbreviated).day()) + (card.story ? " · Story" : " · Post"),
+                                  action: { openCard = card }) {
+                            Group {
+                                if let thumb = CardDrafts.thumbnail(card) {
+                                    Image(uiImage: thumb).resizable().scaledToFill()
+                                } else {
+                                    Rectangle().fill(Brand.card)
+                                }
+                            }
+                            .frame(width: 48, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .accessibilityHidden(true)
+                        } trailing: {
+                            ChevronDisc()
+                        }
+                        .contextMenu {
+                            Button("Delete card", role: .destructive) {
+                                CardDrafts.delete(card)
+                                savedCards = CardDrafts.all()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text("Kept on this iPhone. Press and hold a card to delete it.").textStyle(.caption, color: Brand.inkMuted)
     }
 
     @ViewBuilder private var holidaysPage: some View {

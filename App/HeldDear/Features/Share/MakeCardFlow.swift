@@ -6,6 +6,8 @@ import SwiftUI
 struct MakeCardFlow: View {
     @EnvironmentObject var model: AppModel
     var close: () -> Void
+    /// A saved draft or made card to open at the card step (Graham, Nov 21, 2026).
+    var saved: SavedCard? = nil
 
     @AppStorage("yourName") private var yourName = ""
     @AppStorage("cardSignature") private var signedAs = ""
@@ -30,6 +32,9 @@ struct MakeCardFlow: View {
     @State private var making: Double?
     @State private var failed = false
     @State private var loading = false
+    @State private var savedID: UUID?
+    @State private var madeBefore = false
+    @State private var savedNote: String?
 
     var body: some View {
         ZStack {
@@ -40,6 +45,7 @@ struct MakeCardFlow: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: step)
+        .task { restore() }
         .sheet(isPresented: Binding(get: { sharing != nil }, set: { if !$0 { sharing = nil } })) {
             ShareSheet(items: sharing ?? []) { _ in sharing = nil }
         }
@@ -113,7 +119,11 @@ struct MakeCardFlow: View {
                 Text("Story").tag(ShareCardView.Shape.story)
             }
             .pickerStyle(.segmented)
-            .onChange(of: shape) { _, _ in Task { await reframe() } }
+            .onChange(of: shape) { _, s in
+                // Re-place only when the crops don't fit the new shape (a saved card opens with its own crops).
+                let fits = framings.allSatisfy { abs($0.rect.width / max(1, $0.rect.height) - s.aspect) < 0.03 }
+                if !fits { Task { await reframe() } }
+            }
             if framed.count > 1 && !moving {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Brand.space2) {
@@ -152,6 +162,11 @@ struct MakeCardFlow: View {
                 }
                 .tint(Brand.action)
                 .padding(.vertical, Brand.space3)
+            }
+            HStack(spacing: Brand.space3) {
+                TextLink(title: madeBefore ? "Save changes" : "Save draft") { save(made: madeBefore) }
+                    .padding(.leading, -8)
+                if let savedNote { Text(savedNote).textStyle(.caption, color: Brand.inkMuted) }
             }
             if failed { Text("That didn't work. Try again.").textStyle(.bodyStrong, color: Brand.error) }
         } footer: {
@@ -231,6 +246,36 @@ struct MakeCardFlow: View {
         framed = out.compactMap { f in f.image.cropping(to: f.rect).map { UIImage(cgImage: $0) } }
     }
 
+    /// Keeps the card on this iPhone: a draft to finish, or a made card to share again.
+    private func save(made: Bool) {
+        let card = SavedCard(id: savedID ?? UUID(), occasionID: occasion.id, heading: heading, line: line, signature: signature,
+                             story: shape == .story, moving: moving, crops: framings.map(\.rect), made: made || madeBefore,
+                             updated: Date())
+        savedID = card.id
+        madeBefore = card.made
+        let photos = framings.map(\.image)
+        Task.detached(priority: .utility) { CardDrafts.save(card, photos: photos) }
+        savedNote = card.made ? "Saved to Your cards" : "Draft saved"
+    }
+
+    /// Opens a saved card where it was left.
+    private func restore() {
+        guard let card = saved, savedID == nil else { return }
+        savedID = card.id
+        madeBefore = card.made
+        occasion = GreetingCard.Occasion(id: card.occasionID) ?? .ownWords
+        heading = card.heading
+        line = card.line
+        signature = card.signature
+        shape = card.story ? .story : .post
+        moving = card.moving
+        let photos = CardDrafts.photos(card)
+        originals = photos.map { UIImage(cgImage: $0) }
+        framings = zip(photos, card.crops).map { (image: $0, rect: $1) }
+        framed = framings.compactMap { f in f.image.cropping(to: f.rect).map { UIImage(cgImage: $0) } }
+        step = .card
+    }
+
     /// Slides one photo's crop by a drag on the preview, kept inside the photo.
     private func slide(_ index: Int, by translation: CGSize, previewScale s: CGFloat) {
         guard framings.indices.contains(index) else { return }
@@ -262,6 +307,7 @@ struct MakeCardFlow: View {
                     }
                     making = nil
                     sharing = [url]
+                    save(made: true)
                 } catch {
                     making = nil
                     failed = true
@@ -270,7 +316,7 @@ struct MakeCardFlow: View {
         } else {
             let renderer = ImageRenderer(content: GreetingCardView(content: card, shape: chosen))
             renderer.scale = ShareRender.pixelWidth / 390
-            if let image = renderer.uiImage { sharing = [image] } else { failed = true }
+            if let image = renderer.uiImage { sharing = [image]; save(made: true) } else { failed = true }
         }
     }
 }
