@@ -256,6 +256,50 @@ final class AppModel: ObservableObject {
                                        yourName: UserDefaults.standard.string(forKey: "yourName") ?? "")
     }
 
+    /// "Ana & Marco" for an anniversary with a known other half; nil otherwise.
+    func pairName(for moment: Moment) -> String? {
+        guard let owner = moment.person, let side = pairPartner(for: moment) else { return nil }
+        let other: String
+        switch side {
+        case .person(let id): other = DisplayName.plain(person(id)?.name ?? "")
+        case .you: other = DisplayName.plain(UserDefaults.standard.string(forKey: "yourName") ?? "")
+        case .initials(let typed): other = DisplayName.plain(typed)
+        }
+        guard !other.isEmpty else { return nil }
+        return "\(DisplayName.plain(owner.name)) & \(other)"
+    }
+
+    /// The user's own anniversary, wherever it's kept (on the partner's page).
+    func yourAnniversary() -> Occasion? {
+        let you = (UserDefaults.standard.string(forKey: "yourName") ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        for p in allPeople() {
+            for o in p.occasions where o.type == .anniversary {
+                let typed = (o.partnerName ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+                if typed == "you" || (!you.isEmpty && typed == you) { return o }
+            }
+        }
+        return nil
+    }
+
+    /// A banner for an anniversary: the couple's photo when one is set, else both faces side by side.
+    func anniversaryBanner(for moment: Moment, aspect: CGFloat) async -> UIImage? {
+        if let file = OccasionPhotos.file(for: moment.occasion?.id), let image = PhotoStore.load(file) {
+            return await FaceFinder.shared.banner(of: image, aspect: aspect)
+        }
+        guard let owner = moment.person, let side = pairPartner(for: moment) else { return nil }
+        let halfAspect = aspect / 2
+        let left = await FaceFinder.shared.banner(for: owner, aspect: halfAspect)
+        var right: UIImage?
+        switch side {
+        case .person(let id): right = await FaceFinder.shared.banner(for: person(id), aspect: halfAspect)
+        case .you: if let me = PhotoStore.load(YouProfile.photoFile) { right = await FaceFinder.shared.banner(of: me, aspect: halfAspect) }
+        case .initials: right = nil
+        }
+        guard let left else { return right }
+        guard let right else { return left }
+        return PairBanner.join(left, right, aspect: aspect)
+    }
+
     /// A person's own next day (birthday, anniversary, life moment), leaving out shared holidays.
     func nextPersonalMoment(for person: Person, now: Date = Date()) -> Moment? {
         let today = Calendar.current.startOfDay(for: now)

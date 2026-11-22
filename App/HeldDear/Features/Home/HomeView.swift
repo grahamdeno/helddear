@@ -109,6 +109,22 @@ struct HomeView: View {
                 HolidayMark(type: m.type, name: m.occasion?.partnerName, size: size * 0.87)
             }
             .padding(.bottom, size * 0.13)
+        } else if let person = m.person, m.type == .anniversary,
+                  let couple = PhotoStore.load(OccasionPhotos.file(for: m.occasion?.id)) {
+            // The couple's photo, when one is set on the anniversary (Graham, Nov 21, 2026).
+            Button { model.push(.person(person.id, focus: nil)) } label: {
+                ReadyRing(ready: ready, total: parts.count, size: size) {
+                    Image(uiImage: couple).resizable().scaledToFill()
+                        .frame(width: size, height: size).clipShape(Circle())
+                        .overlay {
+                            Circle().fill(LinearGradient(stops: [.init(color: Brand.page.opacity(0), location: 0.55),
+                                                                 .init(color: Brand.page.opacity(0.9), location: 1)],
+                                                         startPoint: .top, endPoint: .bottom))
+                        }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
         } else if let person = m.person, let partner = model.pairPartner(for: m) {
             Button { model.push(.person(person.id, focus: nil)) } label: {
                 PairPortrait(person: person, partner: partner, size: size * 0.86, toned: true, fadeBottom: true,

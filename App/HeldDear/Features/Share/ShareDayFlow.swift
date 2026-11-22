@@ -18,9 +18,11 @@ struct ShareDayFlow: View {
     @State private var failed = false
 
     private var name: String { DisplayName.plain(moment.person?.name ?? "") }
+    /// "Ana & Marco" on an anniversary card (Graham, Nov 21, 2026).
+    private var cardName: String { model.pairName(for: moment) ?? name }
 
     private var content: ShareCardContent {
-        ShareCardContent(name: name,
+        ShareCardContent(name: cardName,
                          subline: ShareCardLayout.subline(type: moment.type, partner: moment.occasion?.partnerName,
                                                           count: moment.turning, addAge: addAge),
                          date: moment.dueDate, note: note.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -72,8 +74,13 @@ struct ShareDayFlow: View {
             }
         }
         .task {
-            photo = await FaceFinder.shared.banner(for: moment.person, aspect: ShareCardView.Shape.post.aspect)
-            storyPhoto = await FaceFinder.shared.banner(for: moment.person, aspect: ShareCardView.Shape.story.aspect)
+            if moment.type == .anniversary, model.pairPartner(for: moment) != nil || OccasionPhotos.file(for: moment.occasion?.id) != nil {
+                photo = await model.anniversaryBanner(for: moment, aspect: ShareCardView.Shape.post.aspect)
+                storyPhoto = await model.anniversaryBanner(for: moment, aspect: ShareCardView.Shape.story.aspect)
+            } else {
+                photo = await FaceFinder.shared.banner(for: moment.person, aspect: ShareCardView.Shape.post.aspect)
+                storyPhoto = await FaceFinder.shared.banner(for: moment.person, aspect: ShareCardView.Shape.story.aspect)
+            }
         }
         .sheet(isPresented: Binding(get: { sharing != nil }, set: { if !$0 { sharing = nil } })) {
             ShareSheet(items: sharing ?? []) { _ in sharing = nil }
