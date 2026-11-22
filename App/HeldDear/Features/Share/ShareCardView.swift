@@ -102,7 +102,7 @@ struct ShareCardView: View {
         let dotX = left + (right - left) * ShareCardLayout.position(of: content.date)
         let y = spots.line
         let travel = r(t, 0.9, 2.6)
-        let x = (left - 6) + (dotX - (left - 6)) * travel
+        let x = left + (dotX - left) * travel
         let pulse = 1 + 0.5 * max(0, 1 - abs(t - 2.85) / 0.25)
 
         Rectangle().fill(ink).frame(width: width * r(t, 0, 1.95), height: 1.5)
@@ -116,13 +116,14 @@ struct ShareCardView: View {
                 .position(x: left + step * CGFloat(i) + 12, y: y + 20).opacity(shown)
         }
         Rectangle().fill(accent).frame(width: 1.5, height: 40 * r(t, 2.75, 3.25))
-            .position(x: dotX, y: y - 4 - 20 * r(t, 2.75, 3.25))
+            .position(x: dotX, y: y - 20 * r(t, 2.75, 3.25))
         Text(ShareCardLayout.dotLabel(content.date))
             .font(Brand.display(19, relativeTo: .title3)).foregroundStyle(accent).fixedSize()
             .position(x: dotX - 40, y: y - 34)
             .opacity(r(t, 3.0, 3.65))
+        // The dot lands exactly under its line, which rises from the dot's center (Graham, Nov 21, 2026).
         Circle().fill(accent).frame(width: 12, height: 12).scaleEffect(pulse)
-            .position(x: x + 6, y: y + 0.75)
+            .position(x: x, y: y)
             .opacity(r(t, 0.65, 0.9))
     }
 }

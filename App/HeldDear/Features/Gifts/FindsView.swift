@@ -1,12 +1,14 @@
 import SwiftUI
 
 /// Finds (story 2.9, approved Nov 21, 2026): every find in the app to browse, newest first, narrowed by who it's
-/// for and price. Free. Nothing here talks to the network; the catalog ships with the app.
+/// for and price. Free. The catalog ships with the app; each picture comes from the find's own shop page, once
+/// (FindPictures, Nov 21, 2026). Two columns of pictures, filters on one line, details on tap.
 struct FindsView: View {
     @EnvironmentObject var model: AppModel
     @State private var fits: Set<FindFit> = []
     @State private var prices: Set<FindPrice> = []
     @State private var opened: Find?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let finds = Finds.browse(fits: fits, prices: prices)
@@ -21,11 +23,15 @@ struct FindsView: View {
                 if finds.isEmpty {
                     Text("Nothing fits those filters yet.").textStyle(.body, color: Brand.inkMuted)
                 }
-                ForEach(finds) { find in
-                    Button { opened = find } label: { FindCard(find: find) }
-                        .buttonStyle(PressStyle())
-                        .accessibilityLabel("\(find.name), \(find.maker), \(find.price), \(find.arrives)")
-                        .accessibilityHint("Opens this find")
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Brand.space3, alignment: .top),
+                                         count: typeSize.isAccessibilitySize ? 1 : 2),
+                          spacing: Brand.space5) {
+                    ForEach(finds) { find in
+                        Button { opened = find } label: { FindCard(find: find) }
+                            .buttonStyle(PressStyle())
+                            .accessibilityLabel("\(find.name), \(find.maker)\(Self.shownPrice(find).map { ", \($0)" } ?? "")")
+                            .accessibilityHint("Opens this find")
+                    }
                 }
             }
             .padding(.horizontal, Brand.space5)
@@ -37,16 +43,40 @@ struct FindsView: View {
         }
     }
 
+    /// The price when there is one; nothing when the shop's page has to say.
+    static func shownPrice(_ find: Find) -> String? {
+        let p = find.price.trimmingCharacters(in: .whitespaces)
+        return p.contains("$") ? p : nil
+    }
+
+    /// Who it's for slides on one line; price is one small menu at its start.
     private var filters: some View {
-        VStack(alignment: .leading, spacing: Brand.space2) {
-            FlowLayout(spacing: 8) {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Menu {
+                    ForEach(FindPrice.allCases, id: \.self) { p in
+                        Button { if prices.contains(p) { prices.remove(p) } else { prices.insert(p) } } label: {
+                            if prices.contains(p) { Label(p.label, systemImage: "checkmark") } else { Text(p.label) }
+                        }
+                    }
+                    if !prices.isEmpty { Button("Any price") { prices = [] } }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(prices.count == 1 ? prices.first!.label : prices.isEmpty ? "Any price" : "\(prices.count) prices")
+                            .font(.callout.weight(.semibold)).lineLimit(1)
+                        Image(systemName: "chevron.down").font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(prices.isEmpty ? Brand.ink : Brand.page)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 44)
+                    .background {
+                        if prices.isEmpty { Capsule().strokeBorder(Brand.inkMuted, lineWidth: 1) } else { Capsule().fill(Brand.ink) }
+                    }
+                    .contentShape(Capsule())
+                }
+                .accessibilityLabel("Price")
                 ForEach(FindFit.allCases, id: \.self) { f in
                     chip(f.label, on: fits.contains(f)) { if fits.contains(f) { fits.remove(f) } else { fits.insert(f) } }
-                }
-            }
-            FlowLayout(spacing: 8) {
-                ForEach(FindPrice.allCases, id: \.self) { p in
-                    chip(p.label, on: prices.contains(p)) { if prices.contains(p) { prices.remove(p) } else { prices.insert(p) } }
                 }
                 if !fits.isEmpty || !prices.isEmpty {
                     Button { fits = []; prices = [] } label: {
@@ -55,7 +85,9 @@ struct FindsView: View {
                     .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, Brand.space5)
         }
+        .padding(.horizontal, -Brand.space5)
     }
 
     private func chip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
@@ -75,37 +107,24 @@ struct FindsView: View {
     }
 }
 
-/// One find as a lighter card.
+/// One find as a picture with its name, maker and price under it. The why and delivery wait for the detail.
 struct FindCard: View {
     let find: Find
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let name = find.photo, let image = UIImage(named: name) {
-                Image(uiImage: image).resizable().scaledToFill()
-                    .frame(maxWidth: .infinity).frame(height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .accessibilityHidden(true)
-                    .padding(.bottom, 4)
-            }
-            HStack(alignment: .firstTextBaseline) {
-                Text(find.name).font(Brand.serif(20, relativeTo: .title3)).foregroundStyle(Brand.ink)
-                    .multilineTextAlignment(.leading)
-                Spacer(minLength: Brand.space2)
-                Text(find.price).textStyle(.callout, color: Brand.inkSoft).lineLimit(1)
-            }
-            Text(find.dependable ? "\(find.maker) · A dependable pick" : find.maker)
-                .textStyle(.caption, color: Brand.inkMuted)
-            Text(find.why).textStyle(.body, color: Brand.inkSoft).multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-            if !find.arrives.isEmpty {
-                Text(find.arrives).textStyle(.caption, color: Brand.inkMuted)
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            FindPicture(find: find)
+                .aspectRatio(4 / 5, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
+                .padding(.bottom, 4)
+            Text(find.name).font(Brand.serif(17, relativeTo: .body)).foregroundStyle(Brand.ink)
+                .multilineTextAlignment(.leading).lineLimit(2)
+            Text([find.maker, FindsView.shownPrice(find)].compactMap { $0 }.joined(separator: " · "))
+                .textStyle(.caption, color: Brand.inkMuted).lineLimit(2).multilineTextAlignment(.leading)
         }
-        .padding(Brand.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
+        .contentShape(Rectangle())
     }
 }
 
@@ -129,12 +148,16 @@ struct FindDetail: View {
 
     var body: some View {
         FlowScreen(onClose: { dismiss() }) {
+            FindPicture(find: find)
+                .frame(height: 260)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: Brand.space2) {
                 Text(find.dependable ? "A dependable pick" : "A find").textStyle(.eyebrow, color: Brand.action)
                 Text(find.name).font(Brand.display(36, relativeTo: .largeTitle)).foregroundStyle(Brand.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("\(find.maker) · \(find.price)").textStyle(.callout, color: Brand.inkSoft)
+                Text([find.maker, FindsView.shownPrice(find)].compactMap { $0 }.joined(separator: " · "))
+                    .textStyle(.callout, color: Brand.inkSoft)
                 Text(find.why).font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
                 if !find.arrives.isEmpty { Text(find.arrives).textStyle(.caption, color: Brand.inkMuted) }

@@ -498,9 +498,21 @@ struct HorizonBand: View {
         .background(Brand.card.ignoresSafeArea(edges: .bottom))
     }
 
-    private struct Mark { let moment: Moment; let x: CGFloat; let top: CGFloat; var leftLabel = false }
+    private struct Mark {
+        let moment: Moment
+        let x: CGFloat
+        let top: CGFloat
+        var leftLabel = false
+        /// The wording that fit; nil when the name dropped and only the line shows.
+        var text: String?
+    }
 
-    private func labelWidth(_ m: Moment) -> CGFloat { CGFloat(label(m).count) * 9 + 10 }
+    /// A name's width as drawn: the text serif, larger when selected, at the reader's text size.
+    private func measure(_ text: String, selected: Bool) -> CGFloat {
+        let size = UIFontMetrics(forTextStyle: .callout).scaledValue(for: selected ? 20 : 16)
+        let font = UIFont(name: TypeStyle.hasSerif ? TypeStyle.textRegular : "", size: size) ?? .systemFont(ofSize: size)
+        return ceil((text as NSString).size(withAttributes: [.font: font]).width) + 2
+    }
 
     private func x(for date: Date, start: Date) -> CGFloat {
         let cal = Calendar.current
@@ -510,22 +522,31 @@ struct HorizonBand: View {
         return Self.lead + (CGFloat(monthIndex) + CGFloat(day - 1) / CGFloat(daysInMonth)) * Self.monthWidth
     }
 
-    /// Stagger labels on a few heights so close dates don't overlap.
+    /// Names placed so none touch and no line crosses a name (BandLayout); shorter wording, then just the line,
+    /// when a stretch is crowded. Laid out again when the selection changes, since the selected name is larger.
     private func layout(start: Date) -> [Mark] {
-        var lastX = Array(repeating: -CGFloat.infinity, count: Self.levels.count)
-        var out: [Mark] = []
-        for m in moments.sorted(by: { $0.dueDate < $1.dueDate }) {
-            let mx = x(for: m.dueDate, start: start)
-            guard mx < Self.lead + Self.monthWidth * 12 else { continue }
-            let level = (0..<Self.levels.count).first { mx - lastX[$0] > labelWidth(m) } ?? (out.count % Self.levels.count)
-            lastX[level] = mx
-            out.append(Mark(moment: m, x: mx, top: Self.levels[level]))
+        let shown = moments.sorted(by: { $0.dueDate < $1.dueDate })
+            .map { (m: $0, x: x(for: $0.dueDate, start: start)) }
+            .filter { $0.x < Self.lead + Self.monthWidth * 12 }
+        let wordings = shown.map { labels($0.m) }
+        let items = zip(shown, wordings).map { s, words in
+            BandLayout.Item(x: s.x, widths: words.map { measure($0, selected: s.m.id == selectedID) })
         }
-        // A label that would run across the next person's line sits to the left of its own line instead.
-        for i in out.indices where i + 1 < out.count {
-            if out[i + 1].x - out[i].x < labelWidth(out[i].moment) && out[i].x - Self.lead > labelWidth(out[i].moment) {
-                out[i].leftLabel = true
-            }
+        let placed = BandLayout.place(items, tops: Self.levels)
+        return zip(shown.indices, placed).map { i, p in
+            Mark(moment: shown[i].m, x: shown[i].x, top: p.level.map { Self.levels[$0] } ?? (Self.levels.max() ?? 96),
+                 leftLabel: p.left, text: p.level == nil ? nil : wordings[i][p.option])
+        }
+    }
+
+    /// The full wording, then shorter ones: "Ana & M.", a holiday's first word.
+    private func labels(_ m: Moment) -> [String] {
+        let full = label(m)
+        var out = [full]
+        if m.type == .anniversary, let p = m.occasion?.partnerName, let first = p.first {
+            out.append("\(DisplayName.plain(m.person?.name ?? "")) & \(first).")
+        } else if let firstWord = full.split(separator: " ").first, firstWord.count < full.count {
+            out.append(String(firstWord))
         }
         return out
     }
@@ -552,12 +573,15 @@ struct HorizonBand: View {
                     Circle().fill(Brand.action).frame(width: 12, height: 12)
                         .offset(x: -5, y: Self.axisY - mark.top - 6)
                 }
-                Text(label(mark.moment))
-                    .font(Brand.serif(selected ? 20 : 16, relativeTo: .callout))
-                    .foregroundStyle(color)
-                    .fixedSize()
-                    .frame(width: labelWidth(mark.moment), alignment: mark.leftLabel ? .trailing : .leading)
-                    .offset(x: mark.leftLabel ? -labelWidth(mark.moment) - 2 : 4, y: 0)
+                if let text = mark.text {
+                    let w = measure(text, selected: selected)
+                    Text(text)
+                        .font(Brand.serif(selected ? 20 : 16, relativeTo: .callout))
+                        .foregroundStyle(color)
+                        .fixedSize()
+                        .frame(width: w, alignment: mark.leftLabel ? .trailing : .leading)
+                        .offset(x: mark.leftLabel ? -w - BandLayout.inset : BandLayout.inset, y: 0)
+                }
             }
             .frame(width: 80, height: Self.axisY - mark.top + 8, alignment: .topLeading)
             .contentShape(Rectangle())
@@ -744,7 +768,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
-                    .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126)
+                    .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126 + NameSize.featuredDrop(title))
             }
             .buttonStyle(.plain)
             .zIndex(1)
@@ -753,7 +777,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                 .lineLimit(1).minimumScaleFactor(0.7)
                 .frame(height: sublineHeight)
-                .padding(.top, Brand.space2)
+                .padding(.top, Brand.space2 - (medallion == nil ? 0 : NameSize.featuredDrop(title)))
             VStack(spacing: Brand.space2) {
                 // With the medallion, the ring around the face shows this instead.
                 if !progress.isEmpty && medallion == nil {

@@ -35,6 +35,10 @@ enum ICloudSync {
         @Published var account = "Checking iCloud…"
         @Published var last = ""
         @Published var problem: String?
+        /// When each kind last finished, so the page shows whether anything has gone up (Nov 21, 2026).
+        @Published var lastSent = ""
+        @Published var schemaReady = UserDefaults.standard.bool(forKey: "cloudKitSchemaInitialized-31")
+        @Published var lastReceived = ""
 
         func update(_ event: NSPersistentCloudKitContainer.Event) {
             let kind: String
@@ -46,9 +50,12 @@ enum ICloudSync {
             }
             if let end = event.endDate {
                 if let error = event.error as NSError? {
-                    problem = "\(kind) didn't finish: \(error.localizedDescription) (\(error.domain) \(error.code))"
+                    problem = "\(kind) didn't finish: \(ICloudSync.reason(error))"
                 } else {
                     last = "\(kind) \(end.formatted(date: .omitted, time: .shortened))"
+                    if event.type == .export { lastSent = end.formatted(date: .abbreviated, time: .shortened) }
+                    if event.type == .import { lastReceived = end.formatted(date: .abbreviated, time: .shortened) }
+                    if event.type == .setup { ICloudSync.setupFinished() }
                     if event.type != .setup { problem = nil }
                 }
             }
@@ -108,7 +115,44 @@ enum ICloudSync {
             MainActor.assumeIsolated { scheduleTidy() }
         }
         observers.append(note)
-        initializeDevelopmentSchemaOnce(container.persistent)
+        persistentForSchema = container.persistent
+    }
+
+    /// The schema is created only after iCloud reports setup finished, so it never races the first setup.
+    private static var persistentForSchema: NSPersistentCloudKitContainer?
+    @MainActor static func setupFinished() {
+        guard let p = persistentForSchema else { return }
+        persistentForSchema = nil
+        initializeDevelopmentSchemaOnce(p)
+    }
+
+    /// Tries creating the iCloud record types again (the You page's Try again).
+    @MainActor static func retrySchema() {
+        guard let persistent = container?.persistent else { return }
+        Status.shared.problem = nil
+        initializeDevelopmentSchemaOnce(persistent, force: true)
+    }
+
+    /// The whole reason an iCloud step failed: the message, the reason Core Data gives, and every error under it.
+    static func reason(_ error: NSError) -> String {
+        var parts = ["\(error.localizedDescription) (\(error.domain) \(error.code))"]
+        if let why = error.userInfo[NSLocalizedFailureReasonErrorKey] as? String { parts.append(why) }
+        if let detailed = error.userInfo[NSDetailedErrorsKey] as? [NSError] {
+            parts += detailed.prefix(3).map { "\($0.domain) \($0.code): \($0.localizedDescription)" }
+        }
+        var under = error.userInfo[NSUnderlyingErrorKey] as? NSError
+        var depth = 0
+        while let u = under, depth < 4 {
+            parts.append("Under it: \(u.localizedDescription) (\(u.domain) \(u.code))")
+            if let why = u.userInfo[NSLocalizedFailureReasonErrorKey] as? String { parts.append(why) }
+            under = u.userInfo[NSUnderlyingErrorKey] as? NSError
+            depth += 1
+        }
+        for (key, value) in error.userInfo where key != NSUnderlyingErrorKey && key != NSLocalizedDescriptionKey
+            && key != NSLocalizedFailureReasonErrorKey && key != NSDetailedErrorsKey {
+            parts.append("\(key): \(String(describing: value).prefix(300))")
+        }
+        return parts.joined(separator: "\n")
     }
 
     static func photos(named name: String, in context: ModelContext) -> [PhotoObject] {
@@ -149,17 +193,18 @@ enum ICloudSync {
 
     /// Creates the record types in the Development environment once, so they can be checked and then deployed to
     /// production (Graham's go). Never runs against production.
-    private static func initializeDevelopmentSchemaOnce(_ persistent: NSPersistentCloudKitContainer) {
+    private static func initializeDevelopmentSchemaOnce(_ persistent: NSPersistentCloudKitContainer, force: Bool = false) {
         let key = "cloudKitSchemaInitialized-31"
-        guard environment == "Development", !UserDefaults.standard.bool(forKey: key) else { return }
+        guard environment == "Development", force || !UserDefaults.standard.bool(forKey: key) else { return }
         DispatchQueue.global(qos: .utility).async {
             do {
                 try persistent.initializeCloudKitSchema(options: [])
                 UserDefaults.standard.set(true, forKey: key)
+                DispatchQueue.main.async { Status.shared.schemaReady = true }
             } catch {
                 // No iCloud account or no network: tried again next launch. The reason shows on the You page.
                 let e = error as NSError
-                DispatchQueue.main.async { Status.shared.problem = "Setting up iCloud didn't finish: \(e.localizedDescription) (\(e.domain) \(e.code))" }
+                DispatchQueue.main.async { Status.shared.problem = "Setting up iCloud didn't finish: \(ICloudSync.reason(e))" }
             }
         }
     }
