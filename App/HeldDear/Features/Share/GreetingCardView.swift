@@ -23,7 +23,9 @@ struct GreetingCardView: View {
     private let page = Color(red: 0.090, green: 0.082, blue: 0.075)
 
     private var photoHeight: CGFloat { shape.photoHeight }
-    private var headingY: CGFloat { shape == .post ? photoHeight + 20 : photoHeight + 30 }
+    private var headingY: CGFloat { shape == .post ? photoHeight + 12 : photoHeight + 24 }
+    /// Room for the words: from just under the photo to just above the Held Dear mark.
+    private var wordsHeight: CGFloat { shape.height - 40 - headingY }
 
     var body: some View {
         let words = wordsShown
@@ -35,25 +37,29 @@ struct GreetingCardView: View {
                     .position(x: width / 2, y: photoHeight - 6)
                     .opacity(words.heading)
             }
-            Text(content.heading)
-                .font(Brand.display(shape == .post ? 46 : 54, relativeTo: .largeTitle)).tracking(-0.8).foregroundStyle(ink)
-                .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.5)
-                .frame(width: width - 40, height: shape == .post ? 110 : 130)
-                .position(x: width / 2, y: headingY + (shape == .post ? 55 : 65))
-                .opacity(words.heading).offset(y: 14 * (1 - words.heading))
+            // The words fill the space between the photo and the Held Dear mark, so a long line or name never runs
+            // into the mark (Graham, Nov 21, 2026).
             VStack(spacing: 8) {
+                Text(content.heading)
+                    .font(Brand.display(shape == .post ? 46 : 54, relativeTo: .largeTitle)).tracking(-0.8).foregroundStyle(ink)
+                    .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.5)
+                    .opacity(words.heading).offset(y: 14 * (1 - words.heading))
+                    .layoutPriority(1)
                 if !content.line.isEmpty {
                     Text(content.line)
                         .font(Brand.display(18, relativeTo: .body, italic: true)).foregroundStyle(soft)
                         .multilineTextAlignment(.center).lineLimit(3).minimumScaleFactor(0.7)
+                        .opacity(words.rest)
                 }
                 if !content.signature.isEmpty {
                     Text(content.signature).font(.system(size: 13, weight: .medium)).tracking(0.6).foregroundStyle(muted)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .opacity(words.rest)
+                        .layoutPriority(1)
                 }
             }
-            .frame(width: width - 60)
-            .position(x: width / 2, y: headingY + (shape == .post ? 140 : 180))
-            .opacity(words.rest)
+            .frame(width: width - 40, height: wordsHeight)
+            .position(x: width / 2, y: headingY + wordsHeight / 2)
             Text("HELD DEAR").font(.system(size: 10)).tracking(1.6).foregroundStyle(muted.opacity(0.8))
                 .frame(width: width)
                 .position(x: width / 2, y: shape.height - 18)
