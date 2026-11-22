@@ -86,6 +86,19 @@ enum Relationship {
                               "Teacher", "Coach", "Neighbor", "Coworker", "Boss", "Mentor", "Babysitter"]
     static var choices: [String] { mainChoices + moreChoices }
 
+    /// The few shown under the type-to-find field before anything is typed.
+    static let commonMore = ["Brother", "Sister", "Niece", "Nephew", "Grandma", "Grandpa", "Coworker"]
+
+    /// Words that start with what's typed, then words that contain it; at most five.
+    static func matches(_ query: String) -> [String] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return [] }
+        let all = mainChoices + moreChoices
+        let starts = all.filter { $0.lowercased().hasPrefix(q) }
+        let contains = all.filter { !$0.lowercased().hasPrefix(q) && $0.lowercased().contains(q) }
+        return Array((starts + contains).prefix(5))
+    }
+
     enum Group: Equatable { case partner, child, parent, sibling, extended, community, unknown }
 
     /// Who "Who it's from" offers (feedback on build 1010): the household, meaning a partner and the children.
