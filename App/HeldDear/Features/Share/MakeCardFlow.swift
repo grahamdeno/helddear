@@ -131,28 +131,12 @@ struct MakeCardFlow: View {
                 if !fits { Task { await reframe() } }
             }
             if framed.count > 1 && !moving {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Brand.space2) {
-                        ForEach(framed.indices, id: \.self) { i in
-                            Button { placing = i } label: {
-                                Image(uiImage: framed[i]).resizable().scaledToFill()
-                                    .frame(width: 52, height: 52)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                            .strokeBorder(i == placing ? Brand.action : Color.clear, lineWidth: 2)
-                                    }
-                            }
-                            .buttonStyle(PressStyle())
-                            .accessibilityLabel("Photo \(i + 1)")
-                            .accessibilityAddTraits(i == placing ? [.isButton, .isSelected] : .isButton)
-                        }
-                    }
-                }
+                CardPhotoStrip(count: framed.count, selected: placing, thumb: { framed.indices.contains($0) ? framed[$0] : nil },
+                               onSelect: { placing = $0 })
             }
             preview
             if !framed.isEmpty && !moving {
-                Text(framed.count > 1 ? "Drag a photo to place it. Pick another above." : "Drag the photo to place it.")
+                Text(CardPhotos.placeHint(photoCount: framed.count))
                     .textStyle(.caption, color: Brand.inkMuted)
             }
             VStack(alignment: .leading, spacing: 0) {
@@ -214,14 +198,8 @@ struct MakeCardFlow: View {
             .frame(width: 390 * s, height: height * s, alignment: .topLeading)
             .overlay(alignment: .top) {
                 if !moving && !framed.isEmpty {
-                    Color.clear
-                        .frame(width: 390 * s, height: shape.photoHeight * s)
-                        .contentShape(Rectangle())
-                        .highPriorityGesture(DragGesture(minimumDistance: 2)
-                            .onChanged { slide(placing, by: $0.translation, previewScale: s) }
-                            .onEnded { _ in dragStart = nil })
-                        .accessibilityLabel("Photo")
-                        .accessibilityHint("Drag to place the photo")
+                    CardPhotoDrag(width: 390 * s, height: shape.photoHeight * s,
+                                  onChanged: { slide(placing, by: $0, previewScale: s) }, onEnded: { dragStart = nil })
                 }
             }
         }
@@ -296,13 +274,8 @@ struct MakeCardFlow: View {
         let f = framings[index]
         let start = dragStart ?? f.rect
         if dragStart == nil { dragStart = f.rect }
-        let pixelsPerPoint = start.width / 390
-        var rect = start
-        rect.origin.x -= translation.width / s * pixelsPerPoint
-        rect.origin.y -= translation.height / s * pixelsPerPoint
-        rect.origin.x = min(max(0, rect.origin.x), CGFloat(f.image.width) - rect.width)
-        rect.origin.y = min(max(0, rect.origin.y), CGFloat(f.image.height) - rect.height)
-        rect = rect.integral
+        let rect = CardPhotos.slide(start, imageSize: CGSize(width: f.image.width, height: f.image.height),
+                                    by: translation, scale: s)
         framings[index].rect = rect
         if let cg = f.image.cropping(to: rect), framed.indices.contains(index) { framed[index] = UIImage(cgImage: cg) }
     }
