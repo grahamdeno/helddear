@@ -77,6 +77,23 @@ enum BandLayout {
 
     // MARK: Every name shows (Graham, Nov 22, 2026)
 
+    /// Tries the rows lowest-first (names sit near the line) and highest-first (a crowded run steps down like
+    /// stairs, so each day's line passes clear of the names before it), and keeps whichever places more names.
+    /// Levels come back as indexes into `tops`.
+    static func placeBest(_ items: [Item], tops: [CGFloat]) -> [Placed] {
+        var best: [Placed]?
+        for order in [tops.sorted(by: >), tops.sorted()] {
+            let mapped = place(items, tops: order).map { p -> Placed in
+                guard let l = p.level, let i = tops.firstIndex(of: order[l]) else { return p }
+                return Placed(level: i, left: p.left, option: p.option)
+            }
+            if best == nil || mapped.filter({ $0.level == nil }).count < best!.filter({ $0.level == nil }).count {
+                best = mapped
+            }
+        }
+        return best ?? []
+    }
+
     /// A day on the year-long line: which month (0 = this month), how far through it, and its wordings' widths.
     struct Day {
         var month: Int
@@ -103,14 +120,14 @@ enum BandLayout {
     /// Places every name, widening any month whose names don't fit until they do (or the month is as wide as it may
     /// get). Quiet months keep the base width, so the line keeps its rhythm.
     static func fit(_ days: [Day], months: Int, base: CGFloat, lead: CGFloat, tops: [CGFloat],
-                    maxMonth: CGFloat = 2400) -> Fit {
+                    maxMonth: CGFloat = 4000) -> Fit {
         var widths = Array(repeating: base, count: months)
         func build() -> Fit {
             var starts: [CGFloat] = []
             var at = lead
             for w in widths { starts.append(at); at += w }
             let xs = days.map { d in starts.indices.contains(d.month) ? starts[d.month] + d.fraction * widths[d.month] : at }
-            let placed = place(zip(xs, days).map { Item(x: $0, widths: $1.widths) }, tops: tops)
+            let placed = placeBest(zip(xs, days).map { Item(x: $0, widths: $1.widths) }, tops: tops)
             return Fit(monthWidths: widths, monthStarts: starts, xs: xs, placed: placed, totalWidth: at + lead)
         }
         var result = build()

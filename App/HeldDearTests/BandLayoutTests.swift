@@ -85,5 +85,13 @@ final class BandLayoutTests: XCTestCase {
         XCTAssertEqual(fit.monthWidths, Array(repeating: 118, count: 12))
         XCTAssertEqual(fit.totalWidth, 24 * 2 + 118 * 12)
     }
+
+    func testABusyDecemberFitsWithoutGrowingFar() {
+        // Eight birthdays across one month, two on neighbouring days.
+        let days = [0.1, 0.15, 0.3, 0.55, 0.56, 0.6, 0.8, 0.82].map { BandLayout.Day(month: 0, fraction: $0, widths: [70, 40]) }
+        let fit = BandLayout.fit(days, months: 12, base: 118, lead: 24, tops: tops)
+        XCTAssertTrue(fit.placed.allSatisfy { $0.level != nil })
+        XCTAssertLessThan(fit.monthWidths[0], 800, "stepping names down keeps the month from growing much")
+    }
 }
 
