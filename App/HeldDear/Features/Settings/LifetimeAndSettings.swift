@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
+import WidgetKit
 
 /// The Held Dear Lifetime offer. Reached only from Settings, a locked card design, or once after the
 /// first yearly line. The close button shows at once. No countdown timers, no blur, no nagging.
@@ -104,6 +105,7 @@ struct SettingsView: View {
     @State private var showLifetime = false
     @State private var addingFromContacts = false
     @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
+    @AppStorage(AppGroup.widgetFacesKey, store: UserDefaults(suiteName: AppGroup.identifier)) private var widgetFaces = false
     @AppStorage("yourName") private var yourName = ""
     @AppStorage(AppFeatures.homeMedallionKey) private var medallionOn = true
     @AppStorage("cardSignature") private var signedAs = ""
@@ -177,6 +179,7 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
+        .onChange(of: widgetFaces) { _, _ in WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingBirthday) { YourBirthdayEditor() }
@@ -400,6 +403,17 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var screensPage: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Home Screen widgets")
+            card {
+                Toggle(isOn: $widgetFaces) {
+                    toggleText("Show faces", "The widgets show each person's photo. Off shows initials, so the Home Screen stays private.")
+                }
+                .tint(Brand.action)
+            }
+            Text("Coming up and a holiday you pick, in three sizes. Part of Held Dear Lifetime. Press and hold the Home Screen to add one.")
+                .textStyle(.caption, color: Brand.inkMuted)
+        }
         VStack(alignment: .leading, spacing: Brand.space2) {
             Eyebrow(text: "Lock Screen")
             card {
