@@ -744,7 +744,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
-                    .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126)
+                    .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126 + NameSize.featuredDrop(title))
             }
             .buttonStyle(.plain)
             .zIndex(1)
@@ -753,7 +753,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                 .lineLimit(1).minimumScaleFactor(0.7)
                 .frame(height: sublineHeight)
-                .padding(.top, Brand.space2)
+                .padding(.top, Brand.space2 - (medallion == nil ? 0 : NameSize.featuredDrop(title)))
             VStack(spacing: Brand.space2) {
                 // With the medallion, the ring around the face shows this instead.
                 if !progress.isEmpty && medallion == nil {
