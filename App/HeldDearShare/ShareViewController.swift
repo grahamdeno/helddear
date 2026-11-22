@@ -29,12 +29,26 @@ final class ShareModel: ObservableObject {
     @Published var image: UIImage?
     @Published var people: [SharedPerson] = []
     @Published var showEveryone = false
+    /// Several photos shared at once (from the Photos app): they become that person's photos, not an idea.
+    @Published var photoProviders: [NSItemProvider] = []
+    @Published var copying = false
+    var isPhotoSet: Bool { photoProviders.count > 1 }
 
     init() {
         people = AppGroup.read([SharedPerson].self, from: AppGroup.peopleURL) ?? []
     }
 
     func load(from items: [NSExtensionItem]) {
+        let images = items.flatMap { $0.attachments ?? [] }.filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+        if images.count > 1 {
+            photoProviders = images
+            title = "\(images.count) photos"
+            images.first?.loadPreviewImage(options: [NSItemProviderPreferredImageSizeKey: NSValue(cgSize: CGSize(width: 400, height: 400))]) { item, _ in
+                let img = (item as? UIImage) ?? (item as? Data).flatMap(UIImage.init(data:))
+                Task { @MainActor in if let img { self.image = img } }
+            }
+            return
+        }
         for item in items {
             if let t = item.attributedContentText?.string, !t.isEmpty, title.isEmpty { title = t }
             if let t = item.attributedTitle?.string, !t.isEmpty { title = t }
@@ -87,6 +101,27 @@ final class ShareModel: ObservableObject {
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
         return showEveryone ? sorted : Array(sorted.filter(\.isInner).prefix(8))
+    }
+
+    /// Copies each shared photo's file into the inbox (streamed to disk, so a big set stays light), then leaves a
+    /// note for Held Dear to keep the ones from this person's days.
+    func savePhotos(for person: SharedPerson) async {
+        copying = true
+        var files: [String] = []
+        for provider in photoProviders {
+            let name: String? = await withCheckedContinuation { cont in
+                _ = provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier) { url, _ in
+                    guard let url else { cont.resume(returning: nil); return }
+                    let name = UUID().uuidString + "." + (url.pathExtension.isEmpty ? "jpg" : url.pathExtension)
+                    let ok = (try? FileManager.default.copyItem(at: url, to: AppGroup.inboxDir.appendingPathComponent(name))) != nil
+                    cont.resume(returning: ok ? name : nil)
+                }
+            }
+            if let name { files.append(name) }
+        }
+        let set = InboxPhotos(id: UUID(), personID: person.id, files: files)
+        AppGroup.write(set, to: AppGroup.inboxDir.appendingPathComponent("photos-\(set.id.uuidString).json"))
+        copying = false
     }
 
     func save(for person: SharedPerson) {
@@ -149,7 +184,11 @@ struct ShareView: View {
                     }
                 }
             }
-            Text("Who is this for?").textStyle(.headline)
+            Text(model.copying ? "Adding photos…" : model.isPhotoSet ? "Whose photos are these?" : "Who is this for?").textStyle(.headline)
+            if model.isPhotoSet {
+                Text("They go with that person's photos. Held Dear keeps the ones from their days, plus 30 more.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
             if model.people.isEmpty {
                 Text("Open Held Dear once to add your people, then share again.").textStyle(.body, color: Brand.inkMuted)
             } else {
@@ -157,9 +196,14 @@ struct ShareView: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 14) {
                         ForEach(model.shownPeople) { p in
                             Button {
-                                model.save(for: p)
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                onDone()
+                                if model.isPhotoSet {
+                                    guard !model.copying else { return }
+                                    Task { await model.savePhotos(for: p); onDone() }
+                                } else {
+                                    model.save(for: p)
+                                    onDone()
+                                }
                             } label: {
                                 VStack(spacing: 6) {
                                     Face(name: p.name, initials: initials(p.name), image: nil, size: 56)

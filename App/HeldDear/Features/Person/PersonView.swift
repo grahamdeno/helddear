@@ -666,7 +666,7 @@ struct PersonView: View {
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Choose photos of \(DisplayName.plain(person.name))").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
-                    Text("Search their name, then drag a finger across the photos to pick many at once. Pick as many as you like: photos from their days are kept, plus 30 more.")
+                    Text("Pick as many as you like: photos from their days are kept, plus 30 more. For a whole album, use Share in the Photos app and choose Held Dear.")
                         .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -777,28 +777,38 @@ struct PersonView: View {
     private func addPhotos(_ items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
         let days = person.occasions.map { (month: $0.month, day: $0.day) }
+        let name = DisplayName.plain(person.name)
+        photoItems = []
         Task {
-            photoNote = items.count > 10 ? "Adding \(items.count) photos…" : nil
-            // One at a time, so a big album doesn't fill memory. Photos near their days are always kept, plus 30 more
-            // (ChosenPhotos.keep, Nov 22, 2026).
-            var added: [String] = [], fromDays = 0, extra = 0, skipped = 0
-            for item in items {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
-                let taken = PhotoStore.takenDate(data)
-                let near = taken.map { ChosenPhotos.nearDay($0, days: days, within: 3) } ?? false
-                if !near && extra >= 30 { skipped += 1; continue }
-                if let file = PhotoStore.save(data: data) {
-                    added.append(file)
-                    if near { fromDays += 1 } else { extra += 1 }
+            // Saved as it goes, four at a time, with a count on the page, so a big set never ends with nothing
+            // (build 1039 bug, Nov 22, 2026). Photos near their days are always kept, plus 30 more.
+            var fromDays = 0, extra = 0, skipped = 0, done = 0
+            let total = items.count
+            for start in stride(from: 0, to: total, by: 4) {
+                let batch = Array(items[start..<min(start + 4, total)])
+                let datas = await withTaskGroup(of: (Int, Data?).self) { group in
+                    for (i, item) in batch.enumerated() { group.addTask { (i, try? await item.loadTransferable(type: Data.self)) } }
+                    var out = [Data?](repeating: nil, count: batch.count)
+                    for await (i, d) in group { out[i] = d }
+                    return out
                 }
+                var added: [String] = []
+                for data in datas {
+                    done += 1
+                    guard let data else { skipped += 1; continue }
+                    let near = PhotoStore.takenDate(data).map { ChosenPhotos.nearDay($0, days: days, within: 3) } ?? false
+                    if !near && extra >= 30 { skipped += 1; continue }
+                    let file: String? = autoreleasepool { PhotoStore.save(data: data) }
+                    if let file { added.append(file); if near { fromDays += 1 } else { extra += 1 } } else { skipped += 1 }
+                }
+                if !added.isEmpty {
+                    person.photoFiles.insert(contentsOf: added.reversed(), at: 0)
+                    model.save()
+                }
+                if total > 4 { photoNote = "Adding \(done) of \(total)…" }
             }
-            if !added.isEmpty {
-                person.photoFiles.insert(contentsOf: added.reversed(), at: 0)
-                model.save()
-            }
-            photoItems = []
-            photoNote = skipped == 0 ? nil
-                : "Kept \(fromDays) from \(DisplayName.plain(person.name))'s days and \(extra) more. \(skipped) others stayed in Photos."
+            photoNote = skipped == 0 ? (total > 4 ? "Added \(fromDays + extra) photos." : nil)
+                : "Kept \(fromDays) from \(name)'s days and \(extra) more. \(skipped) stayed in Photos."
         }
     }
 }

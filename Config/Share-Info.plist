@@ -22,7 +22,7 @@
 				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
 				<integer>1</integer>
 				<key>NSExtensionActivationSupportsImageWithMaxCount</key>
-				<integer>1</integer>
+				<integer>500</integer>
 				<key>NSExtensionActivationSupportsText</key>
 				<true/>
 			</dict>
