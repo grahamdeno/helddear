@@ -399,15 +399,16 @@ private struct PartScreen: View {
             TextLink(title: "Remove from plan") { confirmRemove = true }
                 .padding(.leading, -8)
                 .padding(.top, Brand.space2)
-        }
-        .confirmationDialog("Remove \(name.isEmpty ? autoName : name) from the plan?", isPresented: $confirmRemove,
-                            titleVisibility: .visible) {
-            Button("Remove", role: .destructive) {
-                removed = true
-                back()
-                // After the page has gone, so nothing on screen reads the removed item.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { model.removePart(act) }
-            }
+                // Anchored to the link, so the confirmation opens beside it, not at the top of the page.
+                .confirmationDialog("Remove \(name.isEmpty ? autoName : name) from the plan?", isPresented: $confirmRemove,
+                                    titleVisibility: .visible) {
+                    Button("Remove", role: .destructive) {
+                        removed = true
+                        back()
+                        // After the page has gone, so nothing on screen reads the removed item.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { model.removePart(act) }
+                    }
+                }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .confirmationDialog("Remove \(placeToForget?.name ?? "this place") from your places?",
