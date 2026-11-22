@@ -290,6 +290,9 @@ final class ActObject: StoredRecord {
     var ownerIDs: [UUID] { get { readList("ownerIDs") } set { writeList("ownerIDs", newValue) } }
     var note: String? { get { readOptional("note") } set { write("note", newValue) } }
     var sortOrder: Int { get { read("sortOrder", 0) } set { write("sortOrder", newValue) } }
+    /// The order number and tracking link for something ordered (model 3.2, Graham approved Nov 22, 2026).
+    var orderNumber: String? { get { readOptional("orderNumber") } set { write("orderNumber", newValue) } }
+    var trackingURL: String? { get { readOptional("trackingURL") } set { write("trackingURL", newValue) } }
 
     convenience init(role: ActRole, kind: ActKind, title: String? = nil, wishID: UUID? = nil) {
         self.init(newOf: "Act")
@@ -387,9 +390,13 @@ enum CoreStore {
     static let missingID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     /// One model for every container, so records made before they're inserted belong to it.
-    static let model: NSManagedObjectModel = makeModel(version: 31)
-    /// The first version 3 model (build 1030), kept only to move a store from it to 3.1.
+    static let model: NSManagedObjectModel = makeModel(version: 32)
+    /// Older models, kept only to move a store from them to the current one: 3.1 (builds 1031 to 1047) and 3.0
+    /// (build 1030).
+    static let modelV31: NSManagedObjectModel = makeModel(version: 31)
     static let modelV30: NSManagedObjectModel = makeModel(version: 30)
+    /// Every older model, newest first, with its name for the backup copy.
+    static let olderModels: [(name: String, model: NSManagedObjectModel)] = [("3.1", modelV31), ("3.0", modelV30)]
 
     private static func attr(_ name: String, _ type: NSAttributeType, default value: Any? = nil) -> NSAttributeDescription {
         let a = NSAttributeDescription()
@@ -425,9 +432,11 @@ enum CoreStore {
     /// Free text a person typed is encrypted in iCloud (Fable C8): only the user's own devices can read it.
     static let encryptedFields: Set<String> = ["fullName", "manualPhone", "sizes", "goodToKnow", "relationship",
                                                "mailingAddress", "loves", "partnerName", "fromNote", "note", "line",
-                                               "text", "url", "title", "label", "what", "personName", "name"]
+                                               "text", "url", "title", "label", "what", "personName", "name",
+                                               "orderNumber", "trackingURL"]
 
     /// 30: build 1030. 31 (item 3.1): adds Photo (each photo's bytes, for iCloud) and encrypts free text in iCloud.
+    /// 32 (Nov 22, 2026): adds Act.orderNumber and Act.trackingURL, both optional.
     private static func makeModel(version: Int) -> NSManagedObjectModel {
         let s = NSAttributeType.stringAttributeType, d = NSAttributeType.dateAttributeType
         let u = NSAttributeType.UUIDAttributeType, i = NSAttributeType.integer64AttributeType
@@ -456,7 +465,8 @@ enum CoreStore {
             attr("title", s), attr("wishID", u), attr("fromNote", s), attr("dinnerDate", d), attr("arrivesBy", d),
             attr("photoFile", s), attr("cardFile", s), attr("completedAt", d), attr("confirmedRaw", s),
             attr("createdAt", d, default: Date(timeIntervalSince1970: 0)), attr("label", s), attr("step", s),
-            attr("ownerIDs", s, default: "[]"), attr("note", s), attr("sortOrder", i, default: 0)])
+            attr("ownerIDs", s, default: "[]"), attr("note", s), attr("sortOrder", i, default: 0)]
+            + (version >= 32 ? [attr("orderNumber", s), attr("trackingURL", s)] : []))
         let ledger = entity("LedgerEntry", LedgerEntryObject.self, [
             attr("id", u), attr("year", i, default: 2026), attr("occasionTypeRaw", s, default: OccasionType.birthday.rawValue),
             attr("what", s, default: ""), attr("photoFile", s), attr("cardFile", s), attr("line", s), attr("momentID", u),

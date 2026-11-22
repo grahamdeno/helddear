@@ -326,6 +326,9 @@ private struct PartScreen: View {
     @State private var editingPlaces = false
     @State private var removed = false
     @State private var showDetails = false
+    // The order (Nov 22, 2026): which row is being edited, and its text.
+    @State private var editingOrder: OrderField?
+    @State private var orderText = ""
     @FocusState private var noteFocused: Bool
     @FocusState private var nameFocused: Bool
 
@@ -387,14 +390,27 @@ private struct PartScreen: View {
             // Saved ideas come first on a gift, all of them, so they're there when you need them (feedback on
             // build 1021).
             shelfList
-            card("Where it stands") { standsList }
-            // A cake, flowers, dinner or party is from you; it says where it comes from instead (story 2.12).
-            if Places.hasWhereFrom(act.kind) {
-                card("Where from") { whereFromList }
+            if Orders.applies(family) {
+                // Something ordered or bought: one line of steps, then the order itself, every row editable
+                // (Graham, Nov 22, 2026). The link shows once, as where it's from.
+                card("Where it stands") { stepLine }
+                if Places.hasWhereFrom(act.kind) && chosenPlace == nil && itemLink == nil {
+                    card("Where from") { whereFromList }
+                } else if !Places.hasWhereFrom(act.kind) {
+                    card("Who it's from", trailing: "Pick any") { ownersList }
+                }
+                card(Orders.isPlaced(current) ? "The order" : "Where to get it") { orderRows }
+                card("Note") { noteField }
             } else {
-                card("Who it's from", trailing: "Pick any") { ownersList }
+                card("Where it stands") { standsList }
+                // A cake, flowers, dinner or party is from you; it says where it comes from instead (story 2.12).
+                if Places.hasWhereFrom(act.kind) {
+                    card("Where from") { whereFromList }
+                } else {
+                    card("Who it's from", trailing: "Pick any") { ownersList }
+                }
+                card("Link and note") { linkAndNote }
             }
-            card("Link and note") { linkAndNote }
             findsList
             TextLink(title: "Remove from plan") { confirmRemove = true }
                 .padding(.leading, -8)
@@ -410,6 +426,7 @@ private struct PartScreen: View {
             }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .sheet(item: $editingOrder) { field in orderEditor(field).presentationDetents([.medium]) }
         .confirmationDialog("Remove \(placeToForget?.name ?? "this place") from your places?",
                             isPresented: Binding(get: { placeToForget != nil }, set: { if !$0 { placeToForget = nil } }),
                             titleVisibility: .visible) {
@@ -480,7 +497,8 @@ private struct PartScreen: View {
 
     private func pick(_ step: String) {
         guard model.setStep(act, step) else { showLifetime = true; return }
-        if PartSteps.datedSteps.contains(step) && act.arrivesBy == nil {
+        // An order's date row is when it arrives, not when it was ordered, so it isn't filled in here (Nov 22, 2026).
+        if !Orders.applies(family) && PartSteps.datedSteps.contains(step) && act.arrivesBy == nil {
             act.arrivesBy = Calendar.current.startOfDay(for: Date())
             model.commit()
         }
@@ -666,6 +684,196 @@ private struct PartScreen: View {
                 .frame(minHeight: 48, alignment: .leading)
                 .overlay(alignment: .top) { Rectangle().fill(Brand.raisedLine).frame(height: 1) }
                 .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
+        }
+    }
+
+    // MARK: The order (Nov 22, 2026)
+
+    /// The item's link: what it is, where it was found, or where it was ordered.
+    private var itemLink: URL? {
+        act.wishID.flatMap { id in person?.wishes.first { $0.id == id } }?.url.flatMap(URL.init(string:))
+    }
+
+    /// The kind's steps as dots on a line, the current one and those before it filled; tap one to set it. One button
+    /// moves to the next step. Other statuses stay one tap away.
+    private var stepLine: some View {
+        let line = PartSteps.steps(for: family)
+        let at = line.firstIndex(of: current)
+        return VStack(alignment: .leading, spacing: Brand.space3) {
+            HStack(spacing: 0) {
+                ForEach(Array(line.enumerated()), id: \.element) { i, step in
+                    let reached = at.map { i <= $0 } ?? false
+                    Button { pick(step) } label: {
+                        VStack(spacing: 6) {
+                            Circle().fill(reached ? Brand.action : Color.clear)
+                                .overlay { Circle().strokeBorder(reached ? Brand.action : Brand.inkMuted, lineWidth: 1.5) }
+                                .frame(width: 14, height: 14)
+                            Text(PartSteps.word(for: step)).textStyle(.caption, color: step == current ? Brand.ink : Brand.inkMuted)
+                                .multilineTextAlignment(.center).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(PartSteps.word(for: step))
+                    .accessibilityAddTraits(step == current ? [.isButton, .isSelected] : .isButton)
+                }
+            }
+            .background(alignment: .top) {
+                Rectangle().fill(Brand.raisedLine).frame(height: 1.5).padding(.horizontal, 30).padding(.top, 6)
+            }
+            if let next = Orders.next(after: current, family: family) {
+                Button { pick(next) } label: {
+                    Text(Orders.buttonTitle(for: next)).font(.body.weight(.semibold)).foregroundStyle(Brand.onAction)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(Brand.action, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+                }
+                .buttonStyle(PressStyle())
+            }
+            if !line.contains(current) {
+                Text("Now: \(PartSteps.word(for: current))").textStyle(.caption, color: Brand.inkMuted)
+            }
+            if showMore {
+                FlowLayout(spacing: 8) { ForEach(PartSteps.moreSteps(for: family), id: \.self) { stepChip($0) } }
+            }
+            TextLink(title: showMore ? "Fewer statuses" : "Other statuses") { showMore.toggle() }
+                .padding(.leading, -8)
+        }
+    }
+
+    /// Where it's from, the order number, when it arrives and tracking. Tap a row to change it; swipe to clear it.
+    private var orderRows: some View {
+        let link = itemLink
+        let placed = Orders.isPlaced(current)
+        return VStack(alignment: .leading, spacing: 0) {
+            orderRow(Orders.fromLabel(step: current),
+                     value: chosenPlace?.name ?? link.map(Orders.shortLink),
+                     open: link ?? chosenPlace?.link.flatMap(URL.init(string:)), field: .link) {
+                model.clearLink(from: act)
+                if chosenPlace != nil { PlaceStore.shared.choose(nil, for: act.id); chosenPlace = nil; model.revision += 1 }
+            }
+            if placed {
+                orderRow("Order no.", value: act.orderNumber, open: nil, field: .number) {
+                    act.orderNumber = nil; model.commit()
+                }
+            }
+            arrivesRow
+            if placed {
+                orderRow("Tracking", value: act.trackingURL.flatMap(URL.init(string:)).map(Orders.shortLink),
+                         open: act.trackingURL.flatMap(URL.init(string:)), field: .tracking) {
+                    act.trackingURL = nil; model.commit()
+                }
+            }
+            Text("Tap a row to change it. Swipe to clear it.").textStyle(.caption, color: Brand.inkMuted)
+                .padding(.top, Brand.space2)
+        }
+    }
+
+    private func orderRow(_ label: String, value: String?, open: URL?, field: OrderField, clear: @escaping () -> Void) -> some View {
+        HStack(spacing: Brand.space3) {
+            Button { startEditing(field) } label: {
+                HStack {
+                    Text(label).textStyle(.body)
+                    Spacer(minLength: Brand.space2)
+                    Text(value ?? "Add").textStyle(.body, color: value == nil ? Brand.action : Brand.inkSoft).lineLimit(1)
+                }
+                .frame(minHeight: 48)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(value == nil ? "Adds it" : "Changes it")
+            if let open {
+                Link(destination: open) { Text("Open ›").textStyle(.caption, color: Brand.action).frame(minHeight: 44) }
+                    .accessibilityLabel("Open \(Orders.shortLink(open))")
+            }
+        }
+        .overlay(alignment: .bottom) { Rectangle().fill(Brand.raisedLine).frame(height: 1) }
+        .swipeToRemove("Clear") { if value != nil { clear() } }
+        .accessibilityAction(named: "Clear \(label)") { clear() }
+    }
+
+    private var arrivesRow: some View {
+        let label = Orders.arrivesLabel(step: current)
+        return HStack {
+            if act.arrivesBy != nil {
+                DatePicker(label, selection: Binding(get: { act.arrivesBy ?? Date() },
+                                                     set: { act.arrivesBy = Calendar.current.startOfDay(for: $0); model.commit() }),
+                           displayedComponents: .date)
+                    .textStyle(.body).tint(Brand.action)
+            } else {
+                Button {
+                    act.arrivesBy = Calendar.current.startOfDay(for: act.moment.map { OccasionDates.adding(days: -2, to: $0.dueDate) } ?? Date())
+                    model.commit()
+                } label: {
+                    HStack { Text(label).textStyle(.body); Spacer(); Text("Add").textStyle(.body, color: Brand.action) }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(minHeight: 48)
+        .overlay(alignment: .bottom) { Rectangle().fill(Brand.raisedLine).frame(height: 1) }
+        .swipeToRemove("Clear") { act.arrivesBy = nil; model.commit() }
+        .accessibilityAction(named: "Clear \(label)") { act.arrivesBy = nil; model.commit() }
+    }
+
+    private var noteField: some View {
+        TextField("Anything to remember, like flavor or size", text: $note, axis: .vertical)
+            .lineLimit(1...4)
+            .font(Brand.serif(17, relativeTo: .body, italic: true))
+            .foregroundStyle(Brand.ink)
+            .focused($noteFocused)
+            .frame(minHeight: 44, alignment: .leading)
+            .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
+    }
+
+    private func startEditing(_ field: OrderField) {
+        switch field {
+        case .link: orderText = itemLink?.absoluteString ?? chosenPlace?.link ?? ""
+        case .number: orderText = act.orderNumber ?? ""
+        case .tracking: orderText = act.trackingURL ?? ""
+        }
+        editingOrder = field
+    }
+
+    private func orderEditor(_ field: OrderField) -> some View {
+        let isLink = field != .number
+        let valid = !isLink || orderText.trimmingCharacters(in: .whitespaces).isEmpty || Orders.link(from: orderText) != nil
+        return FlowScreen(onClose: { editingOrder = nil }) {
+            Question(title: field.title(fromLabel: Orders.fromLabel(step: current)), subtitle: field.subtitle, style: .title)
+            TextField(field.placeholder, text: $orderText)
+                .textStyle(.body)
+                .keyboardType(isLink ? .URL : .asciiCapable)
+                .textInputAutocapitalization(isLink ? .never : .characters)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .padding(.horizontal, Brand.space4)
+                .frame(minHeight: 52)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            if isLink {
+                TextLink(title: "Paste a copied link") {
+                    if UIPasteboard.general.hasURLs, let url = UIPasteboard.general.url { orderText = url.absoluteString }
+                }
+                .padding(.leading, -8)
+            }
+            if !valid { Text("That doesn't look like a web address.").textStyle(.callout, color: Brand.error) }
+        } footer: {
+            PrimaryButton(title: "Save") { saveOrderField(field); editingOrder = nil }
+                .disabled(!valid)
+        }
+    }
+
+    private func saveOrderField(_ field: OrderField) {
+        let t = orderText.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch field {
+        case .link:
+            if let url = Orders.link(from: t) { model.attachLink(url, to: act) } else if t.isEmpty { model.clearLink(from: act) }
+        case .number:
+            act.orderNumber = t.isEmpty ? nil : t
+            model.commit()
+        case .tracking:
+            act.trackingURL = Orders.link(from: t)?.absoluteString
+            model.commit()
         }
     }
 
@@ -997,6 +1205,35 @@ private struct CardChoice: View {
                              model.save()
                          })
                 .environmentObject(model)
+        }
+    }
+}
+
+/// A row of the order being changed (Nov 22, 2026).
+enum OrderField: String, Identifiable {
+    case link, number, tracking
+    var id: String { rawValue }
+
+    func title(fromLabel: String) -> String {
+        switch self {
+        case .link: fromLabel
+        case .number: "Order number"
+        case .tracking: "Tracking link"
+        }
+    }
+
+    var subtitle: String? {
+        switch self {
+        case .link: "The page where it's sold. Leave it empty to remove it."
+        case .number: "From the order confirmation."
+        case .tracking: "From the shipping email. Leave it empty to remove it."
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .link, .tracking: "Link"
+        case .number: "Order number"
         }
     }
 }

@@ -60,8 +60,63 @@ final class ICloudSyncTests: XCTestCase {
         XCTAssertEqual(people.map(\.name), ["Ada"])
         XCTAssertEqual(people.first?.goodToKnow, "Calls on Sundays")
         XCTAssertEqual(people.first?.birthday?.month, 5)
-        let backups = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("HeldDear-before-3.1-") && $0.hasSuffix(".sqlite") }
+        let backups = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("HeldDear-before-3.2-") && $0.hasSuffix(".sqlite") }
         XCTAssertEqual(backups.count, 1, "A copy of the 3.0 store is kept")
+    }
+
+    // Model 3.2 (Nov 22, 2026): two optional Act fields; every 3.1 field is kept with the same type.
+    func testModel32AddsOrderFieldsAndKeeps31() {
+        let act = CoreStore.model.entitiesByName["Act"]
+        XCTAssertNotNil(act?.attributesByName["orderNumber"])
+        XCTAssertTrue(act?.attributesByName["trackingURL"]?.allowsCloudEncryption == true)
+        XCTAssertNil(CoreStore.modelV31.entitiesByName["Act"]?.attributesByName["orderNumber"], "3.1 stays as shipped")
+        for e in CoreStore.modelV31.entities {
+            for (name, a) in e.attributesByName {
+                XCTAssertEqual(CoreStore.model.entitiesByName[e.name!]?.attributesByName[name]?.attributeType, a.attributeType, "\(e.name!).\(name)")
+            }
+        }
+    }
+
+    func testA31StoreMovesTo32AndKeepsEverything() throws {
+        let url = dir.appendingPathComponent("HeldDear.sqlite")
+        let actID = UUID()
+        do {
+            let old = NSPersistentContainer(name: "HeldDear", managedObjectModel: CoreStore.modelV31)
+            let d = NSPersistentStoreDescription(url: url)
+            d.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            old.persistentStoreDescriptions = [d]
+            var failure: Error?
+            old.loadPersistentStores { _, e in failure = e }
+            XCTAssertNil(failure)
+            let ctx = old.viewContext
+            let p = NSEntityDescription.insertNewObject(forEntityName: "Person", into: ctx)
+            p.setValue(UUID(), forKey: "id")
+            p.setValue("Ada", forKey: "name")
+            let a = NSEntityDescription.insertNewObject(forEntityName: "Act", into: ctx)
+            a.setValue(actID, forKey: "id")
+            a.setValue("Chocolate, with candles", forKey: "note")
+            let photo = NSEntityDescription.insertNewObject(forEntityName: "Photo", into: ctx)
+            photo.setValue(UUID(), forKey: "id")
+            photo.setValue("p.jpg", forKey: "name")
+            photo.setValue(Data([1, 2, 3]), forKey: "data")
+            try ctx.save()
+            for store in old.persistentStoreCoordinator.persistentStores { try old.persistentStoreCoordinator.remove(store) }
+        }
+
+        let opened = Store.open(url: url, copyFromLegacy: false)
+        XCTAssertEqual(opened.outcome, .opened)
+        let ctx = HeldDear.ModelContext(opened.container)
+        XCTAssertEqual(try ctx.fetch(HeldDear.FetchDescriptor<Person>()).map(\.name), ["Ada"])
+        let act = try ctx.fetch(HeldDear.FetchDescriptor<Act>()).first
+        XCTAssertEqual(act?.id, actID)
+        XCTAssertEqual(act?.note, "Chocolate, with candles")
+        XCTAssertNil(act?.orderNumber)
+        act?.orderNumber = "BMW-48213"
+        XCTAssertEqual(act?.orderNumber, "BMW-48213")
+        let photos = try opened.container.persistent.viewContext.fetch(NSFetchRequest<NSManagedObject>(entityName: "Photo"))
+        XCTAssertEqual(photos.first?.value(forKey: "data") as? Data, Data([1, 2, 3]), "Photos come through")
+        let backups = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("HeldDear-before-3.2-") && $0.hasSuffix(".sqlite") }
+        XCTAssertEqual(backups.count, 1, "A copy of the 3.1 store is kept")
     }
 
     func testDuplicatePeopleFromTheSameContactFold() throws {
