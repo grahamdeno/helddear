@@ -91,7 +91,7 @@ enum BirthdayParser {
     }
 }
 
-/// Reads "Nora wants blue skates" against the names the user already has.
+/// Reads "Ada wants blue skates" against the names the user already has.
 enum WishParser {
     private static let connectors = ["would really like", "would like", "wants", "wanted", "mentioned", "likes",
                                      "needs", "loves", "asked for", "-", ":", "–"]

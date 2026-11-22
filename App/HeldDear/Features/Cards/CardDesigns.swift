@@ -33,6 +33,10 @@ struct CardContent {
     var age: Int?
     var date: Date
     var occasion: OccasionType = .birthday
+    /// A card for a reason, not a day, opens with its own words ("Feel better soon,").
+    var opening: String? = nil
+
+    var openingLine: String { opening ?? occasion.cardOpening }
 
     /// "Turning 70", "40 years", or nil.
     var countText: String? {
@@ -91,7 +95,7 @@ struct CardView: View {
                 Text(words).font(cardFont(nameSize * 0.7)).foregroundStyle(nameColor)
                     .multilineTextAlignment(.center).minimumScaleFactor(0.5).lineLimit(3)
             } else {
-                Text(content.occasion.cardOpening).font(cardFont(28)).foregroundStyle(color)
+                Text(content.openingLine).font(cardFont(28)).foregroundStyle(color)
                 Text(content.name).font(cardFont(nameSize)).foregroundStyle(nameColor)
                     .minimumScaleFactor(0.4).lineLimit(1)
             }
@@ -105,7 +109,7 @@ struct CardView: View {
     private func photoOrFill(_ fill: Color, initialsColor: Color = CardPalette.ink) -> some View {
         ZStack {
             if let photo = content.photo {
-                Image(uiImage: photo).resizable().scaledToFill()
+                FaceFillImage(image: photo)
             } else {
                 fill
                 Text(content.initials).font(cardFont(120)).foregroundStyle(initialsColor)
@@ -223,7 +227,7 @@ struct CardView: View {
                     if let words = content.words, !words.isEmpty {
                         Text(words)
                     } else {
-                        Text("\(content.occasion.cardOpening) \(content.name)")
+                        Text("\(content.openingLine) \(content.name)")
                     }
                 }
                 .font(cardFont(30)).foregroundStyle(CardPalette.ink)
@@ -263,7 +267,7 @@ struct CardView: View {
                     if let words = content.words, !words.isEmpty {
                         Text(words)
                     } else {
-                        Text("\(content.occasion.cardOpening) \(content.name)")
+                        Text("\(content.openingLine) \(content.name)")
                     }
                 }
                 .font(cardFont(32)).foregroundStyle(CardPalette.ink)

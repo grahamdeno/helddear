@@ -13,7 +13,7 @@ struct RingsView: View {
         let rows = model.allPeople().map { p in (person: p, next: model.nextPersonalMoment(for: p)) }
         let early = rows.filter { $0.person.ring == .inner }.count
         let holidays = model.upcomingHolidays()
-        let items: [Item] = (rows.map { Item.person($0.person, $0.next) } + holidays.map { Item.holiday($0.type, $0.year, $0.date, $0.people) })
+        let items: [Item] = (rows.map { Item.person($0.person, $0.next) } + holidays.map { Item.holiday($0.ref, $0.year, $0.date, $0.people) })
             .sorted { $0.sortDate < $1.sortDate }
 
         ScrollView {
@@ -26,7 +26,7 @@ struct RingsView: View {
                 ForEach(items) { item in
                     switch item {
                     case .person(let p, let next): personRow(p, next: next)
-                    case .holiday(let type, let year, let date, let people): holidayRow(type, year: year, date: date, people: people)
+                    case .holiday(let ref, let year, let date, let people): holidayRow(ref, year: year, date: date, people: people)
                     }
                 }
                 SecondaryButton(title: "Add from Contacts") { addingFromContacts = true }
@@ -49,12 +49,12 @@ struct RingsView: View {
 
     private enum Item: Identifiable {
         case person(Person, Moment?)
-        case holiday(OccasionType, Int, Date, Int)
+        case holiday(HolidayRef, Int, Date, Int)
 
         var id: String {
             switch self {
             case .person(let p, _): "p-\(p.id)"
-            case .holiday(let t, let y, _, _): "h-\(t.rawValue)-\(y)"
+            case .holiday(let r, let y, _, _): "h-\(r.raw)-\(y)"
             }
         }
 
@@ -66,14 +66,14 @@ struct RingsView: View {
         }
     }
 
-    private func holidayRow(_ type: OccasionType, year: Int, date: Date, people: Int) -> some View {
-        Button { model.push(.holiday(type.rawValue, year)) } label: {
+    private func holidayRow(_ ref: HolidayRef, year: Int, date: Date, people: Int) -> some View {
+        Button { model.push(.holiday(ref.raw, year)) } label: {
             HStack(spacing: Brand.space4) {
                 Text(String(Calendar.current.component(.day, from: date)))
                     .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
                     .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(type.label).textStyle(.bodyStrong).lineLimit(1)
+                    Text(ref.label).textStyle(.bodyStrong).lineLimit(1)
                     Text("\(date.formatted(.dateTime.month(.abbreviated).day())) · \(people) \(people == 1 ? "person" : "people")")
                         .textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
                 }
@@ -86,8 +86,8 @@ struct RingsView: View {
         }
         .buttonStyle(.plain)
         .padding(.vertical, Brand.space2)
-        .accessibilityLabel("\(type.label), \(OccasionDates.longDate(date)), \(people) people")
-        .accessibilityHint("Opens \(type.label)")
+        .accessibilityLabel("\(ref.label), \(OccasionDates.longDate(date)), \(people) people")
+        .accessibilityHint("Opens \(ref.label)")
     }
 
     private func summary(total: Int, early: Int) -> String {

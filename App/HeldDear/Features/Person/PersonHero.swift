@@ -7,33 +7,37 @@ import SwiftUI
 /// Lifetime shows every year (the same rule as before).
 struct PersonHero: View {
     @EnvironmentObject var model: AppModel
-    @ObservedObject private var photos = PhotoMemories.shared
     @ObservedObject private var purchases = Purchases.shared
     let person: Person
     let line: String
     let tag: String?
 
     @State private var page = 0
-    @State private var years: [PhotoMemories.Year] = []
-    @State private var opened: PickedPhoto?
 
     static let height: CGFloat = 460
 
     private struct Page: Identifiable {
         let id: Int
         let year: Int?
-        let asset: PHAsset?
+        let file: String?
         let caption: String
     }
 
+    /// Past birthdays from the photos chosen for this person (Nov 21, 2026), newest first.
+    private var years: [ChosenPhotos.Year] {
+        guard let b = person.birthday else { return [] }
+        return ChosenPhotos.birthdayYears(files: person.photoFiles, month: b.month, day: b.day)
+    }
+
     private var pages: [Page] {
-        var result = [Page(id: 0, year: nil, asset: nil, caption: line)]
+        var result = [Page(id: 0, year: nil, file: nil, caption: line)]
         let past = purchases.hasLifetime ? years : Array(years.prefix(1))
         for y in past {
-            let entry = person.sortedLedger.first { $0.year == y.year }
+            let entry = person.sortedLedger.first { $0.year == y.year && $0.occasionTypeRaw == OccasionType.birthday.rawValue }
+                ?? person.sortedLedger.first { $0.year == y.year }
             let words = entry.map { ($0.line?.isEmpty == false ? $0.line! : $0.what) }
             let caption = words.map { "\(y.year) · \($0)" } ?? String(y.year)
-            result.append(Page(id: y.year, year: y.year, asset: y.assets.first, caption: caption))
+            result.append(Page(id: y.year, year: y.year, file: y.files.first, caption: caption))
         }
         return result
     }
@@ -46,7 +50,6 @@ struct PersonHero: View {
                 ForEach(Array(pages.enumerated()), id: \.element.id) { i, p in
                     photo(p).tag(i)
                         .contentShape(Rectangle())
-                        .onTapGesture { if let a = p.asset { opened = PickedPhoto(asset: a, caption: p.caption) } }
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -108,21 +111,20 @@ struct PersonHero: View {
                     .accessibilityHidden(true)
             }
         }
-        .onAppear(perform: load)
-        .fullScreenCover(item: $opened) { p in
-            PhotoViewer(asset: p.asset, person: person, caption: p.caption) { page = 0; load() }
-                .environmentObject(model)
-        }
     }
 
     @ViewBuilder private func photo(_ p: Page) -> some View {
-        if let asset = p.asset {
-            HeroAsset(asset: asset)
+        if let file = p.file, let image = PhotoStore.load(file) {
+            Image(uiImage: image).resizable().scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: Self.height)
+                .clipped()
         } else {
             let image = PhotoStore.load(person.photoFiles.last) ?? ContactsService.shared.photo(contactID: person.contactID)
             ZStack {
                 if let image {
-                    Image(uiImage: image).resizable().scaledToFill()
+                    // Placed on the face, high enough that the name over the fade falls below the chin.
+                    FaceFillImage(image: image, faceY: 0.32)
                 } else {
                     Brand.faceFill(for: person.name)
                     Text(person.initials).font(Brand.display(140)).foregroundStyle(Brand.ink.opacity(0.35))
@@ -135,27 +137,4 @@ struct PersonHero: View {
         }
     }
 
-    private func load() {
-        guard photos.canRead, let b = person.birthday else { return }
-        let thisYear = Calendar.current.component(.year, from: Date())
-        years = HiddenPhotos.filter(photos.years(month: b.month, day: b.day)).filter { $0.year < thisYear }
-            .sorted { $0.year > $1.year }
-    }
-}
-
-/// One past year's photo, loaded at screen size.
-private struct HeroAsset: View {
-    let asset: PHAsset
-    @State private var image: UIImage?
-
-    var body: some View {
-        ZStack {
-            Brand.card
-            if let image { Image(uiImage: image).resizable().scaledToFill() }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: PersonHero.height)
-        .clipped()
-        .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.bestLocalImage(asset) }
-    }
 }

@@ -5,9 +5,9 @@ import UIKit
 
 /// "Add from contacts", any time after setup.
 /// Always Apple's contact picker, presented directly by UIKit (it needs no Contacts permission and returns the
-/// chosen person's details, birthday included). Presented after a short pause so a closing menu or sheet can't
-/// leave it blank (build 1006 bug, Nov 12). A person with a birthday is added straight away; one without opens
-/// Add a birthday with the name filled in.
+/// chosen people's details, birthdays included). Presented after a short pause so a closing menu or sheet can't
+/// leave it blank (build 1006 bug, Nov 12). Several can be picked at once (Nov 21): people with a birthday are
+/// added straight away; each one without gets Add a birthday with the name filled in, one after another.
 struct AddFromContactsModifier: ViewModifier {
     @EnvironmentObject var model: AppModel
     @Binding var isPresented: Bool
@@ -20,7 +20,7 @@ struct AddFromContactsModifier: ViewModifier {
                 isPresented = false
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 600_000_000)
-                    ContactPickerPresenter.shared.present { contact in picked(contact) }
+                    MultiContactPickerPresenter.shared.present { contacts in picked(contacts) }
                 }
             }
             .alert(result ?? "", isPresented: Binding(get: { result != nil }, set: { if !$0 { result = nil } })) {
@@ -28,27 +28,19 @@ struct AddFromContactsModifier: ViewModifier {
             }
     }
 
-    private func picked(_ contact: CNContact) {
-        let given = contact.isKeyAvailable(CNContactGivenNameKey) ? contact.givenName : ""
-        let family = contact.isKeyAvailable(CNContactFamilyNameKey) ? contact.familyName : ""
-        let nick = contact.isKeyAvailable(CNContactNicknameKey) ? contact.nickname : ""
-        let name = !nick.isEmpty ? nick : (!given.isEmpty ? given : family)
-        let full = [given, family].filter { !$0.isEmpty }.joined(separator: " ")
-
-        if model.allPeople().contains(where: { $0.contactID == contact.identifier }) {
-            result = "\(name.isEmpty ? "They're" : name + " is") already in Held Dear."
-            return
+    private func picked(_ contacts: [CNContact]) {
+        let outcome = ContactImport.sort(contacts.map(ContactImport.Pick.init), known: Set(model.allPeople().compactMap(\.contactID)))
+        for p in outcome.ready {
+            model.addPerson(name: p.name, fullName: p.fullName, contactID: p.id, month: p.month!, day: p.day!, year: p.year)
         }
-        if contact.isKeyAvailable(CNContactBirthdayKey), let b = contact.birthday, let month = b.month, let day = b.day,
-           month != NSDateComponentUndefined, day != NSDateComponentUndefined, !name.isEmpty {
-            let year = (b.year == nil || b.year == NSDateComponentUndefined) ? nil : b.year
-            model.addPerson(name: name, fullName: full.isEmpty ? nil : full, contactID: contact.identifier,
-                            month: month, day: day, year: year)
-            model.commit()
-            result = "\(name) added."
-            return
+        if !outcome.ready.isEmpty { model.commit() }
+        let needDates = outcome.needDate.map(\.name)
+        if let first = needDates.first {
+            model.contactsToDate = Array(needDates.dropFirst())
+            model.route = .addBirthday("\(first), ")
+        } else {
+            result = ContactImport.summary(outcome)
         }
-        model.route = .addBirthday(name.isEmpty ? "" : "\(name), ")
     }
 }
 

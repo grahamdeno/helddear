@@ -191,6 +191,11 @@ struct PersonDayCards: View {
     /// Adds a day for this person from right here (Graham, Nov 21, 2026).
     var addTitle: String = "Add a day"
     var onAdd: (() -> Void)? = nil
+    /// At the accessibility text sizes a card grows wider and its lines wrap instead of cutting off (Fable U2).
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var big: Bool { typeSize.isAccessibilitySize }
+    private var width: CGFloat { big ? 310 : Self.cardWidth }
+    private var lines: Int { big ? 3 : 1 }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -200,7 +205,7 @@ struct PersonDayCards: View {
                 if let onAdd { addCard(onAdd) }
                 // Room after the last card so it can settle at the left too (feedback on build 1015).
                 Color.clear
-                    .containerRelativeFrame(.horizontal) { width, _ in max(0, width - Self.cardWidth - Brand.space5 - Brand.space3 * 2) }
+                    .containerRelativeFrame(.horizontal) { width, _ in max(0, width - self.width - Brand.space5 - Brand.space3 * 2) }
                     .frame(height: 1)
                     .accessibilityHidden(true)
             }
@@ -236,12 +241,14 @@ struct PersonDayCards: View {
         return Button { selectedID = m.id } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(m.label.uppercased()).font(.caption.weight(.semibold)).tracking(1.2).foregroundStyle(fg.opacity(0.8))
-                    .lineLimit(1)
+                    .lineLimit(lines)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(c.big).font(Brand.display(52, relativeTo: .largeTitle)).foregroundStyle(fg)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                     Text(c.unit).textStyle(.callout, color: fg.opacity(0.85))
                 }
-                Text(date).textStyle(.caption, color: fg.opacity(0.85)).lineLimit(1)
+                Text(date).textStyle(.caption, color: fg.opacity(0.85)).lineLimit(lines)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 3) {
                     if progress.isEmpty {
                         Rectangle().fill(on ? Brand.inkMuted : Brand.line).frame(height: 5)
@@ -253,11 +260,12 @@ struct PersonDayCards: View {
                 }
                 .padding(.top, Brand.space3)
                 Text(parts.isEmpty ? "Nothing planned yet" : "\(ready) of \(parts.count) ready")
-                    .textStyle(.caption, color: fg.opacity(0.9)).lineLimit(1)
+                    .textStyle(.caption, color: fg.opacity(0.9)).lineLimit(lines)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Brand.space1)
             }
             .padding(Brand.space4)
-            .frame(width: Self.cardWidth, alignment: .leading)
+            .frame(width: width, alignment: .leading)
             .background(on ? Brand.ink : Brand.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Brand.ink : Brand.raisedLine, lineWidth: 1) }
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -273,7 +281,8 @@ struct PersonDayCards: View {
                 Image(systemName: "plus").font(.title2.weight(.light)).foregroundStyle(Brand.action)
                 Text(addTitle).textStyle(.callout, color: Brand.inkSoft).multilineTextAlignment(.center)
             }
-            .frame(width: 128)
+            .padding(Brand.space3)
+            .frame(width: big ? 170 : 128)
             .frame(maxHeight: .infinity)
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

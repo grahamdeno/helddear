@@ -7,12 +7,8 @@ import SwiftData
 // Version 2 of the stored model (Held Dear 1.0). Version 1 is frozen in SchemaV1.swift; HeldDearMigrationPlan
 // moves stores from 1 to 2 with one lightweight stage. Only added fields, each optional or with a default.
 
-typealias Person = SchemaV2.Person
-typealias Occasion = SchemaV2.Occasion
-typealias Moment = SchemaV2.Moment
-typealias Wish = SchemaV2.Wish
-typealias Act = SchemaV2.Act
-typealias LedgerEntry = SchemaV2.LedgerEntry
+// Since store version 3 (Core Data, CoreStore.swift) these classes are only read once, to copy a version 2 store
+// into the new one (CopyMigration.swift). The app's Person, Moment and the rest are the Core Data records.
 
 extension SchemaV2 {
     @Model
@@ -158,7 +154,7 @@ extension SchemaV2 {
         var countLine: String? { type.countLine(turning) }
         /// "Turns 68", "Birthday", "40th anniversary with Dad", "Christmas".
         var occasionLine: String {
-            var line = countLine ?? type.label
+            var line = countLine ?? type.title(partner: occasion?.partnerName)
             if type == .anniversary, let partner = occasion?.partnerName { line += " with \(partner)" }
             return line
         }

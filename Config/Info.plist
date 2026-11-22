@@ -32,10 +32,15 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.grahamdeno.helddear.refresh</string>
 	</array>
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
+	<key>HeldDearCloudKitEnvironment</key>
+	<string>Development</string>
 </dict>
 </plist>

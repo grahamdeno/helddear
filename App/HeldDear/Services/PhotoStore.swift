@@ -1,4 +1,5 @@
 import UIKit
+import ImageIO
 
 /// Photos the user saves to a person, kept as downscaled JPEGs inside the app. Nothing is uploaded.
 enum PhotoStore {
@@ -11,19 +12,38 @@ enum PhotoStore {
 
     static func url(_ file: String) -> URL { directory.appendingPathComponent(file) }
 
+    /// Item 3.1: set by iCloud sync. A saved photo also becomes a Photo record; a missing file is written back from one.
+    static var onSaved: ((String, Data) -> Void)?
+    static var onDeleted: ((String) -> Void)?
+    static var fetchMissing: ((String) -> Data?)?
+
     /// Saves a copy no larger than 1600 px on the long side; returns its file name.
     @discardableResult
-    static func save(_ image: UIImage, maxSide: CGFloat = 1600) -> String? {
+    static func save(_ image: UIImage, maxSide: CGFloat = 1600, taken: Date? = nil) -> String? {
         let scaled = downscale(image, maxSide: maxSide)
         guard let data = scaled.jpegData(compressionQuality: 0.85) else { return nil }
-        let name = UUID().uuidString + ".jpg"
+        let name = ChosenPhotos.fileName(taken: taken)
         do { try data.write(to: url(name), options: .atomic) } catch { return nil }
+        onSaved?(name, data)
         return name
     }
 
+    /// Keeps the day the photo was taken (from its own details) in the file name, for past birthdays.
     static func save(data: Data) -> String? {
         guard let image = UIImage(data: data) else { return nil }
-        return save(image)
+        return save(image, taken: takenDate(data))
+    }
+
+    static func takenDate(_ data: Data) -> Date? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return nil }
+        let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any]
+        let tiff = props[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+        guard let text = (exif?[kCGImagePropertyExifDateTimeOriginal] ?? tiff?[kCGImagePropertyTIFFDateTime]) as? String else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        return f.date(from: text)
     }
 
     /// Moves a photo from the share extension's inbox into the app.
@@ -36,11 +56,16 @@ enum PhotoStore {
 
     static func load(_ file: String?) -> UIImage? {
         guard let file else { return nil }
-        return UIImage(contentsOfFile: url(file).path)
+        if let image = UIImage(contentsOfFile: url(file).path) { return image }
+        // Made on another device: write it back from its iCloud record.
+        guard !file.contains("/"), let data = fetchMissing?(file), let image = UIImage(data: data) else { return nil }
+        try? data.write(to: url(file), options: .atomic)
+        return image
     }
 
     static func delete(_ file: String) {
         try? FileManager.default.removeItem(at: url(file))
+        onDeleted?(file)
     }
 
     static func downscale(_ image: UIImage, maxSide: CGFloat) -> UIImage {

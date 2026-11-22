@@ -214,7 +214,7 @@ struct PhotoTile: View {
     var body: some View {
         ZStack {
             if let image {
-                Image(uiImage: image).resizable().scaledToFill()
+                FaceFillImage(image: image)
             } else {
                 Brand.faceFills[0]
                 Text(label).textStyle(.caption, color: Brand.ink.opacity(0.8)).multilineTextAlignment(.center).padding(12)

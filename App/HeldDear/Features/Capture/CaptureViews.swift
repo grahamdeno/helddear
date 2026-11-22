@@ -13,6 +13,8 @@ struct AddBirthdayView: View {
     @State private var choices: [ContactInfo] = []
     @State private var pendingChange: (person: Person, parsed: ParsedBirthday)?
     @State private var whichOne: ParsedBirthday?
+    /// The typed name is someone already here who has no birthday yet: open them, or add another (Fable N1).
+    @State private var alreadyHere: (person: Person, parsed: ParsedBirthday)?
     /// A new person and the date typed for them, waiting on what the date is for.
     @State private var firstDate: (parsed: ParsedBirthday, contact: ContactInfo?)?
     /// The person just added, waiting on who they are to the user (one tap, or Skip for now).
@@ -21,7 +23,11 @@ struct AddBirthdayView: View {
     @State private var namingEvent = false
     @State private var eventName = ""
 
-    private var parsed: ParsedBirthday? { BirthdayParser.parse(text) }
+    private var parsed: ParsedBirthday? {
+        guard var p = BirthdayParser.parse(text) else { return nil }
+        p.name = NameCleanup.strip(p.name)
+        return p
+    }
 
     var body: some View {
         if let person = whoFor {
@@ -34,6 +40,8 @@ struct AddBirthdayView: View {
             whatFor(first.parsed, contact: first.contact)
         } else if let p = whichOne {
             whichView(p)
+        } else if let here = alreadyHere {
+            alreadyHereView(here.person, here.parsed)
         } else {
             entry
         }
@@ -78,17 +86,41 @@ struct AddBirthdayView: View {
 
     private func save() {
         guard let p = parsed else { showHint = true; return }
-        let lower = p.name.lowercased()
-        if let existing = model.allPeople().first(where: { $0.name.lowercased() == lower || $0.fullName.lowercased() == lower }),
-           let b = existing.birthday {
-            if b.month == p.month && b.day == p.day { close(); return }
-            pendingChange = (existing, p)
+        if let existing = model.allPeople().first(where: { NameCleanup.isSamePerson(p.name, name: $0.name, fullName: $0.fullName) }) {
+            if let b = existing.birthday, !text.lowercased().contains("anniversary") {
+                if b.month == p.month && b.day == p.day { close(); return }
+                pendingChange = (existing, p)
+            } else {
+                alreadyHere = (existing, p)
+            }
             return
         }
         switch choices.count {
         case 0: chooseFirstDate(p, contact: nil)
         case 1: chooseFirstDate(p, contact: choices[0])
         default: whichOne = p
+        }
+    }
+
+    private func alreadyHereView(_ person: Person, _ p: ParsedBirthday) -> some View {
+        let name = DisplayName.plain(person.name)
+        return FlowScreen(onClose: { alreadyHere = nil }) {
+            Question(title: "Already have \(name)", subtitle: "Open \(name)'s page to add this date there, or add another \(name).")
+            VStack(spacing: 0) {
+                OptionRow(title: "Open \(name)'s page", caption: nil) {
+                    let id = person.id
+                    close()
+                    model.push(.person(id, focus: nil))
+                }
+                OptionRow(title: "Add another \(name)", caption: nil) {
+                    alreadyHere = nil
+                    switch choices.count {
+                    case 0: chooseFirstDate(p, contact: nil)
+                    case 1: chooseFirstDate(p, contact: choices[0])
+                    default: whichOne = p
+                    }
+                }
+            }
         }
     }
 
@@ -189,8 +221,8 @@ struct AddWishView: View {
         } else {
             FlowScreen(onClose: { model.route = nil }) {
                 Question(title: preselected.map { "What would \($0.name) love?" } ?? "Save a wish",
-                         subtitle: preselected == nil ? "Say or type it, like \"Nora wants blue skates\"." : "One line is plenty.")
-                LineField(label: "The wish", text: $text, placeholder: preselected == nil ? "Nora wants blue skates" : "Blue gardening gloves",
+                         subtitle: preselected == nil ? "Say or type it, like \"Ada wants blue skates\"." : "One line is plenty.")
+                LineField(label: "The wish", text: $text, placeholder: preselected == nil ? "Ada wants blue skates" : "Blue gardening gloves",
                           onSubmit: submit)
                 if let person = matched {
                     HStack(spacing: 12) {

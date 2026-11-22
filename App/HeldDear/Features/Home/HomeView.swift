@@ -7,8 +7,9 @@ import UIKit
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var addingFromContacts = false
-    @State private var adding = false
     @State private var selectedID: UUID?
+    /// Home's medallion, on by default; test builds can switch it off in You (AppFeatures.homeMedallion).
+    @AppStorage(AppFeatures.homeMedallionKey) private var medallionOn = true
 
     var body: some View {
         NavigationStack(path: $model.navPath) {
@@ -25,11 +26,6 @@ struct HomeView: View {
                 }
                 .tint(Brand.ink)
                 .addFromContacts(isPresented: $addingFromContacts)
-                .confirmationDialog("Add", isPresented: $adding, titleVisibility: .visible) {
-                    Button("Someone") { model.route = .addBirthday("") }
-                    Button("Someone from Contacts") { addingFromContacts = true }
-                    Button("An idea") { model.route = .addWish(nil) }
-                }
                 .navigationDestination(for: Nav.self) { nav in
                     NavPage(nav: nav)
                 }
@@ -55,12 +51,11 @@ struct HomeView: View {
                 let line = pagedLine(moments, featured: featured, now: now)
                 TabView(selection: Binding(get: { featured.id }, set: { selectedID = $0 })) {
                     ForEach(line, id: \.id) { m in
-                        ScrollView {
-                            featuredView(m, now: now)
-                                .padding(.horizontal, Brand.space5)
-                                .padding(.top, Brand.space6)
-                        }
-                        .scrollBounceBehavior(.basedOnSize)
+                        // Home never scrolls (feedback on build 1026), and everyone keeps the medallion (feedback on
+                        // build 1027, where dropping it to fit left most people without one). The page keeps its
+                        // natural size and is scaled down only by what it lacks.
+                        ShrinkToFit { page(m, now: now, medallionSize: medallionOn ? 110 : 0) }
+                            .frame(maxHeight: .infinity, alignment: .top)
                         .tag(m.id)
                     }
                 }
@@ -71,7 +66,7 @@ struct HomeView: View {
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
                             selectedID: featured.id, now: now, seasons: model.seasons(now: now),
-                            add: { adding = true }) { selectedID = $0 }
+                            addFromContacts: { addingFromContacts = true }) { selectedID = $0 }
             }
         } else {
             emptyState
@@ -86,9 +81,68 @@ struct HomeView: View {
         return line
     }
 
+    /// One featured page. With a medallion size, the face (or mark) sits between the date and the name; with none,
+    /// the small circle above the date (when `circle`), or nothing.
+    @ViewBuilder private func page(_ m: Moment, now: Date, medallionSize: CGFloat, circle: Bool = true) -> some View {
+        VStack(spacing: Brand.space2) {
+            if medallionSize == 0 && circle { topCircle(m) }
+            featuredView(m, now: now)
+                .environment(\.featuredMedallion, medallionSize > 0 ? AnyView(medallion(m, size: medallionSize)) : nil)
+                .environment(\.featuredMedallionSize, medallionSize)
+        }
+        .padding(.horizontal, Brand.space5)
+    }
+
+    /// The medallion: the face (warm-toned, fading into the page at the bottom) or the holiday's mark, between the
+    /// date and the name.
+    /// A ring around it fills in oxblood as the plan gets ready, in place of the bar (approved Nov 21, 2026).
+    @ViewBuilder private func medallion(_ m: Moment, size: CGFloat) -> some View {
+        let parts = m.type.kind == .holiday
+            ? model.holidayMembers(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName), year: m.year).flatMap(\.planParts)
+            : m.planParts
+        let ready = parts.filter(\.isReady).count
+        if m.type.kind == .holiday {
+            ReadyRing(ready: ready, total: parts.count, size: size * 0.87) {
+                HolidayMark(type: m.type, name: m.occasion?.partnerName, size: size * 0.87)
+            }
+            .padding(.bottom, size * 0.13)
+        } else if let person = m.person, let partner = model.pairPartner(for: m) {
+            Button { model.push(.person(person.id, focus: nil)) } label: {
+                PairPortrait(person: person, partner: partner, size: size * 0.86, toned: true, fadeBottom: true,
+                             ring: (ready, parts.count))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens \(DisplayName.plain(person.name))'s page")
+        } else if let person = m.person {
+            Button { model.push(.person(person.id, focus: nil)) } label: {
+                ReadyRing(ready: ready, total: parts.count, size: size) {
+                    PersonPortrait(person: person, size: size, toned: true, fadeBottom: true)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+        }
+    }
+
+    @ViewBuilder private func topCircle(_ m: Moment) -> some View {
+        if m.type.kind == .holiday {
+            HolidayMark(type: m.type, name: m.occasion?.partnerName, size: 40)
+        } else if let person = m.person, let partner = model.pairPartner(for: m) {
+            Button { model.push(.person(person.id, focus: nil)) } label: { PairPortrait(person: person, partner: partner, size: 34) }
+                .buttonStyle(.plain)
+        } else if let person = m.person {
+            Button { model.push(.person(person.id, focus: nil)) } label: { PersonPortrait(person: person, size: 40) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(DisplayName.plain(person.name))'s page")
+        } else {
+            Color.clear.frame(width: 40, height: 40)
+        }
+    }
+
     @ViewBuilder private func featuredView(_ m: Moment, now: Date) -> some View {
         if m.type.kind == .holiday {
-            HolidayFeaturedView(type: m.type, members: model.holidayMembers(type: m.type, year: m.year), now: now)
+            HolidayFeaturedView(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName),
+                                members: model.holidayMembers(ref: HolidayRef(type: m.type, name: m.occasion?.partnerName), year: m.year), now: now)
         } else {
             FeaturedView(moment: m, state: model.state(for: m), now: now,
                          openPerson: { if let p = m.person { model.push(.person(p.id, focus: m.id)) } })
@@ -165,6 +219,14 @@ struct FeaturedView: View {
         }
     }
 
+    /// Planning, ideas and "all set" need no button on Home; a call, a message or a way back does.
+    static func hasActionNow(_ act: NextAct) -> Bool {
+        switch act {
+        case .allSet, .openPlan, .pick, .saveWish: return false
+        default: return true
+        }
+    }
+
     /// One segment per plan part, for the readiness bar. Empty when there's no plan.
     private var progress: [PartSteps.Progress] {
         moment.planParts.map { PartSteps.progress(step: $0.currentStep ?? "open", family: PartSteps.family(forKindRaw: $0.kindRaw)) }
@@ -211,8 +273,11 @@ struct FeaturedView: View {
     /// One quiet link under the button, or nothing. It never moves the button.
     @ViewBuilder private func linkLine(act: NextAct, days: Int, missed: Bool, name: String) -> some View {
         switch act {
-        case .openPlan, .allSet, .pick, .saveWish:
-            TextLink(title: "\(name)'s page ›") { openPerson() }
+        case .openPlan:
+            // The button stays; the "order by" line under it came off (Graham, Nov 21, 2026: one of the two, not both).
+            Color.clear
+        case .allSet, .pick, .saveWish:
+            Color.clear
         default:
             secondary(days: days, missed: missed, name: name)
         }
@@ -262,7 +327,7 @@ struct FeaturedView: View {
         case 1: when = "tomorrow"
         default: when = OccasionDates.countdown(to: moment.dueDate, from: now)
         }
-        if moment.type.kind == .holiday { return "\(moment.type.label), \(when)" }
+        if moment.type.kind == .holiday { return "\(moment.type.title(partner: moment.occasion?.partnerName)), \(when)" }
         return "\(what), \(when)"
     }
 
@@ -273,7 +338,7 @@ struct FeaturedView: View {
                 Text("Send \(name) the family page").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
                     .frame(minHeight: 44)
             }
-        } else if !missed && days >= 6 && AppFeatures.serverFeatures {
+        } else if !missed && days >= 6 && AppFeatures.mailedCards {
             TextLink(title: "Or mail \(name) a card") { model.route = .moment(moment.id, .mailCard) }
         } else if !missed && days > 0 && !state.greetingDone {
             TextLink(title: "Or make \(name) a card") { model.route = .moment(moment.id, .photo) }
@@ -304,7 +369,7 @@ struct HorizonBand: View {
     let selectedID: UUID
     let now: Date
     let seasons: [Season]
-    var add: () -> Void = {}
+    var addFromContacts: () -> Void = {}
     var select: (UUID) -> Void
 
     @State private var position = ScrollPosition(x: 0)
@@ -331,10 +396,17 @@ struct HorizonBand: View {
                     }
                 }
                 Spacer()
-                Button { add() } label: {
+                // A menu opens right at the button, on the system's readable material (the centered dialog
+                // floated far above it and read poorly over the page, Nov 21).
+                Menu {
+                    Button { model.route = .addBirthday("") } label: { Label("Someone", systemImage: "person.badge.plus") }
+                    Button(action: addFromContacts) { Label("Someone from Contacts", systemImage: "person.crop.circle") }
+                    Button { model.route = .addWish(nil) } label: { Label("An idea", systemImage: "gift") }
+                } label: {
                     Text("+ Add").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
                         .frame(minHeight: 44)
                 }
+                .menuOrder(.fixed)
                 .accessibilityLabel("Add")
                 .padding(.trailing, Brand.space4)
                 Button { model.push(.people) } label: {
@@ -441,7 +513,7 @@ struct HorizonBand: View {
     }
 
     private func label(_ m: Moment) -> String {
-        if m.type.kind == .holiday { return m.type.label }
+        if m.type.kind == .holiday { return m.type.title(partner: m.occasion?.partnerName) }
         let name = DisplayName.plain(m.person?.name ?? "")
         if m.type == .anniversary, let p = m.occasion?.partnerName { return "\(name) & \(p)" }
         return name
@@ -508,7 +580,7 @@ enum HolidayCollapse {
     static func collapse(_ moments: [Moment]) -> [Moment] {
         var chosen: [String: Moment] = [:]
         for m in moments {
-            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { continue }
+            guard let key = Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) else { continue }
             if let current = chosen[key] {
                 if current.status.isSettled && !m.status.isSettled { chosen[key] = m }
             } else {
@@ -516,7 +588,7 @@ enum HolidayCollapse {
             }
         }
         return moments.filter { m in
-            guard let key = Holidays.groupKey(type: m.type, year: m.year) else { return true }
+            guard let key = Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) else { return true }
             return chosen[key]?.id == m.id
         }
     }
@@ -536,7 +608,7 @@ struct NavPage: View {
         case .person(let id, let focus):
             if let p = model.person(id) { PersonView(person: p, focus: focus) } else { Color.clear }
         case .holiday(let raw, let year):
-            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear }
+            if let ref = HolidayRef(raw: raw) { HolidayView(ref: ref, year: year) } else { Color.clear }
         case .people:
             PeopleAndIdeasView()
         case .ideas:
@@ -555,7 +627,73 @@ struct NavPage: View {
 /// builds 1013 and 1014): the date line, the name (its size varies, its space doesn't), the line under it, the
 /// readiness bar with one line, the main button, and one link. A place with nothing in it stays empty and keeps its
 /// height. Every place grows with the text size.
+/// A thin ring around Home's medallion: a stone track, filled in oxblood by how much of the plan is ready.
+/// No plan, no ring.
+struct ReadyRing<Content: View>: View {
+    let ready: Int
+    let total: Int
+    let size: CGFloat
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ZStack {
+            content
+            if total > 0 {
+                Circle().stroke(Brand.line, lineWidth: 3)
+                    .frame(width: size + 16, height: size + 16)
+                Circle().trim(from: 0, to: CGFloat(min(ready, total)) / CGFloat(total))
+                    .stroke(Brand.action, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: size + 16, height: size + 16)
+            }
+        }
+        .frame(width: size + 20, height: size + 20)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(total > 0 ? "\(ready) of \(total) ready" : "")
+    }
+}
+
+private struct ShrinkHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// Shows a page at its natural height, scaled down only if it doesn't fit, so Home never needs to scroll.
+struct ShrinkToFit<Content: View>: View {
+    @ViewBuilder var content: Content
+    @State private var natural: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = natural > 0 ? min(1, geo.size.height / natural) : 1
+            content
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { g in Color.clear.preference(key: ShrinkHeightKey.self, value: g.size.height) })
+                .scaleEffect(scale, anchor: .top)
+                // Centered in its space when it fits, so it sits evenly on every phone (Nov 21, 2026).
+                .frame(width: geo.size.width, height: geo.size.height, alignment: scale < 1 ? .top : .center)
+        }
+        .onPreferenceChange(ShrinkHeightKey.self) { natural = $0 }
+    }
+}
+
+private struct FeaturedMedallionSizeKey: EnvironmentKey { static let defaultValue: CGFloat = 0 }
+private struct FeaturedMedallionKey: EnvironmentKey { static let defaultValue: AnyView? = nil }
+extension EnvironmentValues {
+    /// Home's medallion, drawn between the date and the name when it's on.
+    var featuredMedallionSize: CGFloat {
+        get { self[FeaturedMedallionSizeKey.self] }
+        set { self[FeaturedMedallionSizeKey.self] = newValue }
+    }
+    var featuredMedallion: AnyView? {
+        get { self[FeaturedMedallionKey.self] }
+        set { self[FeaturedMedallionKey.self] = newValue }
+    }
+}
+
 struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
+    @Environment(\.featuredMedallion) private var medallion
+    @Environment(\.featuredMedallionSize) private var medallionSize
     let eyebrow: String
     let title: String
     let open: () -> Void
@@ -563,6 +701,9 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
     let subline: String
     let progress: [PartSteps.Progress]
     let status: String
+    /// Home shows a button only when there's one real thing to do now (a call or message on the day, a way back).
+    /// Planning happens on the person's page, which the name and face open (Nov 21, 2026).
+    var showsActions = true
     @ViewBuilder var button: MainButton
     @ViewBuilder var link: LinkLine
 
@@ -574,16 +715,21 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(eyebrow).textStyle(.eyebrow)
+            if let medallion {
+                medallion.padding(.top, Brand.space3)
+            }
             Button(action: open) {
-                Text(title)
+                // The name opens the page. The › after it came off (Graham, Nov 21, 2026): the face and name are enough.
+                Text(title).foregroundColor(Brand.ink)
                     .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
                     .tracking(-2)
-                    .foregroundStyle(Brand.ink)
                     .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
-                    .padding(.top, Brand.space3)
+                    .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
+                    .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126)
             }
             .buttonStyle(.plain)
+            .zIndex(1)
             .accessibilityHint(openHint)
             Text(subline)
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
@@ -591,7 +737,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 .frame(height: sublineHeight)
                 .padding(.top, Brand.space2)
             VStack(spacing: Brand.space2) {
-                if !progress.isEmpty {
+                // With the medallion, the ring around the face shows this instead.
+                if !progress.isEmpty && medallion == nil {
                     HStack(spacing: 4) {
                         ForEach(Array(progress.enumerated()), id: \.offset) { _, p in
                             Rectangle().fill(color(p)).frame(height: 6)
@@ -606,12 +753,14 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
             }
             .frame(height: statusHeight, alignment: .center)
             .padding(.top, Brand.space4)
-            button
-                .frame(height: buttonHeight)
-                .padding(.top, Brand.space3)
-            link
-                .frame(height: linkHeight)
-                .padding(.top, Brand.space2)
+            if showsActions {
+                button
+                    .frame(height: buttonHeight)
+                    .padding(.top, Brand.space3)
+                link
+                    .frame(height: linkHeight)
+                    .padding(.top, Brand.space2)
+            }
         }
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)

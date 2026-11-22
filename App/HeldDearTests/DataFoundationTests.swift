@@ -1,5 +1,6 @@
 import XCTest
 import SwiftData
+import Observation
 @testable import HeldDear
 
 /// Data foundation for 1.0 (roadmap Epic 2, Data): new fields, part steps, versioned schema, migration, safe open.
@@ -120,7 +121,7 @@ final class DataFoundationTests: XCTestCase {
 
     func testFields_newFieldsHaveDefaultsAndSave() throws {
         let opened = Store.open(inMemory: true)
-        let context = ModelContext(opened.container)
+        let context = HeldDear.ModelContext(opened.container)
         let person = Person(name: "Mom")
         let act = Act(role: .plan, kind: .gift)
         context.insert(person)
@@ -141,9 +142,9 @@ final class DataFoundationTests: XCTestCase {
         act.sortOrder = 3
         try context.save()
 
-        let again = ModelContext(opened.container)
-        let p = try XCTUnwrap(again.fetch(FetchDescriptor<Person>()).first)
-        let a = try XCTUnwrap(again.fetch(FetchDescriptor<Act>()).first)
+        let again = HeldDear.ModelContext(opened.container)
+        let p = try XCTUnwrap(again.fetch(HeldDear.FetchDescriptor<Person>()).first)
+        let a = try XCTUnwrap(again.fetch(HeldDear.FetchDescriptor<Act>()).first)
         XCTAssertEqual(p.relationship, "mother")
         XCTAssertEqual(a.label, "Breakfast in bed")
         XCTAssertEqual(a.step, "bought")
@@ -192,11 +193,33 @@ final class DataFoundationTests: XCTestCase {
         }
     }
 
-    func testM1_storeOpensThroughTheMigrationPlan() throws {
-        let opened = Store.open(url: dir.appending(path: "default.store"))
+    func testM1_versionThreeStoreOpensWithSixRecordTypes() throws {
+        let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), copyFromLegacy: false)
         XCTAssertEqual(opened.outcome, .opened)
         XCTAssertNil(opened.keptStoreURL)
-        XCTAssertEqual(opened.container.schema.entities.count, 6)
+        XCTAssertEqual(Set(CoreStore.model.entities.compactMap(\.name)),
+                       ["Person", "Occasion", "Moment", "Wish", "Act", "LedgerEntry", "Photo"], "Six record types plus Photo (3.1)")
+    }
+
+    func testV3_iCloudReadyModel() {
+        // Item 3.0: no unique ids, every field optional or defaulted, every link optional.
+        for entity in CoreStore.model.entities {
+            XCTAssertTrue(entity.uniquenessConstraints.isEmpty, "\(entity.name ?? "") has a unique rule")
+            for (name, attr) in entity.attributesByName {
+                XCTAssertTrue(attr.isOptional || attr.defaultValue != nil, "\(entity.name ?? "").\(name)")
+            }
+            for (name, rel) in entity.relationshipsByName {
+                XCTAssertTrue(rel.isOptional, "\(entity.name ?? "").\(name) must be optional")
+                XCTAssertNotNil(rel.inverseRelationship, "\(entity.name ?? "").\(name) needs an inverse")
+            }
+        }
+        // Every version 2 field is still there, with the same name.
+        let v2 = Schema(versionedSchema: SchemaV2.self)
+        for entity in v2.entities {
+            let v3 = Set(CoreStore.model.entitiesByName[entity.name]?.attributesByName.keys.map { $0 } ?? [])
+            XCTAssertTrue(Set(entity.attributes.map(\.name)).isSubset(of: v3), "\(entity.name) lost a field")
+        }
+        XCTAssertNotNil(CoreStore.model.entitiesByName["Person"]?.attributesByName["mailingAddress"])
     }
 
     func testM1_productionStoreLivesWhereMainOpenedIt() {
@@ -205,14 +228,17 @@ final class DataFoundationTests: XCTestCase {
         // same file, or an upgrade would open an empty store. (CI is unsigned and resolves both to Application Support;
         // the equality is what matters. A signed device is the other check.)
         let theWayMainOpenedIt = ModelConfiguration(schema: Schema(versionedSchema: SchemaV1.self), isStoredInMemoryOnly: false)
-        XCTAssertEqual(Store.productionConfiguration().url, theWayMainOpenedIt.url)
-        XCTAssertEqual(Store.configuration(url: nil).url, theWayMainOpenedIt.url)
-        XCTAssertEqual(Store.productionConfiguration().url,
-                       ModelConfiguration(schema: Store.schema).url,
+        XCTAssertEqual(LegacyStore.productionConfiguration().url, theWayMainOpenedIt.url)
+        XCTAssertEqual(LegacyStore.productionURL, theWayMainOpenedIt.url)
+        XCTAssertEqual(LegacyStore.productionConfiguration().url,
+                       ModelConfiguration(schema: LegacyStore.schema).url,
                        "Same place as the plain configuration for the current schema")
-        XCTAssertEqual(Store.productionConfiguration().url.lastPathComponent, "default.store")
+        XCTAssertEqual(LegacyStore.productionURL.lastPathComponent, "default.store")
         let custom = dir.appending(path: "elsewhere.store")
-        XCTAssertEqual(Store.configuration(url: custom).url, custom, "A url is honored for tests")
+        XCTAssertEqual(LegacyStore.configuration(url: custom).url, custom, "A url is honored for tests")
+        // Version 3 sits next to it, so the copy finds the old store.
+        XCTAssertEqual(Store.productionURL.deletingLastPathComponent(), LegacyStore.productionURL.deletingLastPathComponent())
+        XCTAssertEqual(Store.productionURL.lastPathComponent, "HeldDear.sqlite")
     }
 
     // MARK: M2. Migration from version 1
@@ -234,8 +260,8 @@ final class DataFoundationTests: XCTestCase {
     private func writeV1Store(at url: URL) throws -> V1Fixture {
         var fx = V1Fixture()
         let schema = Schema(versionedSchema: SchemaV1.self)
-        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
-        let context = ModelContext(container)
+        let container = try SwiftData.ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+        let context = SwiftData.ModelContext(container)
 
         let mom = SchemaV1.Person(name: "Mom", fullName: "Ann Lee", contactID: "contact-1", ring: .inner)
         mom.loves = ["gardening"]
@@ -302,11 +328,13 @@ final class DataFoundationTests: XCTestCase {
         let url = dir.appending(path: "default.store")
         let fx = try writeV1Store(at: url)
 
-        let opened = Store.open(url: url)
+        let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), legacyURL: url)
         XCTAssertEqual(opened.outcome, .opened, "A version 1 store must migrate, not be kept aside")
-        let context = ModelContext(opened.container)
+        XCTAssertEqual(opened.copy, CopyMigration.Report(people: 2, occasions: 3, moments: 3, acts: 6, wishes: 1, ledger: 1))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path), "The old store stays where it was")
+        let context = HeldDear.ModelContext(opened.container)
 
-        let people = try context.fetch(FetchDescriptor<Person>())
+        let people = try context.fetch(HeldDear.FetchDescriptor<Person>())
         XCTAssertEqual(Set(people.map(\.id)), Set(fx.people))
         let mom = try XCTUnwrap(people.first { $0.name == "Mom" })
         XCTAssertEqual(mom.fullName, "Ann Lee")
@@ -316,14 +344,14 @@ final class DataFoundationTests: XCTestCase {
         XCTAssertNil(mom.relationship)
         XCTAssertEqual(Set(mom.occasions.map(\.type)), [.birthday, .christmas])
 
-        let occasions = try context.fetch(FetchDescriptor<Occasion>())
+        let occasions = try context.fetch(HeldDear.FetchDescriptor<Occasion>())
         XCTAssertEqual(Set(occasions.map(\.id)), Set(fx.occasions))
         XCTAssertEqual(occasions.first { $0.type == .birthday && $0.person?.name == "Mom" }?.birthYear, 1958)
 
-        let moments = try context.fetch(FetchDescriptor<Moment>())
+        let moments = try context.fetch(HeldDear.FetchDescriptor<Moment>())
         XCTAssertEqual(Set(moments.map(\.id)), Set(fx.moments))
 
-        let acts = try context.fetch(FetchDescriptor<Act>())
+        let acts = try context.fetch(HeldDear.FetchDescriptor<Act>())
         XCTAssertEqual(Set(acts.map(\.id)), Set(fx.expectedSteps.keys))
         for act in acts {
             XCTAssertEqual(act.currentStep, fx.expectedSteps[act.id] ?? nil, "\(act.kindRaw) \(act.roleRaw)")
@@ -340,12 +368,12 @@ final class DataFoundationTests: XCTestCase {
         XCTAssertEqual(acts.first { $0.kind == .dinner }?.dinnerDate, fx.dinnerDate)
         XCTAssertEqual(acts.first { $0.kind == .card }?.completedAt, fx.cardCompletedAt)
 
-        let wishes = try context.fetch(FetchDescriptor<Wish>())
+        let wishes = try context.fetch(HeldDear.FetchDescriptor<Wish>())
         XCTAssertEqual(wishes.map(\.id), [fx.wish])
         XCTAssertEqual(wishes.first?.person?.name, "Mom")
         XCTAssertEqual(wishes.first?.text, "Garden gloves")
 
-        let ledger = try context.fetch(FetchDescriptor<LedgerEntry>())
+        let ledger = try context.fetch(HeldDear.FetchDescriptor<LedgerEntry>())
         XCTAssertEqual(ledger.map(\.id), [fx.ledger])
         XCTAssertEqual(ledger.first?.line, "Laughed about the garden")
         XCTAssertEqual(ledger.first?.person?.name, "Mom")
@@ -353,32 +381,46 @@ final class DataFoundationTests: XCTestCase {
 
     // MARK: M3. Never crash on open
 
-    func testM3_unreadableStoreIsKeptAsideAndAFreshStoreOpens() throws {
+    func testM3_anOldStoreThatWontOpenIsLeftInPlaceAndTriedAgain() throws {
+        // Fable S1: left where it is, not marked, in memory this launch, retried next launch.
         let url = dir.appending(path: "default.store")
         let junk = Data("This is not a Held Dear store.".utf8)
         try junk.write(to: url)
+        let v3 = dir.appending(path: "HeldDear.sqlite")
+
+        let opened = Store.open(url: v3, legacyURL: url)
+        XCTAssertEqual(opened.outcome, .inMemoryThisLaunch)
+        XCTAssertEqual(opened.keptStoreURL, url, "Offered for export where it is")
+        XCTAssertEqual(try Data(contentsOf: url), junk, "The old file is untouched")
+        XCTAssertFalse(CopyMigration.fileSaysCopied(v3), "Not marked as copied")
+
+        let again = Store.open(url: v3, legacyURL: url)
+        XCTAssertEqual(again.outcome, .inMemoryThisLaunch, "Tried again, still left in place")
+        XCTAssertEqual(try Data(contentsOf: url), junk)
+    }
+
+    func testM3_unreadableVersionThreeStoreIsKeptAsideAndAFreshStoreOpens() throws {
+        let v3 = dir.appending(path: "HeldDear.sqlite")
+        let junk = Data("This is not a Held Dear store.".utf8)
+        try junk.write(to: v3)
         let now = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 13, minute: 15))!
 
-        let opened = Store.open(url: url, now: now)
+        let opened = Store.open(url: v3, copyFromLegacy: false, now: now)
 
         XCTAssertEqual(opened.outcome, .freshStoreOldKeptAside)
-        XCTAssertTrue(opened.couldNotOpenSavedStore)
         let kept = try XCTUnwrap(opened.keptStoreURL)
         XCTAssertEqual(kept.deletingLastPathComponent().standardizedFileURL, dir.standardizedFileURL, "Kept next to the original")
-        XCTAssertTrue(kept.lastPathComponent.hasPrefix("default-kept-2026-11-20-"), kept.lastPathComponent)
+        XCTAssertTrue(kept.lastPathComponent.hasPrefix("HeldDear-kept-2026-11-20-"), kept.lastPathComponent)
         XCTAssertEqual(try Data(contentsOf: kept), junk, "The old file is untouched")
 
-        // The fresh store is a real one at the usual place, and it saves.
-        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
-        let context = ModelContext(opened.container)
+        let context = HeldDear.ModelContext(opened.container)
         context.insert(Person(name: "Mom"))
         try context.save()
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Person>()), 1)
+        XCTAssertEqual(try context.fetchCount(HeldDear.FetchDescriptor<Person>()), 1)
 
-        // Opening again uses the fresh store and keeps nothing else aside.
-        let second = Store.open(url: url, now: now)
+        let second = Store.open(url: v3, copyFromLegacy: false, now: now)
         XCTAssertEqual(second.outcome, .opened)
-        XCTAssertEqual(try ModelContext(second.container).fetchCount(FetchDescriptor<Person>()), 1)
+        XCTAssertEqual(try HeldDear.ModelContext(second.container).fetchCount(HeldDear.FetchDescriptor<Person>()), 1)
     }
 
     func testM3_keepAsideNeverOverwritesAnEarlierKeptFile() throws {
@@ -398,19 +440,19 @@ final class DataFoundationTests: XCTestCase {
         // move aside, so neither a kept file nor a fresh file is possible.
         let blocker = dir.appending(path: "blocker")
         try Data("not a folder".utf8).write(to: blocker)
-        let url = blocker.appending(path: "default.store")
+        let url = blocker.appending(path: "HeldDear.sqlite")
 
-        let opened = Store.open(url: url)
+        let opened = Store.open(url: url, copyFromLegacy: false)
 
         XCTAssertEqual(opened.outcome, .inMemoryThisLaunch)
         XCTAssertTrue(opened.couldNotOpenSavedStore)
         XCTAssertNil(opened.keptStoreURL)
         XCTAssertEqual(try Data(contentsOf: blocker), Data("not a folder".utf8), "Nothing else was touched")
         // It still runs: this launch can read and write, in memory only.
-        let context = ModelContext(opened.container)
+        let context = HeldDear.ModelContext(opened.container)
         context.insert(Person(name: "Mom"))
         try context.save()
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Person>()), 1)
+        XCTAssertEqual(try context.fetchCount(HeldDear.FetchDescriptor<Person>()), 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "Nothing was written to disk")
     }
 
@@ -420,10 +462,11 @@ final class DataFoundationTests: XCTestCase {
         let url = dir.appending(path: "default.store")
         let fx = try writeV1Store(at: url)
 
+        let v3 = dir.appending(path: "HeldDear.sqlite")
         do {
-            let opened = Store.open(url: url)
-            let context = ModelContext(opened.container)
-            let acts = try context.fetch(FetchDescriptor<Act>())
+            let opened = Store.open(url: v3, legacyURL: url)
+            let context = HeldDear.ModelContext(opened.container)
+            let acts = try context.fetch(HeldDear.FetchDescriptor<Act>())
             XCTAssertEqual(acts.count, fx.expectedSteps.count)
             for act in acts {
                 _ = act.currentStep
@@ -434,9 +477,199 @@ final class DataFoundationTests: XCTestCase {
         }
 
         // Reopen: still nothing stored for any part's step.
-        let reopened = Store.open(url: url)
-        let acts = try ModelContext(reopened.container).fetch(FetchDescriptor<Act>())
-        XCTAssertEqual(acts.count, fx.expectedSteps.count)
+        let reopened = Store.open(url: v3, legacyURL: url)
+        XCTAssertNil(reopened.copy, "The copy runs once")
+        let acts = try HeldDear.ModelContext(reopened.container).fetch(HeldDear.FetchDescriptor<Act>())
+        XCTAssertEqual(acts.count, fx.expectedSteps.count, "Nothing was copied twice")
         XCTAssertTrue(acts.allSatisfy { $0.step == nil }, "No step was written for existing parts")
+    }
+
+    // MARK: Version 3 (Core Data)
+
+    func testV3_copyMovesAKeptAddressOntoThePerson() throws {
+        let url = dir.appending(path: "default.store")
+        let fx = try writeV1Store(at: url)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "V3AddressTests"))
+        defaults.removePersistentDomain(forName: "V3AddressTests")
+        let addresses = SavedAddresses(defaults: defaults)
+        addresses.set(MailAddress(firstName: "Ann", address1: "1 Main St", city: "Springfield", state: "IL", zip: "62701"),
+                      for: fx.people[0])
+        let legacy = try LegacyStore.container(url: url)
+        let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), copyFromLegacy: false)
+        try CopyMigration.copy(from: SwiftData.ModelContext(legacy), to: opened.container, addresses: addresses)
+        let people = try opened.container.mainContext.fetch(HeldDear.FetchDescriptor<Person>())
+        XCTAssertEqual(people.first { $0.id == fx.people[0] }?.mailingAddress?.zip, "62701")
+        XCTAssertNil(people.first { $0.id == fx.people[1] }?.mailingAddress)
+    }
+
+    func testV3_aChangeTellsTheScreensThatReadIt() {
+        let p = Person(name: "Ada")
+        var fired = false
+        withObservationTracking { _ = p.name } onChange: { fired = true }
+        p.name = "Bea"
+        XCTAssertTrue(fired)
+        XCTAssertEqual(p.name, "Bea")
+    }
+
+    func testV3_linksAndListsSaveAndReadBack() throws {
+        let opened = Store.open(inMemory: true)
+        let context = opened.container.mainContext
+        let person = Person(name: "Ada")
+        let occasion = Occasion(type: .birthday, month: 5, day: 7)
+        let act = Act(role: .plan, kind: .gift)
+        act.ownerIDs = [person.id]
+        context.insert(person)
+        occasion.person = person   // joins the person's context
+        let moment = Moment(year: 2027, dueDate: Date())
+        moment.occasion = occasion
+        act.moment = moment
+        person.loves = ["tea", "maps"]
+        try context.save()
+        let again = HeldDear.ModelContext(opened.container)
+        let p = try XCTUnwrap(again.fetch(HeldDear.FetchDescriptor<Person>()).first)
+        XCTAssertEqual(p.loves, ["tea", "maps"])
+        XCTAssertEqual(p.birthday?.month, 5)
+        XCTAssertEqual(p.occasions.first?.moments.first?.acts.first?.ownerIDs, [p.id])
+        // Deleting the person removes its days, moments and parts, as before.
+        again.delete(p)
+        try again.save()
+        XCTAssertEqual(try again.fetchCount(HeldDear.FetchDescriptor<Act>()), 0)
+        XCTAssertEqual(try again.fetchCount(HeldDear.FetchDescriptor<Occasion>()), 0)
+    }
+
+    // MARK: Fable S3: the copy, from a real version 2 store
+
+    /// Writes a version 2 store (SwiftData, every version 2 field set) and returns the person, the part and their ids.
+    private func writeV2Store(at url: URL) throws -> (person: UUID, act: UUID, owner: UUID) {
+        let container = try SwiftData.ModelContainer(for: LegacyStore.schema, configurations: [LegacyStore.configuration(url: url)])
+        let context = SwiftData.ModelContext(container)
+        let ada = SchemaV2.Person(name: "Ada", fullName: "Ada Lee", contactID: "c-1", ring: .inner)
+        ada.relationship = "sister"
+        ada.loves = ["tea"]
+        ada.showAgeOnCard = true
+        let birthday = SchemaV2.Occasion(type: .birthday, month: 5, day: 7, birthYear: 1990)
+        let moment = SchemaV2.Moment(year: 2027, dueDate: Date(timeIntervalSince1970: 1_810_000_000))
+        moment.familyPageID = "page-9"
+        let owner = UUID()
+        let act = SchemaV2.Act(role: .plan, kind: .cake, title: "Lemon cake")
+        act.label = "The cake"
+        act.step = "ordered"
+        act.ownerIDs = [owner]
+        act.note = "Pick up at 3"
+        act.sortOrder = 4
+        let wish = SchemaV2.Wish(text: "Blue skates")
+        let line = SchemaV2.LedgerEntry(year: 2026, type: .birthday, what: "A card", photoFile: nil, line: "Lovely",
+                                         personName: "Ada", momentID: moment.id)
+        context.insert(ada)
+        context.insert(birthday); context.insert(moment); context.insert(act); context.insert(wish); context.insert(line)
+        birthday.person = ada
+        moment.occasion = birthday
+        act.moment = moment
+        wish.person = ada
+        line.person = ada
+        try context.save()
+        return (ada.id, act.id, owner)
+    }
+
+    func testS3_aVersionTwoStoreCopiesEveryVersionTwoField() throws {
+        let old = dir.appending(path: "default.store")
+        let ids = try writeV2Store(at: old)
+        let opened = Store.open(url: dir.appending(path: "HeldDear.sqlite"), legacyURL: old)
+        XCTAssertEqual(opened.outcome, .opened)
+        XCTAssertEqual(opened.copy, CopyMigration.Report(people: 1, occasions: 1, moments: 1, acts: 1, wishes: 1, ledger: 1))
+        let c = HeldDear.ModelContext(opened.container)
+        let ada = try XCTUnwrap(c.fetch(HeldDear.FetchDescriptor<Person>()).first)
+        XCTAssertEqual(ada.id, ids.person)
+        XCTAssertEqual(ada.relationship, "sister")
+        XCTAssertEqual(ada.loves, ["tea"])
+        XCTAssertTrue(ada.showAgeOnCard)
+        XCTAssertEqual(ada.ring, .inner)
+        XCTAssertEqual(ada.birthday?.birthYear, 1990)
+        let act = try XCTUnwrap(c.fetch(HeldDear.FetchDescriptor<Act>()).first)
+        XCTAssertEqual(act.id, ids.act)
+        XCTAssertEqual(act.label, "The cake")
+        XCTAssertEqual(act.step, "ordered")
+        XCTAssertEqual(act.ownerIDs, [ids.owner])
+        XCTAssertEqual(act.note, "Pick up at 3")
+        XCTAssertEqual(act.sortOrder, 4)
+        XCTAssertEqual(act.moment?.familyPageID, "page-9")
+        XCTAssertEqual(act.moment?.occasion?.person?.id, ids.person)
+        XCTAssertEqual(ada.wishes.first?.text, "Blue skates")
+        XCTAssertEqual(ada.ledger.first?.line, "Lovely")
+        XCTAssertTrue(CopyMigration.isCopied(opened.container.persistent), "Marked inside the store")
+    }
+
+    func testS3_aCopyKilledBeforeItsSaveRunsAgain() throws {
+        // A kill before the one save leaves a version 3 file with no records and no mark.
+        let old = dir.appending(path: "default.store")
+        _ = try writeV2Store(at: old)
+        let v3 = dir.appending(path: "HeldDear.sqlite")
+        do { _ = Store.open(url: v3, copyFromLegacy: false) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: v3.path))
+        XCTAssertFalse(CopyMigration.fileSaysCopied(v3))
+
+        let opened = Store.open(url: v3, legacyURL: old)
+        XCTAssertEqual(opened.outcome, .opened)
+        XCTAssertEqual(opened.copy?.people, 1)
+    }
+
+    func testS3_aFailedCopyLeavesNothingAndIsTriedAgain() throws {
+        struct Broken: Error {}
+        let old = dir.appending(path: "default.store")
+        _ = try writeV2Store(at: old)
+        let before = try Data(contentsOf: old)
+        let v3 = dir.appending(path: "HeldDear.sqlite")
+
+        let failed = Store.open(url: v3, legacyURL: old, beforeCopySave: { _ in throw Broken() })
+        XCTAssertEqual(failed.outcome, .inMemoryThisLaunch)
+        XCTAssertEqual(failed.keptStoreURL, old)
+        XCTAssertEqual(try Data(contentsOf: old), before, "The old store is untouched")
+        XCTAssertFalse(CopyMigration.fileSaysCopied(v3))
+
+        let retried = Store.open(url: v3, legacyURL: old)
+        XCTAssertEqual(retried.outcome, .opened)
+        XCTAssertEqual(retried.copy?.people, 1)
+        XCTAssertEqual(try HeldDear.ModelContext(retried.container).fetchCount(HeldDear.FetchDescriptor<Person>()), 1, "Copied once, not twice")
+    }
+
+    func testS3_aCountMismatchStopsTheCopy() throws {
+        let old = dir.appending(path: "default.store")
+        _ = try writeV2Store(at: old)
+        let v3 = dir.appending(path: "HeldDear.sqlite")
+        let opened = Store.open(url: v3, legacyURL: old, beforeCopySave: { c in c.insert(Person(name: "Extra")) })
+        XCTAssertEqual(opened.outcome, .inMemoryThisLaunch)
+        XCTAssertFalse(CopyMigration.fileSaysCopied(v3))
+        let reopened = Store.open(url: v3, legacyURL: old)
+        XCTAssertEqual(try HeldDear.ModelContext(reopened.container).fetchCount(HeldDear.FetchDescriptor<Person>()), 1, "The extra record was never saved")
+    }
+
+    func testS2_aVersionThreeStoreWithRecordsIsNeverCopiedOver() throws {
+        let old = dir.appending(path: "default.store")
+        _ = try writeV2Store(at: old)
+        let v3 = dir.appending(path: "HeldDear.sqlite")
+        do {
+            let s = Store.open(url: v3, copyFromLegacy: false)
+            s.container.mainContext.insert(Person(name: "Bea"))
+            try s.container.mainContext.save()
+        }
+        let opened = Store.open(url: v3, legacyURL: old)
+        XCTAssertNil(opened.copy)
+        let names = try HeldDear.ModelContext(opened.container).fetch(HeldDear.FetchDescriptor<Person>()).map(\.name)
+        XCTAssertEqual(names, ["Bea"])
+    }
+
+    func testS3_readingADeletedRecordDoesNotCrash() throws {
+        let opened = Store.open(inMemory: true)
+        let c = opened.container.mainContext
+        let p = Person(name: "Ada")
+        c.insert(p)
+        try c.save()
+        c.delete(p)
+        try c.save()
+        // Reading a deleted, saved record answers without crashing (Fable S3).
+        _ = p.name
+        _ = p.id
+        _ = p.occasions
+        _ = p.mailingAddress
     }
 }

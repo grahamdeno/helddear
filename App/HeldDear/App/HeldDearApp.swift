@@ -1,5 +1,4 @@
 import BackgroundTasks
-import SwiftData
 import SwiftUI
 
 @main
@@ -13,7 +12,6 @@ struct HeldDearApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(model)
-                .modelContainer(model.container)
                 .onOpenURL { model.openURL($0) }
                 .task { await model.refresh() }
         }
@@ -48,7 +46,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if model.onboarded {
+            if StoreSetAside.shouldShow(outcome: model.storeOutcome, acknowledged: model.setAsideAcknowledged) {
+                StoreSetAsideView()
+            } else if model.onboarded {
                 HomeView()
             } else {
                 OnboardingView()
@@ -61,9 +61,16 @@ struct RootView: View {
                                        set: { model.route = $0 })) { route in
             RouteView(route: route)
                 .environmentObject(model)
-                .modelContainer(model.container)
         }
-        .onChange(of: model.route) { _, route in
+        .onChange(of: model.route) { old, route in
+            if route == nil, case .addBirthday? = old, !model.contactsToDate.isEmpty {
+                let next = model.contactsToDate.removeFirst()
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    if model.route == nil { model.route = .addBirthday("\(next), ") }
+                }
+                return
+            }
             guard let route, let nav = model.navTarget(for: route) else { return }
             model.route = nil
             model.push(nav)
@@ -101,7 +108,7 @@ struct RouteView: View {
         case .plan(let id):
             if let m = model.moment(id) { PlanView(moment: m) } else { Color.clear.onAppear { model.route = nil } }
         case .holiday(let raw, let year):
-            if let type = OccasionType(rawValue: raw) { HolidayView(type: type, year: year) } else { Color.clear.onAppear { model.route = nil } }
+            if let ref = HolidayRef(raw: raw) { HolidayView(ref: ref, year: year) } else { Color.clear.onAppear { model.route = nil } }
         case .rings:
             NavigationStack { RingsView().toolbar { CloseToolbar { model.route = nil } }.plainBar() }
         case .lifetime:

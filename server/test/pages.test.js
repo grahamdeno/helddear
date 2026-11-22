@@ -5,7 +5,7 @@ import { giftPage, invitePage } from "../lib/html.js";
 
 const NOW = Date.parse("2026-11-12T12:00:00Z");
 const base = "https://helddear-mail.vercel.app";
-const body = { firstName: "Mom", occasion: "birthday", date: "2026-12-09", fromName: "Graham", message: "Write a line for Mom." };
+const body = { firstName: "Mom", occasion: "birthday", date: "2026-12-09", fromName: "Sam", message: "Write a line for Mom." };
 const parts = (url) => url.split("/").slice(-2);
 
 test("create, add notes, owner and gift views, keys are hashed", async () => {
