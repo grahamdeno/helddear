@@ -47,7 +47,7 @@ struct MakeCardFlow: View {
 
     private var occasionStep: some View {
         FlowScreen(onClose: close) {
-            Question(title: "Make a card", subtitle: "Text it or post it. What's it for?", style: .title)
+            Question(title: "Make a digital card", subtitle: "Text it or post it. What's it for?", style: .title)
             VStack(spacing: 0) {
                 ForEach(GreetingCard.choices(holidays: Holidays.enabled())) { o in
                     OptionRow(title: o.label, caption: o.heading.isEmpty ? "Your own heading" : o.heading) {
