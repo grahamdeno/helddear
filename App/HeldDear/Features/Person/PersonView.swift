@@ -42,6 +42,9 @@ struct PersonView: View {
     @State private var showIdeas = false
     @State private var sendingCard = false
     @State private var sharingDay: Moment?
+    @State private var familyAsk: FamilyAsk?
+    @State private var editingFamily = false
+    @State private var familyToggle = 0
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -58,6 +61,11 @@ struct PersonView: View {
         .fullScreenCover(item: $sharingDay) { day in
             ShareDayFlow(moment: day) { sharingDay = nil }.environmentObject(model)
         }
+        .fullScreenCover(item: $familyAsk) { ask in
+            FamilyInFlow(person: person, moment: ask.moment, followUp: ask.followUp) { familyAsk = nil; familyToggle += 1 }
+                .environmentObject(model)
+        }
+        .sheet(isPresented: $editingFamily, onDismiss: { familyToggle += 1 }) { FamilyRecipientsSheet(person: person) }
         .fullScreenCover(isPresented: $sendingCard) {
             ReasonCardFlow(person: person) { sendingCard = false }.environmentObject(model)
         }
@@ -82,6 +90,12 @@ struct PersonView: View {
         .onAppear {
             // From the six-week "What does Ana love?" alert.
             if model.openLovesFor == person.id { model.openLovesFor = nil; editingPortrait = true }
+            // From the two-week or three-day alert: straight to the flow, which starts on who to ask.
+            if let id = model.openFamilyFor, let m = model.moment(id), m.person?.id == person.id {
+                model.openFamilyFor = nil
+                let record = FamilyCircle.shared.record(for: id)
+                familyAsk = FamilyAsk(moment: m, followUp: record.choice == .card && !record.followedUp)
+            }
         }
         .sheet(isPresented: $editingPhone) { PhoneEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
@@ -159,6 +173,12 @@ struct PersonView: View {
                     .padding(.horizontal, -Brand.space5)
                 VStack(alignment: .leading, spacing: Brand.space5) {
                     actionsRow
+                    if let next = model.nextMoment(for: person) {
+                        FamilyInSuggestion(person: person, moment: next) { followUp in
+                            familyAsk = FamilyAsk(moment: next, followUp: followUp)
+                        }
+                        .id(familyToggle)
+                    }
                     if !moments.isEmpty {
                         PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }),
                                        addTitle: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
@@ -302,6 +322,22 @@ struct PersonView: View {
                            caption: contactAddress?.oneLine ?? person.mailingAddress?.oneLine) {
                         if contactAddress == nil { editingAddress = true }
                     }
+                }
+                group("Family") {
+                    Toggle(isOn: Binding(get: { familyIsOn }, set: { FamilyCircle.shared.setOn($0, for: person.id); familyToggle += 1
+                                                                        Task { await model.scheduleAlerts() } })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Suggest getting the family in").textStyle(.body)
+                            Text("Two weeks before \(name)'s days: ask the people you pick to add a note or send a card.")
+                                .textStyle(.caption, color: Brand.inkMuted)
+                        }
+                    }
+                    .tint(Brand.action)
+                    .padding(.vertical, Brand.space3)
+                    .id(familyToggle)
+                    YouDivider()
+                    YouRow(icon: "person.2", title: "Who to ask", detail: familyCountText, caption: nil) { editingFamily = true }
+                        .id(familyToggle)
                 }
                 group("Cards") {
                     Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
@@ -682,6 +718,15 @@ struct PersonView: View {
             Eyebrow(text: title)
             content()
         }
+    }
+
+    private var familyIsOn: Bool {
+        FamilyIn.isOn(ring: person.ring, override: FamilyCircle.shared.override(for: person.id))
+    }
+
+    private var familyCountText: String {
+        let n = FamilyCircle.shared.recipients(for: person.id).count
+        return n == 0 ? "Add" : (n == 1 ? "1 person" : "\(n) people")
     }
 
     private var sortedOccasions: [Occasion] {
@@ -1420,4 +1465,11 @@ struct FocusPicker: View {
             }
         }
     }
+}
+
+/// One "Get the family in" flow to open: the day, and whether it's the three-day follow-up.
+struct FamilyAsk: Identifiable {
+    let moment: Moment
+    let followUp: Bool
+    var id: UUID { moment.id }
 }

@@ -27,13 +27,19 @@ struct MomentState: Equatable {
     var isPlanMoment: Bool = false
     /// False when nothing is known about what the person loves (no loves saved yet).
     var lovesKnown: Bool = true
+    /// "Get the family in" (Nov 22, 2026): on for this day, already handled (asked or "Not this year"), a card
+    /// reminder sent, and its one follow-up used.
+    var familyOn: Bool = false
+    var familyHandled: Bool = false
+    var familyCardAsked: Bool = false
+    var familyFollowedUp: Bool = false
 
     /// "Mom's birthday", "Christmas for Mom".
     var subject: String { occasion.subject(name: personName, partner: partnerName) }
 }
 
 enum AlertKind: String {
-    case wishPrompt, headsUp, nudge, cutoff, dayOf, missed, season, grouped, lovesPrompt
+    case wishPrompt, headsUp, nudge, cutoff, dayOf, missed, season, grouped, lovesPrompt, familyPrompt, familyFollowUp
 }
 
 struct PlannedAlert: Equatable {
@@ -101,6 +107,23 @@ enum AlertPlanner {
                 if fire > now {
                     alerts.append(PlannedAlert(id: "loves-\(m.id)", kind: .lovesPrompt, fireDate: fire,
                                                body: "What does \(name) love? One line makes every idea better.", momentID: m.id))
+                }
+            }
+
+            // Two weeks out: get the family in (Graham, Nov 22, 2026). The tap opens the who-to-ask screen; nothing is
+            // sent from an alert. One follow-up three days out, only after a card reminder.
+            if m.familyOn, m.status == .upcoming, !m.familyHandled {
+                let fire = D.alertTime(on: D.adding(days: -FamilyIn.promptDays, to: m.dueDate, calendar: calendar), calendar: calendar)
+                if fire > now {
+                    alerts.append(PlannedAlert(id: "family-\(m.id)", kind: .familyPrompt, fireDate: fire,
+                                               body: "Two weeks to \(m.subject). Get the family in?", momentID: m.id))
+                }
+            }
+            if m.familyCardAsked, !m.familyFollowedUp, m.status == .upcoming {
+                let fire = D.alertTime(on: D.adding(days: -FamilyIn.followUpDays, to: m.dueDate, calendar: calendar), calendar: calendar)
+                if fire > now {
+                    alerts.append(PlannedAlert(id: "familyagain-\(m.id)", kind: .familyFollowUp, fireDate: fire,
+                                               body: "\(m.subject) is in three days. Remind the family?", momentID: m.id))
                 }
             }
 
