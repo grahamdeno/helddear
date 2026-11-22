@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
+import WidgetKit
 
 /// The Held Dear Lifetime offer. Reached only from Settings, a locked card design, or once after the
 /// first yearly line. The close button shows at once. No countdown timers, no blur, no nagging.
@@ -104,10 +105,13 @@ struct SettingsView: View {
     @State private var showLifetime = false
     @State private var addingFromContacts = false
     @AppStorage("lockScreenInitialsOnly", store: UserDefaults(suiteName: AppGroup.identifier)) private var initialsOnly = false
+    @AppStorage(AppGroup.widgetFacesKey, store: UserDefaults(suiteName: AppGroup.identifier)) private var widgetFaces = false
     @AppStorage("yourName") private var yourName = ""
     @AppStorage(AppFeatures.homeMedallionKey) private var medallionOn = true
     @AppStorage("cardSignature") private var signedAs = ""
     @State private var makingCard = false
+    @State private var savedCards: [SavedCard] = CardDrafts.all()
+    @State private var openCard: SavedCard?
     @State private var addingHoliday = false
     @State private var holidayToEdit: CustomHoliday?
     @State private var exportItems: [Any]?
@@ -117,6 +121,7 @@ struct SettingsView: View {
     @State private var keepInICloud = ICloudSync.isOn
     @ObservedObject private var iCloudStatus = ICloudSync.Status.shared
     @State private var yourPhotoItem: PhotosPickerItem?
+    @State private var couplePick: PhotosPickerItem?
     @State private var yourPhotoFile = YouProfile.photoFile
     @State private var editingBirthday = false
     @State private var addingAnniversary = false
@@ -134,6 +139,12 @@ struct SettingsView: View {
                 lifetimeCard
                 group("Make") {
                     YouRow(icon: "photo.on.rectangle", title: "Make a digital card", detail: nil, caption: "To text or post, for Christmas or any reason") { makingCard = true }
+                    if !savedCards.isEmpty {
+                        YouDivider()
+                        NavigationLink { subpage("Your cards") { cardsPage } } label: {
+                            YouRowLabel(icon: "rectangle.stack", title: "Your cards", detail: "\(savedCards.count)")
+                        }
+                    }
                 }
                 group("Your people and days") {
                     NavigationLink { subpage("People") { peoplePage } } label: {
@@ -177,6 +188,7 @@ struct SettingsView: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
+        .onChange(of: widgetFaces) { _, _ in WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingBirthday) { YourBirthdayEditor() }
@@ -210,7 +222,12 @@ struct SettingsView: View {
         }
         .fullScreenCover(isPresented: $addingHoliday) { OwnHolidayFlow(editing: nil) { addingHoliday = false }.environmentObject(model) }
         .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
-        .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
+        .fullScreenCover(isPresented: $makingCard, onDismiss: { savedCards = CardDrafts.all() }) {
+            MakeCardFlow { makingCard = false }.environmentObject(model)
+        }
+        .fullScreenCover(item: $openCard, onDismiss: { savedCards = CardDrafts.all() }) { card in
+            MakeCardFlow(close: { openCard = nil }, saved: card).environmentObject(model)
+        }
         .addFromContacts(isPresented: $addingFromContacts)
     }
 
@@ -348,6 +365,38 @@ struct SettingsView: View {
                       caption: yourAnniversaryPartner == nil
                         ? "Pick your partner. Their page gets the day, with both your photos."
                         : "Change it on their page. Tap to add another.") { addingAnniversary = true }
+            if let anniversary = model.yourAnniversary() {
+                let couple = PhotoStore.load(OccasionPhotos.file(for: anniversary.id))
+                PhotosPicker(selection: $couplePick, matching: .images) {
+                    HStack(spacing: Brand.space3) {
+                        if let couple {
+                            Image(uiImage: couple).resizable().scaledToFill()
+                                .frame(width: 44, height: 44).clipShape(Circle()).accessibilityHidden(true)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(couple == nil ? "Add a couple photo" : "Change the couple photo").textStyle(.bodyStrong)
+                            Text("For your anniversary. It shows here and on your partner's page.")
+                                .textStyle(.caption, color: Brand.inkMuted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        ChevronDisc()
+                    }
+                    .padding(.vertical, Brand.space4)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onChange(of: couplePick) { _, item in
+                    guard let item else { return }
+                    Task {
+                        if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                            OccasionPhotos.set(file, for: anniversary.id)
+                            model.save()
+                        }
+                        couplePick = nil
+                    }
+                }
+            }
         }
         VStack(alignment: .leading, spacing: Brand.space2) {
             Eyebrow(text: "Sign cards as")
@@ -368,6 +417,43 @@ struct SettingsView: View {
             OptionRow(title: "Add from contacts", caption: "Pick several at once") { addingFromContacts = true }
             OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
         }
+    }
+
+    @ViewBuilder private var cardsPage: some View {
+        let drafts = savedCards.filter { !$0.made }
+        let made = savedCards.filter(\.made)
+        ForEach([("Drafts", drafts), ("Made", made)], id: \.0) { title, cards in
+            if !cards.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    Eyebrow(text: title).padding(.bottom, Brand.space2)
+                    ForEach(cards) { card in
+                        OptionRow(title: card.heading.isEmpty ? "A card" : card.heading,
+                                  caption: card.updated.formatted(.dateTime.month(.abbreviated).day()) + (card.story ? " · Story" : " · Post"),
+                                  action: { openCard = card }) {
+                            Group {
+                                if let thumb = CardDrafts.thumbnail(card) {
+                                    Image(uiImage: thumb).resizable().scaledToFill()
+                                } else {
+                                    Rectangle().fill(Brand.card)
+                                }
+                            }
+                            .frame(width: 48, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .accessibilityHidden(true)
+                        } trailing: {
+                            ChevronDisc()
+                        }
+                        .contextMenu {
+                            Button("Delete card", role: .destructive) {
+                                CardDrafts.delete(card)
+                                savedCards = CardDrafts.all()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text("Kept on this iPhone. Press and hold a card to delete it.").textStyle(.caption, color: Brand.inkMuted)
     }
 
     @ViewBuilder private var holidaysPage: some View {
@@ -400,6 +486,17 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var screensPage: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Home Screen widgets")
+            card {
+                Toggle(isOn: $widgetFaces) {
+                    toggleText("Show faces", "The widgets show each person's photo. Off shows initials, so the Home Screen stays private.")
+                }
+                .tint(Brand.action)
+            }
+            Text("Coming up and a holiday you pick, in three sizes. Part of Held Dear Lifetime. Press and hold the Home Screen to add one.")
+                .textStyle(.caption, color: Brand.inkMuted)
+        }
         VStack(alignment: .leading, spacing: Brand.space2) {
             Eyebrow(text: "Lock Screen")
             card {
@@ -445,11 +542,24 @@ struct SettingsView: View {
                 ForEach([iCloudStatus.account, iCloudStatus.last].filter { !$0.isEmpty }, id: \.self) { line in
                     Text(line).textStyle(.body)
                 }
-                if let problem = iCloudStatus.problem {
-                    Text(problem).textStyle(.caption, color: Brand.ink).textSelection(.enabled)
+                if !iCloudStatus.lastSent.isEmpty { Text("Last sent \(iCloudStatus.lastSent)").textStyle(.body) }
+                if !iCloudStatus.lastReceived.isEmpty { Text("Last received \(iCloudStatus.lastReceived)").textStyle(.body) }
+                if ICloudSync.environment == "Development" {
+                    Text(iCloudStatus.schemaReady ? "iCloud records: created" : "iCloud records: not created yet")
+                        .textStyle(.caption, color: Brand.inkMuted)
                 }
             }
             .accessibilityElement(children: .combine)
+            if let problem = iCloudStatus.problem {
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Problem")
+                    Text(problem).font(.caption.monospaced()).foregroundStyle(Brand.ink).textSelection(.enabled)
+                    HStack(spacing: Brand.space4) {
+                        TextLink(title: "Try again") { ICloudSync.retrySchema() }.padding(.leading, -8)
+                        TextLink(title: "Copy") { UIPasteboard.general.string = problem }
+                    }
+                }
+            }
         }
     }
 

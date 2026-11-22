@@ -1,11 +1,12 @@
 import SwiftUI
 import WidgetKit
 
-/// The one v1 widget: next person up.
+/// Held Dear's widgets: Coming up (small, medium, large), a holiday, and the Lock Screen. All Lifetime.
 @main
 struct HeldDearWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextPersonWidget()
+        HolidayWidget()
         LockScreenWidget()
     }
 }
@@ -38,12 +39,12 @@ struct NextPersonProvider: TimelineProvider {
 struct NextPersonWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NextPerson", provider: NextPersonProvider()) { entry in
-            NextPersonView(entry: entry)
+            HomeWidgetView(entry: entry)
                 .containerBackground(Brand.page, for: .widget)
         }
-        .configurationDisplayName("Next person up")
-        .description("Whose day is coming, and how long until it.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .configurationDisplayName("Coming up")
+        .description("The next days for your people, and how ready each is. Part of Held Dear Lifetime.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 

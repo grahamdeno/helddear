@@ -6,6 +6,8 @@ import SwiftUI
 struct MakeCardFlow: View {
     @EnvironmentObject var model: AppModel
     var close: () -> Void
+    /// A saved draft or made card to open at the card step (Graham, Nov 21, 2026).
+    var saved: SavedCard? = nil
 
     @AppStorage("yourName") private var yourName = ""
     @AppStorage("cardSignature") private var signedAs = ""
@@ -16,6 +18,11 @@ struct MakeCardFlow: View {
     @State private var picks: [PhotosPickerItem] = []
     @State private var originals: [UIImage] = []
     @State private var framed: [UIImage] = []
+    /// Each photo upright with its crop, so the crop can be slid to place the photo (Graham, Nov 21, 2026).
+    @State private var framings: [(image: CGImage, rect: CGRect)] = []
+    /// The photo being placed in the still preview.
+    @State private var placing = 0
+    @State private var dragStart: CGRect?
     @State private var shape: ShareCardView.Shape = .post
     @State private var moving = false
     @State private var heading = ""
@@ -25,6 +32,9 @@ struct MakeCardFlow: View {
     @State private var making: Double?
     @State private var failed = false
     @State private var loading = false
+    @State private var savedID: UUID?
+    @State private var madeBefore = false
+    @State private var savedNote: String?
 
     var body: some View {
         ZStack {
@@ -35,6 +45,7 @@ struct MakeCardFlow: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: step)
+        .task { restore() }
         .sheet(isPresented: Binding(get: { sharing != nil }, set: { if !$0 { sharing = nil } })) {
             ShareSheet(items: sharing ?? []) { _ in sharing = nil }
         }
@@ -91,6 +102,16 @@ struct MakeCardFlow: View {
 
     private var duration: Double { GreetingCard.duration(photos: framed.count) }
 
+    /// The still preview shows the photo being placed first.
+    private var placingContent: GreetingCardContent {
+        var c = content
+        if c.photos.indices.contains(placing), placing > 0 {
+            let p = c.photos.remove(at: placing)
+            c.photos.insert(p, at: 0)
+        }
+        return c
+    }
+
     private var cardStep: some View {
         FlowScreen(onClose: { step = .photos }) {
             Picker("Size", selection: $shape) {
@@ -98,8 +119,36 @@ struct MakeCardFlow: View {
                 Text("Story").tag(ShareCardView.Shape.story)
             }
             .pickerStyle(.segmented)
-            .onChange(of: shape) { _, _ in Task { await reframe() } }
+            .onChange(of: shape) { _, s in
+                // Re-place only when the crops don't fit the new shape (a saved card opens with its own crops).
+                let fits = framings.allSatisfy { abs($0.rect.width / max(1, $0.rect.height) - s.aspect) < 0.03 }
+                if !fits { Task { await reframe() } }
+            }
+            if framed.count > 1 && !moving {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Brand.space2) {
+                        ForEach(framed.indices, id: \.self) { i in
+                            Button { placing = i } label: {
+                                Image(uiImage: framed[i]).resizable().scaledToFill()
+                                    .frame(width: 52, height: 52)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .strokeBorder(i == placing ? Brand.action : Color.clear, lineWidth: 2)
+                                    }
+                            }
+                            .buttonStyle(PressStyle())
+                            .accessibilityLabel("Photo \(i + 1)")
+                            .accessibilityAddTraits(i == placing ? [.isButton, .isSelected] : .isButton)
+                        }
+                    }
+                }
+            }
             preview
+            if !framed.isEmpty && !moving {
+                Text(framed.count > 1 ? "Drag a photo to place it. Pick another above." : "Drag the photo to place it.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 field("Heading", text: $heading, serif: true)
                 field("Your line (optional)", text: $line, serif: true)
@@ -113,6 +162,11 @@ struct MakeCardFlow: View {
                 }
                 .tint(Brand.action)
                 .padding(.vertical, Brand.space3)
+            }
+            HStack(spacing: Brand.space3) {
+                TextLink(title: madeBefore ? "Save changes" : "Save draft") { save(made: madeBefore) }
+                    .padding(.leading, -8)
+                if let savedNote { Text(savedNote).textStyle(.caption, color: Brand.inkMuted) }
             }
             if failed { Text("That didn't work. Try again.").textStyle(.bodyStrong, color: Brand.error) }
         } footer: {
@@ -147,11 +201,23 @@ struct MakeCardFlow: View {
                         GreetingCardView(content: card, shape: shape, time: min(t, length))
                     }
                 } else {
-                    GreetingCardView(content: card, shape: shape)
+                    GreetingCardView(content: placingContent, shape: shape)
                 }
             }
             .scaleEffect(s, anchor: .topLeading)
             .frame(width: 390 * s, height: height * s, alignment: .topLeading)
+            .overlay(alignment: .top) {
+                if !moving && !framed.isEmpty {
+                    Color.clear
+                        .frame(width: 390 * s, height: shape.photoHeight * s)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(DragGesture(minimumDistance: 2)
+                            .onChanged { slide(placing, by: $0.translation, previewScale: s) }
+                            .onEnded { _ in dragStart = nil })
+                        .accessibilityLabel("Photo")
+                        .accessibilityHint("Drag to place the photo")
+                }
+            }
         }
         .aspectRatio(390 / height, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -171,11 +237,60 @@ struct MakeCardFlow: View {
 
     /// Crops every photo to the card's shape with the faces placed.
     private func reframe() async {
-        var out: [UIImage] = []
+        var out: [(image: CGImage, rect: CGRect)] = []
         for img in originals {
-            if let f = await FaceFinder.shared.banner(of: img, aspect: shape.aspect) { out.append(f) }
+            if let f = await FaceFinder.shared.framing(of: img, aspect: shape.aspect) { out.append(f) }
         }
-        framed = out
+        framings = out
+        placing = min(placing, max(0, out.count - 1))
+        framed = out.compactMap { f in f.image.cropping(to: f.rect).map { UIImage(cgImage: $0) } }
+    }
+
+    /// Keeps the card on this iPhone: a draft to finish, or a made card to share again.
+    private func save(made: Bool) {
+        let card = SavedCard(id: savedID ?? UUID(), occasionID: occasion.id, heading: heading, line: line, signature: signature,
+                             story: shape == .story, moving: moving, crops: framings.map(\.rect), made: made || madeBefore,
+                             updated: Date())
+        savedID = card.id
+        madeBefore = card.made
+        let photos = framings.map(\.image)
+        Task.detached(priority: .utility) { CardDrafts.save(card, photos: photos) }
+        savedNote = card.made ? "Saved to Your cards" : "Draft saved"
+    }
+
+    /// Opens a saved card where it was left.
+    private func restore() {
+        guard let card = saved, savedID == nil else { return }
+        savedID = card.id
+        madeBefore = card.made
+        occasion = GreetingCard.Occasion(id: card.occasionID) ?? .ownWords
+        heading = card.heading
+        line = card.line
+        signature = card.signature
+        shape = card.story ? .story : .post
+        moving = card.moving
+        let photos = CardDrafts.photos(card)
+        originals = photos.map { UIImage(cgImage: $0) }
+        framings = zip(photos, card.crops).map { (image: $0, rect: $1) }
+        framed = framings.compactMap { f in f.image.cropping(to: f.rect).map { UIImage(cgImage: $0) } }
+        step = .card
+    }
+
+    /// Slides one photo's crop by a drag on the preview, kept inside the photo.
+    private func slide(_ index: Int, by translation: CGSize, previewScale s: CGFloat) {
+        guard framings.indices.contains(index) else { return }
+        let f = framings[index]
+        let start = dragStart ?? f.rect
+        if dragStart == nil { dragStart = f.rect }
+        let pixelsPerPoint = start.width / 390
+        var rect = start
+        rect.origin.x -= translation.width / s * pixelsPerPoint
+        rect.origin.y -= translation.height / s * pixelsPerPoint
+        rect.origin.x = min(max(0, rect.origin.x), CGFloat(f.image.width) - rect.width)
+        rect.origin.y = min(max(0, rect.origin.y), CGFloat(f.image.height) - rect.height)
+        rect = rect.integral
+        framings[index].rect = rect
+        if let cg = f.image.cropping(to: rect), framed.indices.contains(index) { framed[index] = UIImage(cgImage: cg) }
     }
 
     private func share() {
@@ -192,6 +307,7 @@ struct MakeCardFlow: View {
                     }
                     making = nil
                     sharing = [url]
+                    save(made: true)
                 } catch {
                     making = nil
                     failed = true
@@ -200,7 +316,7 @@ struct MakeCardFlow: View {
         } else {
             let renderer = ImageRenderer(content: GreetingCardView(content: card, shape: chosen))
             renderer.scale = ShareRender.pixelWidth / 390
-            if let image = renderer.uiImage { sharing = [image] } else { failed = true }
+            if let image = renderer.uiImage { sharing = [image]; save(made: true) } else { failed = true }
         }
     }
 }
