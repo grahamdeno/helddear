@@ -56,6 +56,14 @@ struct InboxWish: Codable {
     var capturedAt: Date
 }
 
+/// Photos shared from the Photos app for one person (Nov 22, 2026): the files sit in the inbox folder until Held
+/// Dear opens and keeps the ones from their days, plus 30 more.
+struct InboxPhotos: Codable {
+    var id: UUID
+    var personID: UUID
+    var files: [String]
+}
+
 /// What the "Next person up" widget shows.
 struct WidgetSnapshot: Codable {
     struct Entry: Codable {

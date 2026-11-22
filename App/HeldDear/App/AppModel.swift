@@ -398,6 +398,7 @@ final class AppModel: ObservableObject {
             person = existing
         } else {
             person = Person(name: name, fullName: fullName, contactID: contactID, ring: ring)
+            person.showAgeOnCard = true   // On by default for new people (Graham, Nov 22, 2026).
             context.insert(person)
         }
         setBirthday(person, month: month, day: day, year: year)
@@ -417,6 +418,7 @@ final class AppModel: ObservableObject {
             person = existing
         } else {
             person = Person(name: name, fullName: fullName, contactID: contactID, ring: .outer)
+            person.showAgeOnCard = true   // On by default for new people (Graham, Nov 22, 2026).
             context.insert(person)
         }
         let when = year ?? (type.kind == .once ? Calendar.current.component(.year, from: OccasionDates.nextDate(month: month, day: day, onOrAfter: Calendar.current.startOfDay(for: Date()))) : nil)
@@ -494,6 +496,7 @@ final class AppModel: ObservableObject {
                 }
             } else if !removed.contains(c.id) {
                 let person = Person(name: c.displayName, fullName: c.fullName, contactID: c.id, ring: .outer)
+                person.showAgeOnCard = true   // On by default for new people (Graham, Nov 22, 2026).
                 context.insert(person)
                 let occasion = Occasion(month: month, day: day, birthYear: c.year)
                 context.insert(occasion)
@@ -543,6 +546,10 @@ final class AppModel: ObservableObject {
         var changed = false
         for file in files where file.pathExtension == "json" {
             defer { try? FileManager.default.removeItem(at: file) }
+            if file.lastPathComponent.hasPrefix("photos-") {
+                if let set = AppGroup.read(InboxPhotos.self, from: file) { adoptSharedPhotos(set, in: dir); changed = true }
+                continue
+            }
             guard let item = AppGroup.read(InboxWish.self, from: file), let person = self.person(item.personID) else { continue }
             let image = item.imageFile.flatMap { PhotoStore.adopt(fileAt: dir.appendingPathComponent($0)) }
             let wish = Wish(text: item.text, url: item.url, imageFile: image, capturedAt: item.capturedAt)
@@ -551,6 +558,26 @@ final class AppModel: ObservableObject {
             changed = true
         }
         if changed { save() }
+    }
+
+    /// Keeps a person's shared photos from their days, plus 30 more, and clears the rest from the inbox.
+    private func adoptSharedPhotos(_ set: InboxPhotos, in dir: URL) {
+        let person = self.person(set.personID)
+        let days = person?.occasions.map { (month: $0.month, day: $0.day) } ?? []
+        var kept: [String] = []
+        var extra = 0
+        for name in set.files {
+            let url = dir.appendingPathComponent(name)
+            defer { try? FileManager.default.removeItem(at: url) }
+            guard person != nil, let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { continue }
+            let near = PhotoStore.takenDate(data).map { ChosenPhotos.nearDay($0, days: days, within: 3) } ?? false
+            if !near && extra >= 30 { continue }
+            if let file = autoreleasepool(invoking: { PhotoStore.save(data: data) }) {
+                kept.append(file)
+                if !near { extra += 1 }
+            }
+        }
+        if let person, !kept.isEmpty { person.photoFiles.insert(contentsOf: kept.reversed(), at: 0) }
     }
 
     // MARK: Acts

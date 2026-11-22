@@ -809,6 +809,13 @@ struct RelationshipPicker: View {
     var showsBack = true
     let done: () -> Void
     @State private var showMore = false
+    @State private var typed = ""
+
+    private func useTyped() {
+        let word = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !word.isEmpty else { return }
+        pick(word.prefix(1).uppercased() + word.dropFirst())
+    }
 
     private func isSelected(_ word: String) -> Bool {
         person.relationship?.caseInsensitiveCompare(word) == .orderedSame
@@ -829,10 +836,33 @@ struct RelationshipPicker: View {
                     .accessibilityHint("Shows more choices")
             }
             if moreOpen {
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Someone else")
-                    FlowLayout(spacing: 8) {
-                        ForEach(Relationship.moreChoices, id: \.self) { word in chip(word) }
+                // One field that finds the word as you type, with a few common ones under it, in place of a wall of
+                // chips (Graham, Nov 22, 2026). Any other word is kept as typed.
+                VStack(alignment: .leading, spacing: Brand.space3) {
+                    TextField("Type who they are, like niece", text: $typed)
+                        .textStyle(.body)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
+                        .onSubmit { useTyped() }
+                        .padding(.horizontal, Brand.space4)
+                        .frame(minHeight: 52)
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                        .accessibilityLabel("Who they are")
+                    let query = typed.trimmingCharacters(in: .whitespaces)
+                    if query.isEmpty {
+                        FlowLayout(spacing: 8) {
+                            ForEach(Relationship.commonMore, id: \.self) { word in chip(word) }
+                        }
+                    } else {
+                        let matches = Relationship.matches(query)
+                        VStack(spacing: 0) {
+                            ForEach(matches, id: \.self) { word in
+                                OptionRow(title: word, caption: nil) { pick(word) }
+                            }
+                            if !matches.contains(where: { $0.caseInsensitiveCompare(query) == .orderedSame }) {
+                                OptionRow(title: "Use \u{201C}\(query.prefix(1).uppercased() + query.dropFirst())\u{201D}", caption: nil) { useTyped() }
+                            }
+                        }
                     }
                 }
             }
