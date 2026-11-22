@@ -809,6 +809,13 @@ struct RelationshipPicker: View {
     var showsBack = true
     let done: () -> Void
     @State private var showMore = false
+    @State private var typed = ""
+
+    private func useTyped() {
+        let word = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !word.isEmpty else { return }
+        pick(word.prefix(1).uppercased() + word.dropFirst())
+    }
 
     private func isSelected(_ word: String) -> Bool {
         person.relationship?.caseInsensitiveCompare(word) == .orderedSame
@@ -834,6 +841,20 @@ struct RelationshipPicker: View {
                     FlowLayout(spacing: 8) {
                         ForEach(Relationship.moreChoices, id: \.self) { word in chip(word) }
                     }
+                    // Any other word, typed (Nov 22, 2026): "Pastor", "Best man", "Roommate".
+                    HStack(spacing: Brand.space2) {
+                        TextField("Or type it, like Roommate", text: $typed)
+                            .textStyle(.body)
+                            .submitLabel(.done)
+                            .onSubmit { useTyped() }
+                            .padding(.horizontal, Brand.space4)
+                            .frame(minHeight: 48)
+                            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                        if !typed.trimmingCharacters(in: .whitespaces).isEmpty {
+                            TextLink(title: "Use") { useTyped() }
+                        }
+                    }
+                    .padding(.top, Brand.space2)
                 }
             }
         } footer: {
