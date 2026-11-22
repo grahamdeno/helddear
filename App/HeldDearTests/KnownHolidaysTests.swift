@@ -29,7 +29,7 @@ final class KnownHolidaysTests: XCTestCase {
     }
 
     func testMatches() {
-        XCTAssertEqual(KnownHolidays.matches("han").map(\.name), ["Hanukkah"])
+        XCTAssertEqual(KnownHolidays.matches("han").map(\.name), ["Hanukkah", "Rosh Hashanah"], "starts-with first, then contains")
         XCTAssertEqual(KnownHolidays.matches("eid").count, 2)
         XCTAssertEqual(KnownHolidays.matches("").count, KnownHolidays.all.count)
     }
