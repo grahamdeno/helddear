@@ -63,6 +63,10 @@ struct RootView: View {
             RouteView(route: route)
                 .environmentObject(model)
         }
+        .fullScreenCover(isPresented: Binding(get: { !model.relationshipQueue.isEmpty && model.route == nil },
+                                              set: { if !$0 { model.relationshipQueue = [] } })) {
+            RelationshipQueueView().environmentObject(model)
+        }
         .onChange(of: model.route) { old, route in
             if route == nil, case .addBirthday? = old, !model.contactsToDate.isEmpty {
                 let next = model.contactsToDate.removeFirst()

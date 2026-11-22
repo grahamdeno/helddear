@@ -79,6 +79,21 @@ final class DomainTests: XCTestCase {
                     hasPhone: phone, turning: nil, headsUpAt: headsUpAt)
     }
 
+    func testLovesPromptSixWeeksOutOnlyWhenNothingIsKnown() {
+        let now = day(2026, 9, 1, 12)
+        var m = state(due: day(2026, 12, 2))
+        m.lovesKnown = false
+        let alerts = AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal).alerts
+        let loves = alerts.first { $0.kind == .lovesPrompt }
+        XCTAssertEqual(loves?.fireDate, day(2026, 10, 21, 9))
+        XCTAssertEqual(loves?.body, "What does Mom love? One line makes every idea better.")
+        m.lovesKnown = true
+        XCTAssertFalse(AlertPlanner.plan(moments: [m], seasons: [], now: now, calendar: cal).alerts.contains { $0.kind == .lovesPrompt })
+        var outer = state(ring: .outer, due: day(2026, 12, 2))
+        outer.lovesKnown = false
+        XCTAssertFalse(AlertPlanner.plan(moments: [outer], seasons: [], now: now, calendar: cal).alerts.contains { $0.kind == .lovesPrompt })
+    }
+
     func testInnerRingGetsFullSequence() {
         let now = day(2026, 9, 1, 12)
         let m = state(due: day(2026, 12, 2))

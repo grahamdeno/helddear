@@ -6,6 +6,8 @@ enum OccasionDates {
     static let alertHour = 9
     static let cutoffDays = 5
     static let wishPromptDays = 60
+    /// "What do they love?" comes six weeks before the day (Nov 22, 2026).
+    static let lovesPromptDays = 42
 
     /// The calendar date (start of day) of a fixed-day occasion in a given year.
     static func date(month: Int, day: Int, year: Int, calendar: Calendar = .current) -> Date {

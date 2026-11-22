@@ -25,13 +25,15 @@ struct MomentState: Equatable {
     var partsReady: Int = 0
     var partsTotal: Int = 0
     var isPlanMoment: Bool = false
+    /// False when nothing is known about what the person loves (no loves saved yet).
+    var lovesKnown: Bool = true
 
     /// "Mom's birthday", "Christmas for Mom".
     var subject: String { occasion.subject(name: personName, partner: partnerName) }
 }
 
 enum AlertKind: String {
-    case wishPrompt, headsUp, nudge, cutoff, dayOf, missed, season, grouped
+    case wishPrompt, headsUp, nudge, cutoff, dayOf, missed, season, grouped, lovesPrompt
 }
 
 struct PlannedAlert: Equatable {
@@ -89,6 +91,16 @@ enum AlertPlanner {
                 if fire > now {
                     alerts.append(PlannedAlert(id: "wish-\(m.id)", kind: .wishPrompt, fireDate: fire,
                                                body: "Has \(name) mentioned wanting anything lately?", momentID: m.id))
+                }
+            }
+
+            // Six weeks out, when nothing is known about what they love: one question, asked when the answer helps
+            // the ideas (Graham, Nov 22, 2026). Inner and middle rings only; not repeated if missed.
+            if m.ring != .outer, m.status == .upcoming, !m.lovesKnown {
+                let fire = D.alertTime(on: D.adding(days: -D.lovesPromptDays, to: m.dueDate, calendar: calendar), calendar: calendar)
+                if fire > now {
+                    alerts.append(PlannedAlert(id: "loves-\(m.id)", kind: .lovesPrompt, fireDate: fire,
+                                               body: "What does \(name) love? One line makes every idea better.", momentID: m.id))
                 }
             }
 

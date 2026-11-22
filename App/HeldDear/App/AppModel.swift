@@ -87,6 +87,12 @@ final class AppModel: ObservableObject {
     /// Picked contacts still waiting for a date, shown one after another after Add a birthday closes.
     /// Contacts picked without a birthday, still to date: name and contact ID.
     var contactsToDate: [(name: String, id: String)] = []
+    /// A person whose "What do they love?" editor should open when their page appears (from the six-week alert).
+    var openLovesFor: UUID?
+    /// People just added from Contacts, still to be asked who they are to the user (Nov 22, 2026).
+    @Published var relationshipQueue: [UUID] = []
+    /// "4 added." shown on the first of those questions instead of an alert.
+    var importSummary: String?
     /// The contact just picked had no birthday on their card, so Add someone says so (Graham, Nov 22, 2026).
     var contactWithoutBirthday: (name: String, id: String)?
 
@@ -199,7 +205,8 @@ final class AppModel: ObservableObject {
                            occasion: m.type, partnerName: m.occasion?.partnerName,
                            partsReady: isPlanMoment ? m.partsReady : 0,
                            partsTotal: isPlanMoment ? m.planParts.count : 0,
-                           isPlanMoment: isPlanMoment)
+                           isPlanMoment: isPlanMoment,
+                           lovesKnown: !(person?.loves.isEmpty ?? false))
     }
 
     func seasons(now: Date = Date()) -> [Season] {
@@ -907,6 +914,10 @@ final class AppModel: ObservableObject {
         case .missed: if let id = momentID { route = .moment(id, .missed) }
         case .season: if let month = monthStart { route = .season(month) }
         case .grouped: route = nil
+        case .lovesPrompt:
+            guard let id = momentID, let person = moment(id)?.person else { return }
+            openLovesFor = person.id
+            route = .person(person.id, focus: nil)
         case .dayOf:
             guard let id = momentID, let m = moment(id) else { return }
             switch action {
