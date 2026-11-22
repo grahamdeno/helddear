@@ -220,7 +220,7 @@ struct PersonView: View {
                 if let b = person.birthday {
                     BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
                 }
-                if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
+                if person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
                 if ContactsService.shared.mailAddress(contactID: person.contactID) == nil { addressRow }
@@ -505,8 +505,9 @@ struct PersonView: View {
                     .frame(width: 56, height: 56)
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add a photo for \(DisplayName.plain(person.name))'s card").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
-                    Text("It stays with your plans").textStyle(.caption, color: Brand.inkMuted)
+                    Text("Choose photos of \(DisplayName.plain(person.name))").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
+                    Text("Open their album in Photos and select all, or pick any you like. Only these come into Held Dear.")
+                        .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -622,7 +623,7 @@ struct PersonView: View {
                                         model.save()
                                     }
                                 }
-                                Button("Remove photo", role: .destructive) {
+                                Button("Remove from Held Dear", role: .destructive) {
                                     person.photoFiles.removeAll { $0 == file }
                                     PhotoStore.delete(file)
                                     model.save()
@@ -917,84 +918,45 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Photos from past birthdays, found in the Photos library on this iPhone.
-/// Free shows the most recent year; Lifetime shows every year.
+/// Photos from past birthdays, from the photos the user chose for this person (Nov 21, 2026), by the day each was
+/// taken. Free shows the most recent year; Lifetime shows every year.
 struct BirthdayMemories: View {
     @EnvironmentObject var model: AppModel
-    @ObservedObject private var photos = PhotoMemories.shared
     @ObservedObject private var purchases = Purchases.shared
     let person: Person
     let month: Int
     let day: Int
     var showLifetime: () -> Void
-    @State private var years: [PhotoMemories.Year] = []
-    @State private var opened: PickedPhoto?
-    @State private var hiddenCount = 0
 
     var body: some View {
+        let years = ChosenPhotos.birthdayYears(files: person.photoFiles, month: month, day: day)
         VStack(alignment: .leading, spacing: Brand.space3) {
-            if photos.canRead {
-                if !years.isEmpty {
-                    Text("On \(DisplayName.plain(person.name))'s birthdays").textStyle(.headline)
-                    Text("Tap a photo to open it, use it on the card, or hide it.").textStyle(.caption, color: Brand.inkMuted)
-                    ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
-                    if !purchases.hasLifetime && years.count > 1 {
-                        TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
-                    }
-                }
-                if hiddenCount > 0 {
-                    TextLink(title: hiddenCount == 1 ? "Show 1 hidden photo" : "Show \(hiddenCount) hidden photos") {
-                        HiddenPhotos.showAll()
-                        load()
-                    }
-                    .padding(.leading, -8)
-                }
-            } else if photos.status == .notDetermined {
-                OptionRow(title: "Find photos from \(DisplayName.plain(person.name))'s birthdays",
-                          caption: "Held Dear looks in your library on this iPhone. Choose Full Access to find them all.") {
-                    Task { await photos.requestAccess(); load() }
-                }
-            } else {
-                OptionRow(title: "Find photos from \(DisplayName.plain(person.name))'s birthdays",
-                          caption: "Turn on Full Access for Held Dear in Settings, under Photos.") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            if !years.isEmpty {
+                Text("On \(DisplayName.plain(person.name))'s birthdays").textStyle(.headline)
+                ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
+                if !purchases.hasLifetime && years.count > 1 {
+                    TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
                 }
             }
-            if photos.status == .limited {
-                TextLink(title: "Held Dear sees only some photos. Allow all in Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-                }
-                .padding(.leading, -8)
-            }
-        }
-        .onAppear(perform: load)
-        .fullScreenCover(item: $opened) { p in
-            PhotoViewer(asset: p.asset, person: person, caption: p.caption) { load() }
-                .environmentObject(model)
         }
     }
 
-    private func yearRow(_ y: PhotoMemories.Year) -> some View {
+    private func yearRow(_ y: ChosenPhotos.Year) -> some View {
         VStack(alignment: .leading, spacing: Brand.space2) {
             Text(String(y.year)).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(y.assets, id: \.localIdentifier) { asset in
-                        Button { opened = PickedPhoto(asset: asset, caption: String(y.year)) } label: { AssetThumb(asset: asset, side: 104) }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Photo from \(String(y.year))")
-                            .accessibilityHint("Opens the photo")
+                    ForEach(y.files, id: \.self) { file in
+                        if let image = PhotoStore.load(file) {
+                            Image(uiImage: image).resizable().scaledToFill()
+                                .frame(width: 104, height: 104)
+                                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                                .accessibilityLabel("Photo from \(y.year)")
+                        }
                     }
                 }
             }
         }
-    }
-
-    private func load() {
-        let all = photos.years(month: month, day: day)
-        years = HiddenPhotos.filter(all)
-        let ids = Set(all.flatMap { $0.assets.map(\.localIdentifier) })
-        hiddenCount = HiddenPhotos.all().intersection(ids).count
     }
 }
 
