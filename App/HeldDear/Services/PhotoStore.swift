@@ -29,9 +29,9 @@ enum PhotoStore {
     }
 
     /// Keeps the day the photo was taken (from its own details) in the file name, for past birthdays.
-    static func save(data: Data) -> String? {
+    static func save(data: Data, taken: Date? = nil) -> String? {
         guard let image = UIImage(data: data) else { return nil }
-        return save(image, taken: takenDate(data))
+        return save(image, taken: taken ?? takenDate(data))
     }
 
     static func takenDate(_ data: Data) -> Date? {

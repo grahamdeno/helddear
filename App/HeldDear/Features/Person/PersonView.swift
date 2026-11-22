@@ -529,6 +529,8 @@ struct PersonView: View {
             }
             if let b = person.birthday {
                 BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
+                // Library photos from past birthdays, to keep or skip (Graham, Nov 22, 2026).
+                BirthdaySuggestionsView(person: person, month: b.month, day: b.day)
             }
         }
     }
@@ -723,7 +725,8 @@ struct PersonView: View {
 
     /// A skipped Get ahead photo: one quiet next step.
     private var photoNudge: some View {
-        PhotosPicker(selection: $photoItems, maxSelectionCount: nil, selectionBehavior: .ordered, matching: .images) {
+        PhotosPicker(selection: $photoItems, maxSelectionCount: nil, selectionBehavior: .ordered, matching: .images,
+                             preferredItemEncoding: .automatic, photoLibrary: .shared()) {
             HStack(spacing: 14) {
                 Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.ink)
                     .frame(width: 56, height: 56)
@@ -795,7 +798,8 @@ struct PersonView: View {
     private var photoStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                PhotosPicker(selection: $photoItems, maxSelectionCount: nil, selectionBehavior: .ordered, matching: .images) {
+                PhotosPicker(selection: $photoItems, maxSelectionCount: nil, selectionBehavior: .ordered, matching: .images,
+                             preferredItemEncoding: .automatic, photoLibrary: .shared()) {
                     Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.action)
                         .frame(width: 88, height: 88)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
@@ -866,12 +870,15 @@ struct PersonView: View {
                     return out
                 }
                 var added: [String] = []
-                for data in datas {
+                for (i, data) in datas.enumerated() {
                     done += 1
                     guard let data else { skipped += 1; continue }
-                    let near = PhotoStore.takenDate(data).map { ChosenPhotos.nearDay($0, days: days, within: 3) } ?? false
+                    // The day taken from the photo's own details, or from the library when those were left off
+                    // (Nov 22, 2026), so it lands under the right past birthday.
+                    let taken = PhotoStore.takenDate(data) ?? BirthdaySuggestions.takenDate(localIdentifier: batch[i].itemIdentifier)
+                    let near = taken.map { ChosenPhotos.nearDay($0, days: days, within: 3) } ?? false
                     if !near && extra >= 30 { skipped += 1; continue }
-                    let file: String? = autoreleasepool { PhotoStore.save(data: data) }
+                    let file: String? = autoreleasepool { PhotoStore.save(data: data, taken: taken) }
                     if let file { added.append(file); if near { fromDays += 1 } else { extra += 1 } } else { skipped += 1 }
                 }
                 if !added.isEmpty {
