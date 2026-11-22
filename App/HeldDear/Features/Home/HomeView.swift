@@ -252,12 +252,11 @@ struct FeaturedView: View {
         guard let next = person.occasions.flatMap(\.moments)
             .filter({ $0.id != moment.id && $0.dueDate >= today })
             .min(by: { $0.dueDate < $1.dueDate }) else { return nil }
-        let parts = next.planParts
-        let ready = parts.filter {
-            PartSteps.progress(step: $0.currentStep ?? "open", family: PartSteps.family(forKindRaw: $0.kindRaw)) == .ready
-        }.count
+        let parts = next.type.kind == .holiday
+            ? model.holidayMembers(ref: HolidayRef(type: next.type, name: next.occasion?.partnerName), year: next.year).flatMap(\.planParts)
+            : next.planParts
         var line = "\(next.dueDate < moment.dueDate ? "First" : "Next") for \(name): \(next.label), \(next.dueDate.formatted(.dateTime.month(.abbreviated).day()))"
-        if !parts.isEmpty { line += " · \(ready) of \(parts.count) ready" }
+        if !parts.isEmpty { line += " · \(parts.filter(\.isReady).count) of \(parts.count) ready" }
         return line + "."
     }
 
