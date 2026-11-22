@@ -45,11 +45,6 @@ struct FamilyInSuggestion: View {
     }
 }
 
-extension String {
-    /// "josie's birthday" stays as written; only the first letter is raised.
-    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
-}
-
 /// The flow: what to ask (skipped for the follow-up), who to ask (always), the family page if needed, then one
 /// message per person, each sent by the user's own tap in Messages.
 struct FamilyInFlow: View {
