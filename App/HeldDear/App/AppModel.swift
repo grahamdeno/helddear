@@ -917,7 +917,7 @@ final class AppModel: ObservableObject {
         case .lovesPrompt:
             guard let id = momentID, let person = moment(id)?.person else { return }
             openLovesFor = person.id
-            route = .person(person.id, focus: nil)
+            route = .person(person.id)
         case .dayOf:
             guard let id = momentID, let m = moment(id) else { return }
             switch action {
