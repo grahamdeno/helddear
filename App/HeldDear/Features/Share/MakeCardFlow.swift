@@ -188,6 +188,7 @@ struct MakeCardFlow: View {
     private func field(_ placeholder: String, text: Binding<String>, serif: Bool) -> some View {
         TextField(placeholder, text: text, axis: .vertical)
             .lineLimit(1...3)
+            .returnEnds(text)
             .font(serif ? Brand.serif(18) : .body)
             .padding(.vertical, Brand.space3)
             .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }

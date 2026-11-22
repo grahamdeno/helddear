@@ -378,7 +378,7 @@ private struct PartScreen: View {
                     .font(Brand.display(44, relativeTo: .largeTitle))
                     .foregroundStyle(Brand.ink)
                     .focused($nameFocused)
-                    .submitLabel(.done)
+                    .returnEnds($name) { saveName() }
                     .onChange(of: nameFocused) { _, focused in if !focused { saveName() } }
                     .accessibilityLabel("What is it?")
                 Text("Name it here. The name shows on \(DisplayName.plain(personName))'s page.")
@@ -660,6 +660,7 @@ private struct PartScreen: View {
             .buttonStyle(.plain)
             TextField("Add a note, like when it arrives", text: $note, axis: .vertical)
                 .lineLimit(1...4)
+                .returnEnds($note)
                 .font(Brand.serif(17, relativeTo: .body, italic: true))
                 .foregroundStyle(Brand.ink)
                 .focused($noteFocused)
