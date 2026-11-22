@@ -33,7 +33,8 @@ enum BirthdaySuggestions {
 
     /// The day a library photo was taken, for a photo picked by hand whose file didn't say (Nov 22, 2026).
     static func takenDate(localIdentifier: String?) -> Date? {
-        guard let id = localIdentifier, PhotoMemories.shared.canRead else { return nil }
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard let id = localIdentifier, status == .authorized || status == .limited else { return nil }
         return PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject?.creationDate
     }
 }
