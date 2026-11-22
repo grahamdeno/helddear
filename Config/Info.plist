@@ -10,6 +10,9 @@
 		<string>Fraunces9pt-Regular.ttf</string>
 		<string>Fraunces9pt-Italic.ttf</string>
 	</array>
+	<!-- Lock Screen cards for a person's day and for soon arrivals (Nov 22, 2026). -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<!-- helddear://moment?id=… opens a Moment from the widget. -->
 	<key>CFBundleURLTypes</key>
 	<array>

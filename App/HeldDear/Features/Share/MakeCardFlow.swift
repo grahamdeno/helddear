@@ -14,6 +14,8 @@ struct MakeCardFlow: View {
     var presetHeading: String? = nil
     var presetPhotos: [UIImage] = []
     var onShared: (() -> Void)? = nil
+    /// The person the card is for, when opened from their page: lets "Write it for me" use what's saved about them.
+    var person: Person? = nil
 
     @AppStorage("yourName") private var yourName = ""
     @AppStorage("cardSignature") private var signedAs = ""
@@ -142,6 +144,9 @@ struct MakeCardFlow: View {
             VStack(alignment: .leading, spacing: 0) {
                 field("Heading", text: $heading, serif: true)
                 field("Your line (optional)", text: $line, serif: true)
+                if let person {
+                    WriteForMe(kind: .cardLine, facts: { PersonFacts(person: person, moment: model.nextMoment(for: person)) }, text: $line)
+                }
                 field("Signed", text: $signature, serif: false)
                 Toggle(isOn: $moving) {
                     VStack(alignment: .leading, spacing: 2) {

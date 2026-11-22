@@ -169,10 +169,42 @@ final class AppModel: ObservableObject {
         MomentEngine.refresh(context, now: now)
         checkReturnFromCall()
         writeSnapshots(now: now)
+        syncLiveDays(now: now)
         let status = await NotificationService.shared.authorizationStatus()
         notificationsAllowed = status == .authorized || status == .provisional || status == .ephemeral
         await scheduleAlerts(now: now)
         revision += 1
+    }
+
+    /// The Lock Screen cards: today's days and soon arrivals (Graham, Nov 22, 2026).
+    func syncLiveDays(now: Date = Date()) {
+        let today = Calendar.current.startOfDay(for: now)
+        let moments = allMoments().filter { $0.person != nil && $0.dueDate >= today }
+        var days: [LiveDays.Day] = [], arrivals: [LiveDays.Arrival] = []
+        var lines: [UUID: (line: String, ready: Int, total: Int)] = [:], initials: [UUID: String] = [:]
+        for m in moments {
+            guard let person = m.person else { continue }
+            let name = DisplayName.plain(person.name)
+            if Calendar.current.isDate(m.dueDate, inSameDayAs: now) {
+                days.append(LiveDays.Day(id: m.id, title: m.type.subject(name: name, partner: m.occasion?.partnerName).capitalizedFirst,
+                                         dueDate: m.dueDate, ring: m.occasion?.effectiveRing ?? .outer,
+                                         settled: m.status.isSettled, personal: m.type.kind != .holiday))
+                let total = m.planParts.count, ready = m.planParts.filter(\.isReady).count
+                let line = m.type == .birthday && m.turning != nil ? "Turning \(m.turning!) today"
+                    : (total > 0 ? "\(ready) of \(total) ready" : "Today")
+                lines[m.id] = (line, ready, total)
+                initials[m.id] = person.initials
+            }
+            for act in m.planParts {
+                guard let arrives = act.arrivesBy, Orders.applies(PartSteps.family(forKindRaw: act.kindRaw)) else { continue }
+                let item = PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)
+                arrivals.append(LiveDays.Arrival(id: act.id, title: "\(name)'s \(item.lowercased())", arrives: arrives,
+                                                 placed: Orders.isPlaced(act.currentStep ?? "open"), ready: act.isReady))
+                initials[act.id] = person.initials
+            }
+        }
+        let initialsOnly = UserDefaults(suiteName: AppGroup.identifier)?.bool(forKey: "lockScreenInitialsOnly") ?? false
+        LiveDayService.sync(days: days, arrivals: arrivals, lines: lines, initialsOnly: initialsOnly, initials: initials, now: now)
     }
 
     func save() {
@@ -1014,6 +1046,12 @@ final class AppModel: ObservableObject {
            let raw = items.first(where: { $0.name == "raw" })?.value, HolidayRef(raw: raw) != nil,
            let year = items.first(where: { $0.name == "year" })?.value.flatMap(Int.init) {
             route = .holiday(raw, year)
+            return
+        }
+        if url.scheme == "helddear", url.host() == "item",
+           let idString = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "id" })?.value,
+           let id = UUID(uuidString: idString), act(id) != nil {
+            push(.item(id))
             return
         }
         guard url.scheme == "helddear", url.host() == "moment",

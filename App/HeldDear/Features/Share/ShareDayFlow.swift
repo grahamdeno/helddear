@@ -62,6 +62,14 @@ struct ShareDayFlow: View {
                     .font(Brand.serif(17, italic: true))
                     .padding(.vertical, Brand.space3)
                     .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                if let person = moment.person {
+                    // Public, so only the name and the day go in (Nov 22, 2026).
+                    WriteForMe(kind: .shareLine, facts: {
+                        var f = PersonFacts(name: DisplayName.plain(person.name), occasion: moment.type)
+                        if addAge { f.countLine = moment.countLine }
+                        return f
+                    }, text: $note)
+                }
                 if moment.turning != nil && moment.type.countLine(moment.turning) != nil {
                     Toggle(isOn: $addAge) {
                         VStack(alignment: .leading, spacing: 2) {
