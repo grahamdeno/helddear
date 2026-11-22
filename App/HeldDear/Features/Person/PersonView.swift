@@ -22,6 +22,8 @@ struct PersonView: View {
     @State private var editingDate = false
     /// Several photos at once (Graham, Nov 21, 2026): pick as many as you like in one go.
     @State private var photoItems: [PhotosPickerItem] = []
+    /// Progress and the result of adding a big set of photos.
+    @State private var photoNote: String?
     /// A photo opened from the strip: shown large with plain buttons, in place of a press-and-hold menu.
     @State private var photoToManage: String?
     /// The anniversary getting a couple photo, and the picked photo (Graham, Nov 21, 2026).
@@ -454,8 +456,8 @@ struct PersonView: View {
             } else {
                 Eyebrow(text: "Photos")
                 photoStrip
-                Text("The first is the photo at the top of this page. Tap one to change that or remove it.")
-                    .textStyle(.caption, color: Brand.inkMuted)
+                Text(photoNote ?? "The first is the photo at the top of this page. Tap one to change that or remove it.")
+                    .textStyle(.caption, color: photoNote == nil ? Brand.inkMuted : Brand.ink)
             }
             if let b = person.birthday {
                 BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
@@ -653,14 +655,14 @@ struct PersonView: View {
 
     /// A skipped Get ahead photo: one quiet next step.
     private var photoNudge: some View {
-        PhotosPicker(selection: $photoItems, maxSelectionCount: 30, selectionBehavior: .ordered, matching: .images) {
+        PhotosPicker(selection: $photoItems, maxSelectionCount: nil, selectionBehavior: .ordered, matching: .images) {
             HStack(spacing: 14) {
                 Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.ink)
                     .frame(width: 56, height: 56)
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Choose photos of \(DisplayName.plain(person.name))").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
-                    Text("Open their album in Photos and select all, or pick any you like. Only these come into Held Dear.")
+                    Text("Search their name, then drag a finger across the photos to pick many at once. Pick as many as you like: photos from their days are kept, plus 30 more.")
                         .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -716,7 +718,7 @@ struct PersonView: View {
     private var photoStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                PhotosPicker(selection: $photoItems, maxSelectionCount: 30, selectionBehavior: .ordered, matching: .images) {
+                PhotosPicker(selection: $photoItems, maxSelectionCount: nil, selectionBehavior: .ordered, matching: .images) {
                     Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.action)
                         .frame(width: 88, height: 88)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
@@ -770,18 +772,29 @@ struct PersonView: View {
 
     private func addPhotos(_ items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
+        let days = person.occasions.map { (month: $0.month, day: $0.day) }
         Task {
-            var added: [String] = []
+            photoNote = items.count > 10 ? "Adding \(items.count) photos…" : nil
+            // One at a time, so a big album doesn't fill memory. Photos near their days are always kept, plus 30 more
+            // (ChosenPhotos.keep, Nov 22, 2026).
+            var added: [String] = [], fromDays = 0, extra = 0, skipped = 0
             for item in items {
-                if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+                let taken = PhotoStore.takenDate(data)
+                let near = taken.map { ChosenPhotos.nearDay($0, days: days, within: 3) } ?? false
+                if !near && extra >= 30 { skipped += 1; continue }
+                if let file = PhotoStore.save(data: data) {
                     added.append(file)
+                    if near { fromDays += 1 } else { extra += 1 }
                 }
             }
             if !added.isEmpty {
-                person.photoFiles.append(contentsOf: added)
+                person.photoFiles.insert(contentsOf: added.reversed(), at: 0)
                 model.save()
             }
             photoItems = []
+            photoNote = skipped == 0 ? nil
+                : "Kept \(fromDays) from \(DisplayName.plain(person.name))'s days and \(extra) more. \(skipped) others stayed in Photos."
         }
     }
 }
