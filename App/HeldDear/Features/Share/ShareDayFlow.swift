@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// Share a person's day as an image or a short video (approved Nov 21, 2026). Everything is made on the phone and
@@ -11,8 +12,18 @@ struct ShareDayFlow: View {
     @State private var moving = false
     @State private var addAge = false
     @State private var note = ""
+    /// The anniversary's couple banner, used until a photo is chosen.
     @State private var photo: UIImage?
     @State private var storyPhoto: UIImage?
+    // Choosing and placing the photo, the same way as the digital card (Nov 22, 2026).
+    @State private var files: [String] = []
+    @State private var thumbs: [String: UIImage] = [:]
+    @State private var chosen: Int?
+    @State private var libraryPick: PhotosPickerItem?
+    @State private var libraryImage: UIImage?
+    @State private var framing: (image: CGImage, rect: CGRect)?
+    @State private var placed: UIImage?
+    @State private var dragStart: CGRect?
     @State private var sharing: [Any]?
     @State private var making: Double?
     @State private var failed = false
@@ -26,7 +37,7 @@ struct ShareDayFlow: View {
                          subline: ShareCardLayout.subline(type: moment.type, partner: moment.occasion?.partnerName,
                                                           count: moment.turning, addAge: addAge),
                          date: moment.dueDate, note: note.trimmingCharacters(in: .whitespacesAndNewlines),
-                         photo: shape == .post ? photo : storyPhoto)
+                         photo: placed ?? (shape == .post ? photo : storyPhoto))
     }
 
     var body: some View {
@@ -37,7 +48,13 @@ struct ShareDayFlow: View {
                 Text("Story").tag(ShareCardView.Shape.story)
             }
             .pickerStyle(.segmented)
+            .onChange(of: shape) { _, _ in Task { await reframe() } }
+            CardPhotoStrip(count: files.count, selected: chosen, thumb: { files.indices.contains($0) ? thumbs[files[$0]] : nil },
+                           onSelect: { i in chosen = i; libraryImage = nil; Task { await reframe() } }, library: $libraryPick)
             preview
+            if framing != nil && !moving {
+                Text(CardPhotos.placeHint(photoCount: 1)).textStyle(.caption, color: Brand.inkMuted)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 TextField("Add a line (optional)", text: $note, axis: .vertical)
                     .lineLimit(1...2)
@@ -75,12 +92,30 @@ struct ShareDayFlow: View {
             }
         }
         .task {
+            let person = moment.person
+            files = CardPhotos.order(files: person?.photoFiles ?? [], top: person?.photoFiles.last)
             if moment.type == .anniversary, model.pairPartner(for: moment) != nil || OccasionPhotos.file(for: moment.occasion?.id) != nil {
+                // The couple banner stays until a photo is chosen from the row.
                 photo = await model.anniversaryBanner(for: moment, aspect: ShareCardView.Shape.post.aspect)
                 storyPhoto = await model.anniversaryBanner(for: moment, aspect: ShareCardView.Shape.story.aspect)
-            } else {
-                photo = await FaceFinder.shared.banner(for: moment.person, aspect: ShareCardView.Shape.post.aspect)
-                storyPhoto = await FaceFinder.shared.banner(for: moment.person, aspect: ShareCardView.Shape.story.aspect)
+            } else if !files.isEmpty {
+                chosen = 0
+                await reframe()
+            } else if let contact = ContactsService.shared.photo(contactID: person?.contactID) {
+                libraryImage = contact
+                await reframe()
+            }
+            await loadThumbs()
+        }
+        .onChange(of: libraryPick) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                    libraryImage = image
+                    chosen = nil
+                    await reframe()
+                }
+                libraryPick = nil
             }
         }
         .sheet(isPresented: Binding(get: { sharing != nil }, set: { if !$0 { sharing = nil } })) {
@@ -105,11 +140,48 @@ struct ShareDayFlow: View {
             }
             .scaleEffect(s, anchor: .topLeading)
             .frame(width: 390 * s, height: height * s, alignment: .topLeading)
+            .overlay(alignment: .top) {
+                if framing != nil && !moving {
+                    CardPhotoDrag(width: 390 * s, height: shape.photoHeight * s,
+                                  onChanged: { slide(by: $0, scale: s) }, onEnded: { dragStart = nil })
+                }
+            }
         }
         .aspectRatio(390 / height, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement()
         .accessibilityLabel("Preview: \(name), \(content.subline), \(ShareCardLayout.dotLabel(moment.dueDate))")
+    }
+
+    /// Crops the chosen photo to the card's shape around the face (or the chosen focus); the drag then moves it.
+    private func reframe() async {
+        if let i = chosen, files.indices.contains(i) {
+            framing = await FaceFinder.shared.framing(file: files[i], aspect: shape.aspect)
+        } else if let libraryImage {
+            framing = await FaceFinder.shared.framing(of: libraryImage, aspect: shape.aspect)
+        } else {
+            framing = nil
+        }
+        placed = framing.flatMap { f in f.image.cropping(to: f.rect).map { UIImage(cgImage: $0) } }
+    }
+
+    private func slide(by translation: CGSize, scale: CGFloat) {
+        guard let f = framing else { return }
+        let start = dragStart ?? f.rect
+        if dragStart == nil { dragStart = f.rect }
+        let rect = CardPhotos.slide(start, imageSize: CGSize(width: f.image.width, height: f.image.height), by: translation, scale: scale)
+        framing = (f.image, rect)
+        if let cg = f.image.cropping(to: rect) { placed = UIImage(cgImage: cg) }
+    }
+
+    /// Small copies for the row, loaded off the main thread, newest year first as ordered.
+    private func loadThumbs() async {
+        for file in files.prefix(60) where thumbs[file] == nil {
+            let small = await Task.detached(priority: .utility) { () -> UIImage? in
+                PhotoStore.load(file).map { PhotoStore.downscale($0, maxSide: 160) }
+            }.value
+            if let small { thumbs[file] = small }
+        }
     }
 
     private func share() {
