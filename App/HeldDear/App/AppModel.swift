@@ -370,6 +370,16 @@ final class AppModel: ObservableObject {
         return ContactsService.shared.phone(contactID: person.contactID)
     }
 
+    /// Keeps the number and address from a picked contact on the person, filling only empty fields (Nov 22, 2026).
+    /// Returns true when something was added.
+    @discardableResult
+    func keepContactDetails(_ pick: ContactImport.Pick, on person: Person) -> Bool {
+        let f = pick.fills(phone: person.manualPhone, address: person.mailingAddress)
+        if let p = f.phone { person.manualPhone = p }
+        if let a = f.address { person.mailingAddress = a }
+        return f.phone != nil || f.address != nil
+    }
+
     func address(for person: Person?) -> String? {
         if let a = ContactsService.shared.address(contactID: person?.contactID) { return a }
         return person?.mailingAddress?.oneLine

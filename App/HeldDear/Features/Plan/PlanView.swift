@@ -378,7 +378,7 @@ private struct PartScreen: View {
                     .font(Brand.display(44, relativeTo: .largeTitle))
                     .foregroundStyle(Brand.ink)
                     .focused($nameFocused)
-                    .submitLabel(.done)
+                    .returnEnds($name) { saveName() }
                     .onChange(of: nameFocused) { _, focused in if !focused { saveName() } }
                     .accessibilityLabel("What is it?")
                 Text("Name it here. The name shows on \(DisplayName.plain(personName))'s page.")
@@ -399,15 +399,16 @@ private struct PartScreen: View {
             TextLink(title: "Remove from plan") { confirmRemove = true }
                 .padding(.leading, -8)
                 .padding(.top, Brand.space2)
-        }
-        .confirmationDialog("Remove \(name.isEmpty ? autoName : name) from the plan?", isPresented: $confirmRemove,
-                            titleVisibility: .visible) {
-            Button("Remove", role: .destructive) {
-                removed = true
-                back()
-                // After the page has gone, so nothing on screen reads the removed item.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { model.removePart(act) }
-            }
+                // Anchored to the link, so the confirmation opens beside it, not at the top of the page.
+                .confirmationDialog("Remove \(name.isEmpty ? autoName : name) from the plan?", isPresented: $confirmRemove,
+                                    titleVisibility: .visible) {
+                    Button("Remove", role: .destructive) {
+                        removed = true
+                        back()
+                        // After the page has gone, so nothing on screen reads the removed item.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { model.removePart(act) }
+                    }
+                }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .confirmationDialog("Remove \(placeToForget?.name ?? "this place") from your places?",
@@ -660,6 +661,7 @@ private struct PartScreen: View {
             .buttonStyle(.plain)
             TextField("Add a note, like when it arrives", text: $note, axis: .vertical)
                 .lineLimit(1...4)
+                .returnEnds($note)
                 .font(Brand.serif(17, relativeTo: .body, italic: true))
                 .foregroundStyle(Brand.ink)
                 .focused($noteFocused)
