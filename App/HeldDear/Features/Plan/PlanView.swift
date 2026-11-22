@@ -825,6 +825,7 @@ private struct PartScreen: View {
             .font(Brand.serif(17, relativeTo: .body, italic: true))
             .foregroundStyle(Brand.ink)
             .focused($noteFocused)
+            .returnEnds($note)
             .frame(minHeight: 44, alignment: .leading)
             .onChange(of: noteFocused) { _, focused in if !focused { saveNote() } }
     }

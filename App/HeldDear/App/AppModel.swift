@@ -94,6 +94,8 @@ final class AppModel: ObservableObject {
     var contactsToDate: [(name: String, id: String)] = []
     /// A person whose "What do they love?" editor should open when their page appears (from the six-week alert).
     var openLovesFor: UUID?
+    /// A "Get the family in" alert was tapped: the person's page opens the who-to-ask flow for this day.
+    var openFamilyFor: UUID?
     /// People just added from Contacts, still to be asked who they are to the user (Nov 22, 2026).
     @Published var relationshipQueue: [UUID] = []
     /// "4 added." shown on the first of those questions instead of an alert.
@@ -211,7 +213,17 @@ final class AppModel: ObservableObject {
                            partsReady: isPlanMoment ? m.partsReady : 0,
                            partsTotal: isPlanMoment ? m.planParts.count : 0,
                            isPlanMoment: isPlanMoment,
-                           lovesKnown: !(person?.loves.isEmpty ?? false))
+                           lovesKnown: !(person?.loves.isEmpty ?? false),
+                           familyOn: familyOn(for: m),
+                           familyHandled: FamilyCircle.shared.record(for: m.id).handled,
+                           familyCardAsked: FamilyCircle.shared.record(for: m.id).choice == .card,
+                           familyFollowedUp: FamilyCircle.shared.record(for: m.id).followedUp)
+    }
+
+    /// Whether "Get the family in" applies to this day: a personal day, and the person's switch (inner circle by default).
+    func familyOn(for m: Moment) -> Bool {
+        guard let person = m.person, FamilyIn.applies(to: m.type) else { return false }
+        return FamilyIn.isOn(ring: m.occasion?.effectiveRing ?? .outer, override: FamilyCircle.shared.override(for: person.id))
     }
 
     func seasons(now: Date = Date()) -> [Season] {
@@ -974,6 +986,10 @@ final class AppModel: ObservableObject {
         case .missed: if let id = momentID { route = .moment(id, .missed) }
         case .season: if let month = monthStart { route = .season(month) }
         case .grouped: route = nil
+        case .familyPrompt, .familyFollowUp:
+            guard let id = momentID, let person = moment(id)?.person else { return }
+            openFamilyFor = id
+            route = .person(person.id)
         case .lovesPrompt:
             guard let id = momentID, let person = moment(id)?.person else { return }
             openLovesFor = person.id
