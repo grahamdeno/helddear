@@ -798,6 +798,13 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
     @ViewBuilder var button: MainButton
     @ViewBuilder var link: LinkLine
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+    /// The light through the name (Nov 22, 2026): where the band is (0 to 1 across), and whether to show it at all.
+    @State private var sweep: CGFloat = 0
+    @State private var hinting = false
+    @State private var seeLine = false
+
     @ScaledMetric(relativeTo: .title3) private var sublineHeight: CGFloat = 34
     @ScaledMetric(relativeTo: .callout) private var statusHeight: CGFloat = 54
     @ScaledMetric(relativeTo: .body) private var buttonHeight: CGFloat = 56
@@ -809,12 +816,22 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
             if let medallion {
                 medallion.padding(.top, Brand.space3)
             }
-            Button(action: open) {
+            Button { NameHint.markTapped(); open() } label: {
                 // The name opens the page. The › after it came off (Graham, Nov 21, 2026): the face and name are enough.
-                Text(title).foregroundColor(Brand.ink)
-                    .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
-                    .tracking(-2)
-                    .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
+                nameText.foregroundColor(Brand.ink)
+                    .overlay {
+                        // A soft band of light passes once through the letters on the first few launches (Nov 22, 2026).
+                        if hinting {
+                            GeometryReader { g in
+                                LinearGradient(colors: [.clear, glint, .clear], startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: g.size.width * 0.35)
+                                    .offset(x: -g.size.width * 0.35 + sweep * g.size.width * 1.35)
+                            }
+                            .mask(nameText)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                        }
+                    }
                     .frame(height: NameSize.featuredSlot, alignment: .bottom)
                     .shadow(color: Brand.page.opacity(medallion == nil ? 0 : 0.6), radius: 8)
                     .padding(.top, medallion == nil ? Brand.space3 : -70 * medallionSize / 126 + NameSize.featuredDrop(title))
@@ -826,6 +843,14 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
                 .lineLimit(1).minimumScaleFactor(0.7)
                 .frame(height: sublineHeight)
+                .overlay(alignment: .bottom) {
+                    if hinting {
+                        Text("See \(title) ›").textStyle(.caption, color: Brand.action)
+                            .opacity(seeLine ? 1 : 0)
+                            .offset(y: 18)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .padding(.top, Brand.space2 - (medallion == nil ? 0 : NameSize.featuredDrop(title)))
             VStack(spacing: Brand.space2) {
                 // With the medallion, the ring around the face shows this instead.
@@ -855,6 +880,29 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
         }
         .frame(maxWidth: .infinity)
         .multilineTextAlignment(.center)
+        .onAppear(perform: startHint)
+    }
+
+    private var nameText: some View {
+        Text(title)
+            .font(Brand.display(NameSize.featured(title), relativeTo: .largeTitle))
+            .tracking(-2)
+            .lineLimit(NameSize.maxLines).minimumScaleFactor(0.6)
+    }
+
+    /// Warm light: pale gold on the dark page, a soft lighter streak on the light one.
+    private var glint: Color {
+        scheme == .dark ? Color(red: 0.97, green: 0.89, blue: 0.70).opacity(0.95)
+                        : Color(red: 1.0, green: 0.93, blue: 0.80).opacity(0.85)
+    }
+
+    private func startHint() {
+        let launches = NameHint.countLaunch()
+        guard NameHint.shows(launches: launches, tapped: NameHint.tapped(), reduceMotion: reduceMotion), !hinting else { return }
+        hinting = true
+        sweep = 0
+        withAnimation(.easeInOut(duration: 1.8).delay(0.6)) { sweep = 1 }
+        withAnimation(.easeOut(duration: 1.0).delay(2.0)) { seeLine = true }
     }
 
     private func color(_ p: PartSteps.Progress) -> Color {
