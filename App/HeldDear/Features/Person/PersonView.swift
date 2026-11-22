@@ -1304,6 +1304,7 @@ struct ManagedPhoto: Identifiable { let file: String; var id: String { file } }
 
 /// A photo opened from a person's strip: big, with its two choices as plain buttons below (Nov 21, 2026).
 struct PhotoActions: View {
+    @State private var choosingFocus = false
     let file: String
     let isTop: Bool
     var useAtTop: () -> Void
@@ -1318,6 +1319,9 @@ struct PhotoActions: View {
                     .accessibilityHidden(true)
             }
             if !isTop { SecondaryButton(title: "Use at the top") { useAtTop() } }
+            TextLink(title: PhotoFocus.box(for: file) == nil ? "Choose who it centers on" : "Change who it centers on") {
+                choosingFocus = true
+            }
             TextLink(title: "Remove from Held Dear") { remove() }
             Text("Removing takes it out of Held Dear only. It stays in your Photos.")
                 .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.center)
@@ -1325,5 +1329,95 @@ struct PhotoActions: View {
         .padding(Brand.space5)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Brand.page.ignoresSafeArea())
+        .fullScreenCover(isPresented: $choosingFocus) { FocusPicker(file: file) { choosingFocus = false } }
+    }
+}
+
+
+/// Choose who or what a photo centers on (Graham, Nov 22, 2026): tap a found face, or tap anywhere. The round preview
+/// shows what Home and the person's page will use.
+struct FocusPicker: View {
+    let file: String
+    var close: () -> Void
+    @State private var faces: [CGRect] = []
+    @State private var focus: CGRect?
+    @State private var image: UIImage?
+
+    var body: some View {
+        FlowScreen(onClose: close) {
+            Question(title: "Who should it center on?",
+                     subtitle: faces.count > 1 ? "Tap a face, or tap anywhere in the photo." : "Tap anywhere in the photo.",
+                     style: .title)
+            if let image {
+                GeometryReader { geo in
+                    let fit = fitted(image.size, in: geo.size)
+                    ZStack(alignment: .topLeading) {
+                        Image(uiImage: image).resizable().scaledToFit()
+                            .frame(width: fit.width, height: fit.height)
+                            .contentShape(Rectangle())
+                            .onTapGesture { p in
+                                focus = PhotoFocus.box(around: CGPoint(x: p.x / fit.width, y: p.y / fit.height), imageSize: image.size)
+                            }
+                        ForEach(Array(faces.enumerated()), id: \.offset) { _, f in
+                            let on = focus.map { abs($0.midX - f.midX) < 0.01 && abs($0.midY - f.midY) < 0.01 } ?? false
+                            Circle()
+                                .strokeBorder(on ? Brand.action : Color.white.opacity(0.85), lineWidth: on ? 3 : 2)
+                                .frame(width: max(f.width * fit.width, f.height * fit.height) * 1.2,
+                                       height: max(f.width * fit.width, f.height * fit.height) * 1.2)
+                                .position(x: f.midX * fit.width, y: f.midY * fit.height)
+                                .contentShape(Circle())
+                                .onTapGesture { focus = f }
+                                .accessibilityLabel("A face")
+                                .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+                        }
+                        if let focus, !faces.contains(where: { abs($0.midX - focus.midX) < 0.01 && abs($0.midY - focus.midY) < 0.01 }) {
+                            Circle().strokeBorder(Brand.action, lineWidth: 3)
+                                .frame(width: focus.width * fit.width * 1.2, height: focus.width * fit.width * 1.2)
+                                .position(x: focus.midX * fit.width, y: focus.midY * fit.height)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .frame(width: fit.width, height: fit.height)
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(height: 380)
+                if let focus {
+                    HStack(spacing: Brand.space3) {
+                        preview(image, focus).frame(width: 72, height: 72).clipShape(Circle())
+                        Text("How it looks on Home").textStyle(.caption, color: Brand.inkMuted)
+                    }
+                }
+            }
+            if PhotoFocus.box(for: file) != nil {
+                TextLink(title: "Go back to the largest face") { PhotoFocus.set(nil, for: file); close() }.padding(.leading, -8)
+            }
+        } footer: {
+            PrimaryButton(title: "Use this") {
+                if let focus { PhotoFocus.set(focus, for: file) }
+                close()
+            }
+        }
+        .task {
+            image = PhotoStore.load(file)
+            focus = PhotoFocus.box(for: file)
+            if let image { faces = await FaceFinder.shared.faces(in: image) }
+            if focus == nil { focus = faces.first }
+        }
+    }
+
+    private func fitted(_ size: CGSize, in box: CGSize) -> CGSize {
+        let scale = min(box.width / max(size.width, 1), box.height / max(size.height, 1))
+        return CGSize(width: size.width * scale, height: size.height * scale)
+    }
+
+    /// The round crop Home makes, from the chosen box.
+    @ViewBuilder private func preview(_ image: UIImage, _ focus: CGRect) -> some View {
+        if let cg = image.cgImage {
+            let size = CGSize(width: cg.width, height: cg.height)
+            let square = FaceFrame.portraitSquare(face: PhotoFocus.pixels(focus, imageSize: size), imageSize: size)
+            if let crop = cg.cropping(to: square.integral) {
+                Image(uiImage: UIImage(cgImage: crop)).resizable().scaledToFill()
+            }
+        }
     }
 }

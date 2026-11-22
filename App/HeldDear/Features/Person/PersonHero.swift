@@ -124,7 +124,7 @@ struct PersonHero: View {
             ZStack {
                 if let image {
                     // Placed on the face, high enough that the name over the fade falls below the chin.
-                    FaceFillImage(image: image, faceY: 0.32)
+                    FaceFillImage(image: image, faceY: 0.32, chosen: PhotoFocus.box(for: person.photoFiles.last))
                 } else {
                     Brand.faceFill(for: person.name)
                     Text(person.initials).font(Brand.display(140)).foregroundStyle(Brand.ink.opacity(0.35))

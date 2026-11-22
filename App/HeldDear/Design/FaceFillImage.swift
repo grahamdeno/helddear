@@ -9,6 +9,8 @@ struct FaceFillImage: View {
     let image: UIImage
     /// How far down the space the face's middle sits (0 top, 1 bottom).
     var faceY: CGFloat = 0.4
+    /// A focus the user chose for this photo (PhotoFocus), used instead of the largest face.
+    var chosen: CGRect? = nil
 
     var body: some View {
         GeometryReader { geo in
@@ -16,7 +18,7 @@ struct FaceFillImage: View {
             let size = image.size
             let scale = max(box.width / max(size.width, 1), box.height / max(size.height, 1))
             let drawn = CGSize(width: size.width * scale, height: size.height * scale)
-            let focus = FaceFocus.center(of: image) ?? CGPoint(x: 0.5, y: 0.5)
+            let focus = chosen.map { CGPoint(x: $0.midX, y: $0.midY) } ?? FaceFocus.center(of: image) ?? CGPoint(x: 0.5, y: 0.5)
             let x = min(0, max(box.width - drawn.width, box.width / 2 - focus.x * drawn.width))
             let y = min(0, max(box.height - drawn.height, box.height * (focus == CGPoint(x: 0.5, y: 0.5) ? 0.5 : faceY) - focus.y * drawn.height))
             Image(uiImage: image).resizable()
