@@ -18,9 +18,10 @@ enum PhotoFocus {
         d.set(all, forKey: key)
     }
 
-    /// A tapped spot as a box: a face-sized square around it (a quarter of the photo's shorter side).
-    static func box(around point: CGPoint, imageSize: CGSize) -> CGRect {
-        let side = 0.25 * min(imageSize.width, imageSize.height)
+    /// A tapped spot as a box: a face-sized square around it (by default a quarter of the photo's shorter side;
+    /// smaller after zooming in on a group).
+    static func box(around point: CGPoint, imageSize: CGSize, share: CGFloat = 0.25) -> CGRect {
+        let side = share * min(imageSize.width, imageSize.height)
         let w = side / max(imageSize.width, 1), h = side / max(imageSize.height, 1)
         return CGRect(x: min(max(0, point.x - w / 2), 1 - w), y: min(max(0, point.y - h / 2), 1 - h), width: w, height: h)
     }
