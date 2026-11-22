@@ -136,7 +136,7 @@ struct PersonView: View {
                 model.delete(person)
             }
         } message: {
-            Text("Their wishes and yearly record go too. Your contacts are not changed.")
+            Text("Their saved ideas and yearly record go too. Your contacts are not changed.")
         }
     }
 
@@ -532,7 +532,7 @@ struct PersonView: View {
         return next.type.kind == .holiday ? "\(next.type.title(partner: next.occasion?.partnerName)), \(date)" : "\(date), \(what)"
     }
 
-    /// The portrait, written as sentences: what they love, sizes, good to know, what they mentioned.
+    /// The portrait, written as sentences: what they love, sizes, good to know.
     private var portrait: some View {
         VStack(alignment: .leading, spacing: Brand.space4) {
             if person.loves.isEmpty {
@@ -556,10 +556,8 @@ struct PersonView: View {
                     if let note = person.goodToKnow { portraitLine("Good to know", note) }
                 }
             }
-            if let wish = person.openWishes.first, !LinkPreviews.isOnlyALink(wish.text) {
-                (Text("Mentioned wanting ") + Text(wish.text).italic() + Text("."))
-                    .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
-            }
+            // Saved ideas show in their own section below. They're often the user's own finds, not something the
+            // person asked for, so the portrait no longer says "Mentioned wanting" (Graham, Nov 22, 2026).
         }
     }
 

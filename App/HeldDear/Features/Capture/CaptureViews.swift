@@ -10,6 +10,11 @@ struct AddBirthdayView: View {
         _text = State(initialValue: initialText)
     }
     @State private var showHint = false
+    /// Set when this opened for a contact whose card has no birthday.
+    @State private var missingFrom: (name: String, id: String)?
+    /// After dating a picked contact with no birthday: offer to add it to their card too (Graham, Nov 22, 2026).
+    @State private var writeBack: (person: Person, contactID: String, parsed: ParsedBirthday)?
+    @State private var writing = false
     @State private var choices: [ContactInfo] = []
     @State private var pendingChange: (person: Person, parsed: ParsedBirthday)?
     @State private var whichOne: ParsedBirthday?
@@ -30,7 +35,9 @@ struct AddBirthdayView: View {
     }
 
     var body: some View {
-        if let person = whoFor {
+        if let offer = writeBack {
+            writeBackView(offer.person, offer.contactID, offer.parsed)
+        } else if let person = whoFor {
             RelationshipPicker(person: person, showsBack: false) { close() }
         } else if let change = pendingChange {
             confirmChange(change.person, change.parsed)
@@ -49,7 +56,15 @@ struct AddBirthdayView: View {
 
     private var entry: some View {
         FlowScreen(onClose: close) {
-            Question(title: "Add someone", subtitle: "Say or type their name and a date to remember.", style: .display)
+            if let missing = missingFrom?.name {
+                // Say plainly what happened, so this doesn't look like a form out of nowhere (Graham, Nov 22, 2026).
+                Question(title: "\(missing)'s contact has no birthday",
+                         subtitle: "Type it after the name to add \(missing) to Held Dear, or close to skip."
+                            + (model.contactsToDate.isEmpty ? "" : " \(model.contactsToDate.count) more after this."),
+                         style: .title)
+            } else {
+                Question(title: "Add someone", subtitle: "Say or type their name and a date to remember.", style: .display)
+            }
             LineField(label: "Name and date", text: $text, placeholder: "Mike, March 3", onSubmit: save)
             if showHint {
                 Text("Try: Mike, March 3").textStyle(.caption, color: Brand.inkMuted).padding(.top, -12)
@@ -57,6 +72,12 @@ struct AddBirthdayView: View {
             if let p = parsed { preview(p) }
         } footer: {
             PrimaryButton(title: "Save", action: save)
+        }
+        .onAppear {
+            if let missing = model.contactWithoutBirthday {
+                missingFrom = missing
+                model.contactWithoutBirthday = nil
+            }
         }
         .onChange(of: text) { _, _ in
             showHint = false
@@ -179,10 +200,44 @@ struct AddBirthdayView: View {
 
     private func addFirst(_ type: OccasionType, _ p: ParsedBirthday, contact: ContactInfo?, eventName: String? = nil) {
         namingEvent = false
-        let person = model.addPerson(name: p.name, fullName: contact?.fullName, contactID: contact?.id, firstDate: type,
+        // A picked contact keeps its link even without Contacts permission (the picker gave its ID).
+        let picked = missingFrom.flatMap { m in p.name.lowercased() == m.name.lowercased() ? m.id : nil }
+        let person = model.addPerson(name: p.name, fullName: contact?.fullName, contactID: contact?.id ?? picked, firstDate: type,
                                      month: p.month, day: p.day, year: type == .birthday ? (p.year ?? contact?.year) : p.year,
                                      eventName: eventName)
-        if person.relationship == nil { firstDate = nil; whoFor = person } else { close() }
+        firstDate = nil
+        if type == .birthday, let id = contact?.id ?? picked, ContactWriteBack.lacksBirthday(contactID: id) {
+            writeBack = (person, id, p)
+        } else {
+            finish(person)
+        }
+    }
+
+    private func finish(_ person: Person) {
+        writeBack = nil
+        if person.relationship == nil { whoFor = person } else { close() }
+    }
+
+    private func writeBackView(_ person: Person, _ contactID: String, _ p: ParsedBirthday) -> some View {
+        let date = OccasionDates.longDate(OccasionDates.date(month: p.month, day: p.day, year: 2028))
+        return FlowScreen(onClose: { finish(person) }) {
+            Question(title: "Add \(date) to \(p.name)'s contact too?",
+                     subtitle: "Then it's in Contacts and on your other devices. Held Dear changes only the birthday, and only when you tap Add.",
+                     style: .title)
+        } footer: {
+            VStack(spacing: Brand.space2) {
+                PrimaryButton(title: writing ? "Adding…" : "Add to Contacts") {
+                    guard !writing else { return }
+                    writing = true
+                    Task {
+                        _ = await ContactWriteBack.addBirthday(contactID: contactID, month: p.month, day: p.day, year: p.year)
+                        writing = false
+                        finish(person)
+                    }
+                }
+                TextLink(title: "Not now") { finish(person) }
+            }
+        }
     }
 
     private func whatFor(_ p: ParsedBirthday, contact: ContactInfo?) -> some View {
@@ -204,7 +259,7 @@ struct AddBirthdayView: View {
     private func close() { model.route = nil }
 }
 
-// MARK: B2. Save a wish (typed or spoken)
+// MARK: B2. Save an idea (typed or spoken)
 
 struct AddWishView: View {
     @EnvironmentObject var model: AppModel
@@ -220,9 +275,9 @@ struct AddWishView: View {
             } onClose: { askWho = false }
         } else {
             FlowScreen(onClose: { model.route = nil }) {
-                Question(title: preselected.map { "What would \($0.name) love?" } ?? "Save a wish",
-                         subtitle: preselected == nil ? "Say or type it, like \"Ada wants blue skates\"." : "One line is plenty.")
-                LineField(label: "The wish", text: $text, placeholder: preselected == nil ? "Ada wants blue skates" : "Blue gardening gloves",
+                Question(title: preselected.map { "What would \($0.name) love?" } ?? "Save an idea",
+                         subtitle: preselected == nil ? "Say or type it, like \"Ada: blue skates\"." : "One line is plenty.")
+                LineField(label: "The idea", text: $text, placeholder: preselected == nil ? "Ada: blue skates" : "Blue gardening gloves",
                           onSubmit: submit)
                 if let person = matched {
                     HStack(spacing: 12) {

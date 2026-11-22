@@ -34,7 +34,7 @@ struct GetAheadView: View {
     private var intro: some View {
         FlowScreen {
             CirclesMark(size: 72).padding(.top, 60)
-            Question(title: "Get ahead in two minutes", subtitle: "One wish and one photo for each person. Skip anyone.")
+            Question(title: "Get ahead in two minutes", subtitle: "One idea and one photo for each person. Skip anyone.")
         } footer: {
             if let first = people.first {
                 PrimaryButton(title: "Start with \(first.name)") { step = .wish(0) }
