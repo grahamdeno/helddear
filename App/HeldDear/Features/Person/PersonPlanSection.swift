@@ -188,18 +188,23 @@ struct PersonDayCards: View {
     static let cardWidth: CGFloat = 236
     let moments: [Moment]
     @Binding var selectedID: UUID?
+    /// Adds a day for this person from right here (Graham, Nov 21, 2026).
+    var addTitle: String = "Add a day"
+    var onAdd: (() -> Void)? = nil
 
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Brand.space3) {
                 ForEach(moments, id: \.id) { m in card(m).id(m.id) }
+                if let onAdd { addCard(onAdd) }
                 // Room after the last card so it can settle at the left too (feedback on build 1015).
                 Color.clear
                     .containerRelativeFrame(.horizontal) { width, _ in max(0, width - Self.cardWidth - Brand.space5 - Brand.space3 * 2) }
                     .frame(height: 1)
                     .accessibilityHidden(true)
             }
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.leading, Brand.space5)
             .scrollTargetLayout()
         }
@@ -260,6 +265,24 @@ struct PersonDayCards: View {
         .buttonStyle(PressStyle())
         .accessibilityLabel("\(m.label), \(c.big) \(c.unit), \(parts.isEmpty ? "nothing planned" : "\(ready) of \(parts.count) ready")")
         .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func addCard(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: Brand.space2) {
+                Image(systemName: "plus").font(.title2.weight(.light)).foregroundStyle(Brand.action)
+                Text(addTitle).textStyle(.callout, color: Brand.inkSoft).multilineTextAlignment(.center)
+            }
+            .frame(width: 128)
+            .frame(maxHeight: .infinity)
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Brand.raisedLine, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityLabel(addTitle)
     }
 
     private func segment(_ p: PartSteps.Progress, on: Bool) -> Color {

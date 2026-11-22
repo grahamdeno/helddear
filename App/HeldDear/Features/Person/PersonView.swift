@@ -102,7 +102,10 @@ struct PersonView: View {
                     .padding(.horizontal, -Brand.space5)
                 VStack(alignment: .leading, spacing: Brand.space5) {
                     if !moments.isEmpty {
-                        PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }))
+                        PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }),
+                                       addTitle: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
+                            if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
+                        }
                     }
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
