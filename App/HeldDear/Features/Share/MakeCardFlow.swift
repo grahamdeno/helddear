@@ -8,6 +8,12 @@ struct MakeCardFlow: View {
     var close: () -> Void
     /// A saved draft or made card to open at the card step (Graham, Nov 21, 2026).
     var saved: SavedCard? = nil
+    /// Opened from a person's card item (Nov 22, 2026): the occasion, heading and their photos already chosen, and
+    /// a hook that marks the card done once it's shared.
+    var preset: GreetingCard.Occasion? = nil
+    var presetHeading: String? = nil
+    var presetPhotos: [UIImage] = []
+    var onShared: (() -> Void)? = nil
 
     @AppStorage("yourName") private var yourName = ""
     @AppStorage("cardSignature") private var signedAs = ""
@@ -260,6 +266,14 @@ struct MakeCardFlow: View {
 
     /// Opens a saved card where it was left.
     private func restore() {
+        if saved == nil, let preset, step == .occasion {
+            occasion = preset
+            heading = presetHeading ?? preset.heading
+            if signature.isEmpty { signature = GreetingCard.signature(signedAs.isEmpty ? yourName : signedAs) }
+            if !presetPhotos.isEmpty { originals = presetPhotos; Task { await reframe() } }
+            step = .photos
+            return
+        }
         guard let card = saved, savedID == nil else { return }
         savedID = card.id
         madeBefore = card.made
@@ -308,6 +322,7 @@ struct MakeCardFlow: View {
                     making = nil
                     sharing = [url]
                     save(made: true)
+                    onShared?()
                 } catch {
                     making = nil
                     failed = true
@@ -316,7 +331,7 @@ struct MakeCardFlow: View {
         } else {
             let renderer = ImageRenderer(content: GreetingCardView(content: card, shape: chosen))
             renderer.scale = ShareRender.pixelWidth / 390
-            if let image = renderer.uiImage { sharing = [image]; save(made: true) } else { failed = true }
+            if let image = renderer.uiImage { sharing = [image]; save(made: true); onShared?() } else { failed = true }
         }
     }
 }
