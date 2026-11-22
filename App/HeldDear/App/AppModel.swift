@@ -398,6 +398,7 @@ final class AppModel: ObservableObject {
             person = existing
         } else {
             person = Person(name: name, fullName: fullName, contactID: contactID, ring: ring)
+            person.showAgeOnCard = true   // On by default for new people (Graham, Nov 22, 2026).
             context.insert(person)
         }
         setBirthday(person, month: month, day: day, year: year)
@@ -417,6 +418,7 @@ final class AppModel: ObservableObject {
             person = existing
         } else {
             person = Person(name: name, fullName: fullName, contactID: contactID, ring: .outer)
+            person.showAgeOnCard = true   // On by default for new people (Graham, Nov 22, 2026).
             context.insert(person)
         }
         let when = year ?? (type.kind == .once ? Calendar.current.component(.year, from: OccasionDates.nextDate(month: month, day: day, onOrAfter: Calendar.current.startOfDay(for: Date()))) : nil)
@@ -494,6 +496,7 @@ final class AppModel: ObservableObject {
                 }
             } else if !removed.contains(c.id) {
                 let person = Person(name: c.displayName, fullName: c.fullName, contactID: c.id, ring: .outer)
+                person.showAgeOnCard = true   // On by default for new people (Graham, Nov 22, 2026).
                 context.insert(person)
                 let occasion = Occasion(month: month, day: day, birthYear: c.year)
                 context.insert(occasion)
