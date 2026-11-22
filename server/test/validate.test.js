@@ -3,17 +3,17 @@ import assert from "node:assert/strict";
 import { validateOrder } from "../lib/validate.js";
 
 const cards = [{ id: 101, name: "Balloons", characters: 120 }];
-const addr = { firstName: "Mom", lastName: "D", address1: "1 Main St", city: "Wilmington", state: "nc", zip: "28401" };
+const addr = { firstName: "Mom", lastName: "D", address1: "1 Main St", city: "Springfield", state: "il", zip: "62701" };
 const good = {
-  reference: "abc12345-0000", cardId: 101, message: "Happy birthday, Mom!", wishes: "Love, Graham",
-  recipient: addr, sender: { ...addr, firstName: "Graham" },
+  reference: "abc12345-0000", cardId: 101, message: "Happy birthday, Mom!", wishes: "Love, Sam",
+  recipient: addr, sender: { ...addr, firstName: "Sam" },
   applePay: { paymentData: Buffer.from('{"data":"x"}').toString("base64"), transactionIdentifier: "T1", network: "Visa", displayName: "Visa 1234" },
 };
 
 test("accepts a good order and uppercases state", () => {
   const r = validateOrder(good, cards);
   assert.equal(r.error, undefined);
-  assert.equal(r.value.recipient.state, "NC");
+  assert.equal(r.value.recipient.state, "IL");
   assert.equal(r.value.applePay.paymentData, '{"data":"x"}');
 });
 

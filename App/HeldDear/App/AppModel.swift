@@ -1,6 +1,5 @@
 import Contacts
 import Foundation
-import SwiftData
 import SwiftUI
 import UIKit
 import WidgetKit
@@ -79,8 +78,14 @@ final class AppModel: ObservableObject {
     let storeOutcome: OpenedStore.Outcome
     var couldNotOpenSavedPlans: Bool { storeOutcome != .opened }
     var runningInMemoryThisLaunch: Bool { storeOutcome == .inMemoryThisLaunch }
+    /// Where the old store was kept, if it could be moved aside.
+    let keptStoreURL: URL?
+    /// The "couldn't be opened" screen was answered (Continue) this launch.
+    @Published var setAsideAcknowledged = false
 
     @Published var route: Route?
+    /// Picked contacts still waiting for a date, shown one after another after Add a birthday closes.
+    var contactsToDate: [String] = []
     /// Pages pushed from Home, oldest first.
     @Published var navPath: [Nav] = []
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
@@ -88,6 +93,8 @@ final class AppModel: ObservableObject {
     @Published var notificationsAllowed = true
     /// Bumped after any change so lists that read the store directly redraw.
     @Published var revision = 0
+    /// Ideas whose link preview was asked for this launch, so a page is asked once.
+    private var previewsAsked: Set<UUID> = []
 
     /// The Moment whose call the app just started.
     private var callMomentID: UUID?
@@ -99,6 +106,7 @@ final class AppModel: ObservableObject {
         let opened = Store.open(inMemory: inMemory)
         container = opened.container
         storeOutcome = opened.outcome
+        keptStoreURL = opened.keptStoreURL
         onboarded = UserDefaults.standard.bool(forKey: "onboarded")
         firstVisitCardDismissed = UserDefaults.standard.bool(forKey: "firstVisitCardDismissed")
 
@@ -108,6 +116,7 @@ final class AppModel: ObservableObject {
         }
         CallService.shared.onConnected = { [weak self] in self?.callConnected() }
         AppModel.current = self
+        if !inMemory { ICloudSync.start(container) { [weak self] in self?.revision += 1 } }
         _ = Purchases.shared
         NotificationCenter.default.addObserver(forName: .CNContactStoreDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
@@ -214,7 +223,7 @@ final class AppModel: ObservableObject {
     func title(of nav: Nav) -> String {
         switch nav {
         case .person(let id, _): return person(id).map { DisplayName.plain($0.name) } ?? "Back"
-        case .holiday(let raw, _): return OccasionType(rawValue: raw)?.label ?? "Back"
+        case .holiday(let raw, _): return HolidayRef(raw: raw)?.label ?? "Back"
         case .people: return "Everyone"
         case .ideas: return "Ideas"
         case .relationship: return "Who they are"
@@ -238,6 +247,15 @@ final class AppModel: ObservableObject {
     func moment(_ id: UUID) -> Moment? { allMoments().first { $0.id == id } }
     func person(_ id: UUID) -> Person? { allPeople().first { $0.id == id } }
 
+    /// The other half of an anniversary, for the two-photo circles (nil when there's nothing to pair).
+    func pairPartner(for moment: Moment) -> PairSide? {
+        guard let occasion = moment.occasion, let owner = moment.person else { return nil }
+        return AnniversaryPair.partner(type: occasion.type, partnerName: occasion.partnerName,
+                                       extraRecipientIDs: occasion.extraRecipientIDs, ownerID: owner.id,
+                                       people: allPeople().map { .init(id: $0.id, name: $0.name, fullName: $0.fullName) },
+                                       yourName: UserDefaults.standard.string(forKey: "yourName") ?? "")
+    }
+
     /// A person's own next day (birthday, anniversary, life moment), leaving out shared holidays.
     func nextPersonalMoment(for person: Person, now: Date = Date()) -> Moment? {
         let today = Calendar.current.startOfDay(for: now)
@@ -245,14 +263,16 @@ final class AppModel: ObservableObject {
             .filter { $0.dueDate >= today }.sorted { $0.dueDate < $1.dueDate }.first
     }
 
-    /// Upcoming shared holidays, one each: the type, its date and how many people are in it.
-    func upcomingHolidays(now: Date = Date()) -> [(type: OccasionType, year: Int, date: Date, people: Int)] {
+    /// Upcoming shared holidays, one each: which holiday, its date and how many people are in it.
+    func upcomingHolidays(now: Date = Date()) -> [(ref: HolidayRef, year: Int, date: Date, people: Int)] {
         let today = Calendar.current.startOfDay(for: now)
         let moments = allMoments().filter { $0.type.kind == .holiday && $0.person != nil && $0.dueDate >= today }
-        let groups = Dictionary(grouping: moments) { "\($0.type.rawValue)-\($0.year)" }
+        let groups = Dictionary(grouping: moments) { m in
+            Holidays.groupKey(type: m.type, year: m.year, partner: m.occasion?.partnerName) ?? m.type.rawValue
+        }
         return groups.values.compactMap { g in
             guard let f = g.first else { return nil }
-            return (f.type, f.year, f.dueDate, g.count)
+            return (HolidayRef(type: f.type, name: f.occasion?.partnerName), f.year, f.dueDate, g.count)
         }.sorted { $0.date < $1.date }
     }
 
@@ -269,10 +289,17 @@ final class AppModel: ObservableObject {
     }
 
     func address(for person: Person?) -> String? {
-        ContactsService.shared.address(contactID: person?.contactID)
+        if let a = ContactsService.shared.address(contactID: person?.contactID) { return a }
+        return person?.mailingAddress?.oneLine
     }
 
-    /// D2's photo set: last year's ledger photo, photos saved to the person, then the contact photo. Up to three.
+    /// The person's ZIP code, from Contacts or the address kept in the app (story 2.14).
+    func zip(for person: Person?) -> String? {
+        if let a = ContactsService.shared.mailAddress(contactID: person?.contactID), let z = Places.zip(in: a.zip) { return z }
+        return Places.zip(in: person?.mailingAddress?.zip)
+    }
+
+    /// The photo set for cards: last year's record photo, every photo saved to the person (top one first), then the contact photo.
     func photoChoices(for person: Person) -> [PhotoChoice] {
         var choices: [PhotoChoice] = []
         if let entry = person.sortedLedger.first(where: { $0.photoFile != nil }), let file = entry.photoFile,
@@ -284,11 +311,11 @@ final class AppModel: ObservableObject {
                 choices.append(PhotoChoice(id: "saved-\(file)", image: image, file: file, label: "Saved for \(person.name)"))
             }
         }
-        choices = Array(choices.prefix(2))
+        // Every saved photo is offered (feedback on build 1021), after last year's.
         if let contact = ContactsService.shared.photo(contactID: person.contactID) {
             choices.append(PhotoChoice(id: "contact", image: contact, file: nil, label: "\(person.name)'s contact photo"))
         }
-        return Array(choices.prefix(3))
+        return choices
     }
 
     // MARK: People and dates
@@ -414,11 +441,29 @@ final class AppModel: ObservableObject {
 
     // MARK: Wishes
 
+    /// A saved idea that's a link gets the page's title and image once (Nov 21, 2026). A link typed or pasted as the
+    /// idea's words becomes its link. Kept with the idea; the page isn't asked again.
+    func addPreview(to wish: Wish) {
+        if wish.url == nil, let found = LinkPreviews.link(in: wish.text) { wish.url = found.absoluteString }
+        guard let link = wish.url.flatMap(URL.init(string:)) else { return }
+        let needsTitle = wish.text.isEmpty || LinkPreviews.isOnlyALink(wish.text)
+        guard needsTitle || wish.imageFile == nil else { return }
+        guard !previewsAsked.contains(wish.id) else { return }
+        previewsAsked.insert(wish.id)
+        Task { @MainActor in
+            let preview = await LinkPreviews.fetch(link)
+            if needsTitle { wish.text = preview.title ?? LinkPreviews.shortName(link) }
+            if wish.imageFile == nil, let image = preview.image { wish.imageFile = PhotoStore.save(image, maxSide: 900) }
+            save()
+        }
+    }
+
     func addWish(to person: Person, text: String, url: String? = nil, imageFile: String? = nil, capturedAt: Date = Date()) {
         let wish = Wish(text: text, url: url, imageFile: imageFile, capturedAt: capturedAt)
         context.insert(wish)
         wish.person = person
         commit()
+        addPreview(to: wish)
     }
 
     /// Files wishes saved from the share sheet.
@@ -552,8 +597,8 @@ final class AppModel: ObservableObject {
     // MARK: Shared holidays (roadmap Epic 1)
 
     /// Every person's moment for one holiday in one year, by name.
-    func holidayMembers(type: OccasionType, year: Int) -> [Moment] {
-        allMoments().filter { $0.type == type && $0.year == year && $0.person != nil }
+    func holidayMembers(ref: HolidayRef, year: Int) -> [Moment] {
+        allMoments().filter { ref.matches(type: $0.type, partner: $0.occasion?.partnerName) && $0.year == year && $0.person != nil }
             .sorted { ($0.person?.name ?? "").localizedCaseInsensitiveCompare($1.person?.name ?? "") == .orderedAscending }
     }
 
@@ -568,17 +613,65 @@ final class AppModel: ObservableObject {
     }
 
     /// Adds a person to a shared holiday and starts their plan.
-    func addToHoliday(_ person: Person, type: OccasionType, year: Int) {
-        if !person.occasions.contains(where: { $0.type == type }) {
-            let occasion = Occasion(type: type, month: type.fixedHoliday?.month ?? 1, day: type.fixedHoliday?.day ?? 1)
+    func addToHoliday(_ person: Person, ref: HolidayRef, year: Int) {
+        if !person.occasions.contains(where: { ref.matches(type: $0.type, partner: $0.partnerName) }) {
+            let custom = ref.type == .custom ? CustomHolidays.find(ref.name ?? "") : nil
+            if ref.type == .custom && custom == nil { return }
+            let occasion = Occasion(type: ref.type, month: custom?.month ?? ref.type.fixedHoliday?.month ?? 1,
+                                    day: custom?.day ?? ref.type.fixedHoliday?.day ?? 1)
+            occasion.partnerName = custom?.name
             context.insert(occasion)
             occasion.person = person
             MomentEngine.refresh(context)
         }
-        if let m = holidayMembers(type: type, year: year).first(where: { $0.person?.id == person.id }) {
+        if let m = holidayMembers(ref: ref, year: year).first(where: { $0.person?.id == person.id }) {
             startHolidayPlan(m)
         }
         commit()
+    }
+
+    // MARK: Holidays the user adds (story 2.10)
+
+    /// Adds a holiday with the same date each year, for the people chosen.
+    func addCustomHoliday(_ holiday: CustomHoliday, people: [Person], now: Date = Date()) {
+        CustomHolidays.upsert(holiday)
+        let year = Calendar.current.component(.year, from: now)
+        for p in people { addToHoliday(p, ref: holiday.ref, year: year) }
+        MomentEngine.refresh(context)
+        commit()
+    }
+
+    /// Renames or moves a holiday: every person's day follows, including this year's if it hasn't happened.
+    func updateCustomHoliday(old: String, to holiday: CustomHoliday) {
+        CustomHolidays.upsert(holiday, replacing: old)
+        let occasions = (try? context.fetch(FetchDescriptor<Occasion>())) ?? []
+        for o in occasions where o.type == .custom && CustomHolidays.sameName(o.partnerName ?? "", old) {
+            o.partnerName = holiday.name
+            o.month = holiday.month
+            o.day = holiday.day
+            let today = Calendar.current.startOfDay(for: Date())
+            for m in o.moments where !m.status.isSettled && m.dueDate >= today {
+                m.dueDate = OccasionDates.date(month: holiday.month, day: holiday.day, year: m.year)
+                m.headsUpAt = nil
+            }
+        }
+        MomentEngine.refresh(context)
+        commit()
+    }
+
+    /// Removes a holiday from every timeline. Past years stay in each person's record.
+    func removeCustomHoliday(_ name: String) {
+        CustomHolidays.remove(name)
+        let occasions = (try? context.fetch(FetchDescriptor<Occasion>())) ?? []
+        for o in occasions where o.type == .custom && CustomHolidays.sameName(o.partnerName ?? "", name) {
+            context.delete(o)
+        }
+        commit()
+    }
+
+    /// How many people are in a holiday the user added.
+    func customHolidayPeople(_ name: String) -> [Person] {
+        allPeople().filter { p in p.occasions.contains { $0.type == .custom && CustomHolidays.sameName($0.partnerName ?? "", name) } }
     }
 
     /// Adds a part to the end of a plan: not started, from You.
@@ -645,15 +738,26 @@ final class AppModel: ObservableObject {
         commit()
     }
 
+    /// A card for a reason (story 2.8) goes in the person's yearly record as one line: "Get-well card, Nov 21".
+    func recordCard(_ person: Person, reason: CardReason, cardImage: UIImage? = nil, now: Date = Date()) {
+        let entry = LedgerEntry(year: Calendar.current.component(.year, from: now), type: .event,
+                                what: reason.recordLine(on: now), photoFile: nil, line: reason.recordLine(on: now),
+                                personName: person.name, momentID: nil)
+        entry.cardFile = cardImage.flatMap { PhotoStore.save($0, maxSide: 2100) }
+        context.insert(entry)
+        entry.person = person
+        commit()
+    }
+
     /// E1: adds the year to the person's ledger.
     func record(_ m: Moment, line: String?) {
         guard let person = m.person else { return }
         if person.ledger.contains(where: { $0.momentID == m.id }) { return }
-        let photo = m.acts.compactMap(\.photoFile).first
+        let photo = m.actsInOrder.compactMap(\.photoFile).first
         let entry = LedgerEntry(year: m.year, type: m.occasion?.type ?? .birthday, what: MomentEngine.whatWasDone(m),
                                 photoFile: photo, line: line?.trimmingCharacters(in: .whitespaces).nilIfEmpty,
                                 personName: person.name, momentID: m.id)
-        entry.cardFile = m.acts.compactMap(\.cardFile).first
+        entry.cardFile = m.actsInOrder.compactMap(\.cardFile).first
         context.insert(entry)
         entry.person = person
         commit()

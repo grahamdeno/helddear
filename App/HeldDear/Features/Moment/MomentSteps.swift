@@ -466,7 +466,6 @@ struct PhotoStep: View {
             model.save()
             let choice = PhotoChoice(id: "picked-\(file)", image: image, file: file, label: "Photo you picked")
             choices.insert(choice, at: 0)
-            if choices.count > 4 { choices.removeLast() }
             selected = choice.id
         }
     }
@@ -513,7 +512,7 @@ struct RecordStep: View {
 
     private var record: some View {
         let name = moment.person?.name ?? ""
-        let photo = PhotoStore.load(moment.acts.compactMap(\.cardFile).first ?? moment.acts.compactMap(\.photoFile).first)
+        let photo = PhotoStore.load(moment.actsInOrder.compactMap(\.cardFile).first ?? moment.actsInOrder.compactMap(\.photoFile).first)
         return FlowScreen(onClose: close) {
             Question(tag: "Done", title: "One line for this year?", subtitle: "It goes in \(name)'s yearly record.")
             Card {

@@ -50,17 +50,17 @@ final class DomainTests: XCTestCase {
         XCTAssertEqual(BirthdayParser.parse("Mike 3/3"), ParsedBirthday(name: "Mike", month: 3, day: 3, year: nil))
         XCTAssertEqual(BirthdayParser.parse("Aunt Jo's birthday is Dec 2nd, 1956"),
                        ParsedBirthday(name: "Aunt Jo", month: 12, day: 2, year: 1956))
-        XCTAssertEqual(BirthdayParser.parse("Nora 7 May"), ParsedBirthday(name: "Nora", month: 5, day: 7, year: nil))
+        XCTAssertEqual(BirthdayParser.parse("Ada 7 May"), ParsedBirthday(name: "Ada", month: 5, day: 7, year: nil))
         XCTAssertNil(BirthdayParser.parse("Mike"))
         XCTAssertNil(BirthdayParser.parse("March 3"))
         XCTAssertNil(BirthdayParser.parse("Mike, February 31"))
     }
 
     func testWishParser() {
-        let names = ["Nora", "Mom", "Nora Lee"]
-        let a = WishParser.parse("Nora wants blue skates", names: names)
+        let names = ["Ada", "Mom", "Ada Lee"]
+        let a = WishParser.parse("Ada wants blue skates", names: names)
         XCTAssertEqual(a.index, 0); XCTAssertEqual(a.text, "blue skates")
-        let b = WishParser.parse("Nora Lee would like a tent", names: names)
+        let b = WishParser.parse("Ada Lee would like a tent", names: names)
         XCTAssertEqual(b.index, 2); XCTAssertEqual(b.text, "a tent")
         let c = WishParser.parse("Mom: gardening gloves", names: names)
         XCTAssertEqual(c.index, 1); XCTAssertEqual(c.text, "gardening gloves")
@@ -333,5 +333,24 @@ final class GiftTimingTests: XCTestCase {
     func testSavedThisYear() {
         let now = d(2026, 11, 13)
         XCTAssertEqual(GiftTiming.savedThisYear([d(2026, 3, 1), d(2025, 10, 1), d(2026, 11, 1)], now: now, calendar: cal), 2)
+    }
+}
+
+final class ByLineTests: XCTestCase {
+    private var cal: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }
+
+    func testThingsYouBuyGetAnOrderByDate() {
+        let due = cal.date(from: DateComponents(year: 2026, month: 12, day: 17))!
+        let line = NextAct.byLine(kindRaw: ActKind.cake.rawValue, step: "open", due: due, calendar: cal)
+        XCTAssertNotNil(line)
+        XCTAssertTrue(line!.hasPrefix("Order by "))
+        XCTAssertTrue(NextAct.byLine(kindRaw: ActKind.card.rawValue, step: nil, due: due, calendar: cal)!.hasPrefix("Mail by "))
+    }
+
+    func testNoLineOnceStartedOrForOtherKinds() {
+        let due = Date()
+        XCTAssertNil(NextAct.byLine(kindRaw: ActKind.cake.rawValue, step: "ordered", due: due))
+        XCTAssertNil(NextAct.byLine(kindRaw: ActKind.call.rawValue, step: "open", due: due))
+        XCTAssertNil(NextAct.byLine(kindRaw: nil, step: nil, due: due))
     }
 }

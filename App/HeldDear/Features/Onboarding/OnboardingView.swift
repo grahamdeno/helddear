@@ -63,7 +63,7 @@ struct FindBirthdaysView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 80)
             Question(title: "Find the birthdays you already have")
-            Text("Held Dear looks for birthdays already saved in your contacts. Nothing leaves your phone.")
+            Text("Held Dear looks for birthdays already saved in your contacts. Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail.")
                 .textStyle(.body, color: Brand.ink.opacity(0.85))
         } footer: {
             PrimaryButton(title: working ? "Looking…" : "Allow contacts") { allow() }

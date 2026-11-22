@@ -147,7 +147,8 @@ enum AlertPlanner {
         // Shared holidays (roadmap 1.4): one heads-up six weeks out, and one alert on the morning, for everyone.
         let holidayMoments = moments.filter { $0.occasion.kind == .holiday && !$0.status.isSettled }
         let holidayGroups = Dictionary(grouping: holidayMoments) { m in
-            "\(m.occasion.rawValue)-\(calendar.component(.year, from: m.dueDate))"
+            Holidays.groupKey(type: m.occasion, year: calendar.component(.year, from: m.dueDate), partner: m.partnerName)
+                ?? "\(m.occasion.rawValue)-\(calendar.component(.year, from: m.dueDate))"
         }
         for (key, group) in holidayGroups {
             guard let first = group.first else { continue }
@@ -155,11 +156,11 @@ enum AlertPlanner {
             let fire = D.alertTime(on: D.adding(days: -Holidays.headsUpDays, to: first.dueDate, calendar: calendar), calendar: calendar)
             if fire > now {
                 alerts.append(PlannedAlert(id: "holiday-\(key)", kind: .grouped, fireDate: fire,
-                                           body: Holidays.headsUpText(type: first.occasion, people: group.count), momentID: nil))
+                                           body: Holidays.headsUpText(type: first.occasion, people: group.count, partner: first.partnerName), momentID: nil))
             }
             if due9 > now, group.contains(where: { !$0.greetingDone && $0.status != .missed }) {
                 alerts.append(PlannedAlert(id: "holiday-dayof-\(key)", kind: .grouped, fireDate: due9,
-                                           body: Holidays.dayOfText(type: first.occasion, people: group.count), momentID: nil))
+                                           body: Holidays.dayOfText(type: first.occasion, people: group.count, partner: first.partnerName), momentID: nil))
             }
         }
 

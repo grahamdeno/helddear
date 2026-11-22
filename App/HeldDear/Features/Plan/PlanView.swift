@@ -315,6 +315,14 @@ private struct PartScreen: View {
     @State private var showOthers = false
     @State private var noLinkCopied = false
     @State private var confirmRemove = false
+    // Where from (story 2.12).
+    @State private var placeName = ""
+    @State private var placeLink = ""
+    @State private var placePhone = ""
+    @State private var placeZip = ""
+    @State private var addingPlace = false
+    @State private var chosenPlace: Place?
+    @State private var placeToForget: Place?
     @State private var removed = false
     @FocusState private var noteFocused: Bool
     @FocusState private var nameFocused: Bool
@@ -329,7 +337,7 @@ private struct PartScreen: View {
     }
     private var others: [Person] { household.filter { p in !core.contains { $0.id == p.id } } }
 
-    /// What it is when nothing's been typed: "Gift", or "Gift from Heidi and Nora" once who it's from is set.
+    /// What it is when nothing's been typed: "Gift", or "Gift from Ada and Bea" once who it's from is set.
     private var autoName: String {
         let names = household.filter { ownerIDs.contains($0.id) }.map { DisplayName.plain($0.name) }
         if act.kind == .kidsMade, let n = PartOwners.kidsGiftName(names: names) { return n }
@@ -360,10 +368,17 @@ private struct PartScreen: View {
                 Text("Name it here. The name shows on \(DisplayName.plain(personName))'s page.")
                     .textStyle(.caption, color: Brand.inkMuted)
             }
-            card("Where it stands") { standsList }
-            card("Who it's from", trailing: "Pick any") { ownersList }
-            card("Link and note") { linkAndNote }
+            // Saved ideas come first on a gift, all of them, so they're there when you need them (feedback on
+            // build 1021).
             shelfList
+            card("Where it stands") { standsList }
+            // A cake, flowers, dinner or party is from you; it says where it comes from instead (story 2.12).
+            if Places.hasWhereFrom(act.kind) {
+                card("Where from") { whereFromList }
+            } else {
+                card("Who it's from", trailing: "Pick any") { ownersList }
+            }
+            card("Link and note") { linkAndNote }
             findsList
             TextLink(title: "Remove from plan") { confirmRemove = true }
                 .padding(.leading, -8)
@@ -379,12 +394,26 @@ private struct PartScreen: View {
             }
         }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .confirmationDialog("Remove \(placeToForget?.name ?? "this place") from your places?",
+                            isPresented: Binding(get: { placeToForget != nil }, set: { if !$0 { placeToForget = nil } }),
+                            titleVisibility: .visible) {
+            Button("Remove", role: .destructive) {
+                if let p = placeToForget {
+                    PlaceStore.shared.forget(p)
+                    if chosenPlace?.id == p.id { chosenPlace = nil }
+                }
+                placeToForget = nil
+                model.revision += 1
+            }
+        }
         .onDisappear { if !removed { save() } }
         .onAppear {
             guard !loaded else { return }
             note = act.note ?? ""
             let info = PartSteps.displayInfo(kindRaw: act.kindRaw, label: act.label, title: act.title)
             name = info.typed ? info.text : ""
+            chosenPlace = PlaceStore.shared.chosen(for: act.id)
+            if Places.hasWhereFrom(act.kind) && !act.ownerIDs.isEmpty { model.setOwners(act, PartOwners.you()) }
             loaded = true
         }
     }
@@ -486,6 +515,95 @@ private struct PartScreen: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Where it comes from (story 2.12): places used before on this kind of item, near the person when both ZIP
+    /// codes are known (2.14), then dependable picks from Finds, then a new place.
+    @ViewBuilder private var whereFromList: some View {
+        let _ = model.revision
+        let offered = Places.offered(PlaceStore.shared.all, kindRaw: act.kindRaw, personZip: model.zip(for: person))
+        let picks = Finds.catalog.filter { $0.dependable && $0.kinds.contains(act.kind) }
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            if let chosen = chosenPlace {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(chosen.name).textStyle(.bodyStrong)
+                    if let link = chosen.link.flatMap(URL.init(string:)) {
+                        Link(link.host() ?? chosen.link ?? "", destination: link).font(.callout).foregroundStyle(Brand.action)
+                            .frame(minHeight: 44)
+                    }
+                    if let phone = chosen.phone, let tel = URL(string: "tel:" + phone.filter { $0.isNumber || $0 == "+" }) {
+                        Link("Call \(phone)", destination: tel).font(.callout).foregroundStyle(Brand.action).frame(minHeight: 44)
+                    }
+                }
+                TextLink(title: "Somewhere else") { PlaceStore.shared.choose(nil, for: act.id); chosenPlace = nil }
+                    .padding(.leading, -8)
+            } else {
+                if !offered.isEmpty {
+                    FlowLayout(spacing: 8) {
+                        ForEach(offered) { place in
+                            chip(place.name, selected: false) { use(place) }
+                                .contextMenu {
+                                    Button("Remove from your places", role: .destructive) { placeToForget = place }
+                                }
+                                .accessibilityAction(named: "Remove from your places") { placeToForget = place }
+                        }
+                    }
+                    Text("Press and hold a place to remove it.").textStyle(.caption, color: Brand.inkMuted)
+                }
+                if !picks.isEmpty {
+                    Eyebrow(text: "Dependable picks")
+                    FlowLayout(spacing: 8) {
+                        ForEach(picks) { find in
+                            chip(find.maker, selected: false) {
+                                use(Place(kindRaw: act.kindRaw, name: find.maker, link: find.url))
+                            }
+                            .accessibilityLabel("\(find.maker), a dependable pick")
+                        }
+                    }
+                }
+                if addingPlace {
+                    VStack(spacing: Brand.space2) {
+                        placeField("Name, like the bakery", $placeName)
+                        placeField("Link (optional)", $placeLink).keyboardType(.URL).textInputAutocapitalization(.never)
+                        placeField("Phone (optional)", $placePhone).keyboardType(.phonePad)
+                        placeField("ZIP code (optional)", $placeZip).keyboardType(.numberPad)
+                        Button {
+                            let n = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !n.isEmpty else { return }
+                            use(Place(kindRaw: act.kindRaw, name: n,
+                                      link: placeLink.trimmingCharacters(in: .whitespaces).nilIfEmpty,
+                                      phone: placePhone.trimmingCharacters(in: .whitespaces).nilIfEmpty,
+                                      zip: Places.zip(in: placeZip)))
+                            placeName = ""; placeLink = ""; placePhone = ""; placeZip = ""; addingPlace = false
+                        } label: {
+                            Text("Use this place").font(.callout.weight(.semibold)).foregroundStyle(Brand.ink)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .overlay { RoundedRectangle(cornerRadius: Brand.radiusLg).strokeBorder(Brand.ink, lineWidth: 1) }
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle())
+                        .disabled(placeName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                } else {
+                    TextLink(title: offered.isEmpty ? "Add where it's from" : "Somewhere new") { addingPlace = true }
+                        .padding(.leading, -8)
+                }
+            }
+        }
+    }
+
+    private func use(_ place: Place) {
+        PlaceStore.shared.choose(place, for: act.id)
+        chosenPlace = PlaceStore.shared.chosen(for: act.id) ?? place
+        model.revision += 1
+    }
+
+    private func placeField(_ label: String, _ text: Binding<String>) -> some View {
+        TextField(label, text: text)
+            .textStyle(.body)
+            .padding(.horizontal, Brand.space4)
+            .frame(minHeight: 48)
+            .background(Brand.page, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
     }
 
     private func giverChip(_ p: Person) -> some View {
@@ -592,32 +710,44 @@ private struct PartScreen: View {
         }
     }
 
-    /// The shelf feeds the gift (roadmap 2.5): saved wishes for this person, one tap to make one the idea.
+    /// The shelf feeds the gift (roadmap 2.5): every saved idea for this person, one tap to make one the idea.
+    /// With none saved yet, one line to save the first.
     @ViewBuilder private var shelfList: some View {
         let wishes = person?.openWishes ?? []
-        if family == .buy && (act.kind == .gift || act.kind == .fromSanta || act.kind == .stocking) && !wishes.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                Eyebrow(text: "From your saved ideas").padding(.bottom, Brand.space2)
-                ForEach(wishes, id: \.id) { wish in
-                    let chosen = act.wishID == wish.id
-                    Button { if !model.pickWish(wish, for: act) { showLifetime = true } } label: {
-                        HStack(spacing: Brand.space3) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(wish.text).textStyle(chosen ? .bodyStrong : .body).multilineTextAlignment(.leading)
-                                Text(wish.savedLine).textStyle(.caption, color: Brand.inkMuted)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(chosen ? "Chosen" : "Use this").font(.callout.weight(.semibold))
-                                .foregroundStyle(chosen ? Brand.inkMuted : Brand.action)
-                        }
-                        .padding(.vertical, Brand.space3)
-                        .frame(minHeight: 56)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
-                        .contentShape(Rectangle())
+        let giftKinds: [ActKind] = [.gift, .fromSanta, .stocking, .kidsMade]
+        if let person, giftKinds.contains(act.kind) {
+            let first = DisplayName.plain(person.name)
+            card("\(first)'s saved ideas", trailing: wishes.isEmpty ? nil : "\(wishes.count)") {
+                if wishes.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Nothing saved for \(first) yet. When you see something \(first) would like, save it and it comes up here at every day.")
+                            .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
+                        TextLink(title: "Save an idea for \(first)") { save(); model.route = .addWish(person.id) }
+                            .padding(.leading, -8)
                     }
-                    .buttonStyle(PressStyle())
-                    .disabled(chosen)
-                    .accessibilityLabel(chosen ? "\(wish.text), chosen" : "Use \(wish.text)")
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(wishes, id: \.id) { wish in
+                            let chosen = act.wishID == wish.id
+                            Button { if !model.pickWish(wish, for: act) { showLifetime = true } } label: {
+                                HStack(spacing: Brand.space3) {
+                                    WishPreview(wish: wish, bold: chosen)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(chosen ? "Chosen" : "Use this").font(.callout.weight(.semibold))
+                                        .foregroundStyle(chosen ? Brand.inkMuted : Brand.action)
+                                }
+                                .padding(.vertical, Brand.space3)
+                                .frame(minHeight: 56)
+                                .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PressStyle())
+                            .disabled(chosen)
+                            .accessibilityLabel(chosen ? "\(wish.text), chosen" : "Use \(wish.text)")
+                        }
+                        TextLink(title: "Save another") { save(); model.route = .addWish(person.id) }
+                            .padding(.leading, -8)
+                    }
                 }
             }
         }

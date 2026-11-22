@@ -21,10 +21,13 @@ Anything below uploads a build or changes something live. Check this list before
 | Running `testflight.yml` by hand with `dry_run` off | Same upload | Test build only |
 | Running `testflight.yml` by hand with `dry_run` on | Archives and signs, uploads nothing | None |
 | Deploying `server/` to the Vercel project helddear-mail (production, helddear-mail.vercel.app) | Changes the live server for mailed cards and family pages | Ship |
-| Merge to `main` touching `server/**` | Unconfirmed whether Vercel deploys from `main` on its own. Treat as a deploy until Grok confirms | Ship |
+| Merge to `main` touching `server/**` | Does not deploy on its own (checked Nov 21, 2026: PRs #11 to #29 merged with no new Vercel deployment). Deploying is a separate redeploy of helddear-mail | Ship (for the redeploy) |
 | Changing helddear-mail environment variables (Handwrytten, Stripe, Blob keys) | Changes live secrets | Graham's go (secrets) |
 
 `build.yml` (pull requests, pushes to `main`) builds and tests only; it uploads and deploys nothing.
+
+**Installing a test build:** update over the existing app from TestFlight. Never delete the app first: deleting it deletes
+the store and every photo with it (Nov 21, 2026). Every handoff with a test build says so.
 Everything not listed here uploads and deploys nothing. If you find a trigger that isn't listed, stop and add it.
 
 ## Rules that must never be missed
@@ -88,6 +91,8 @@ SKU helddear001. iOS 26, iPhone only.
   same server, to make or manage a page for one person's day (first name, date, the user's name and line, an optional
   photo, family's notes). No accounts; keys stay on the phone, the server keeps only their hashes; everything is
   deleted 30 days after the day (Vercel Blob, daily cleanup cron). Family's notes are untrusted text, always escaped.
+- Link previews (Graham, Nov 21, 2026): only `Services/LinkPreviews.swift` may ask a saved idea's own page for its
+  title and image (Apple's LinkPresentation), once, kept with the idea. Nothing goes to Held Dear. The guard enforces it.
 - Mailed cards are paid with Apple Pay through Stripe, never in-app purchase (App Review 3.1.3(e)).
 - No guilt: no streaks, red badges, or "you forgot". A missed birthday gets a way back.
 - Horizon look (v3, Nov 12): warm stone pages, each main screen one composed page (no stacked feeds). Names and

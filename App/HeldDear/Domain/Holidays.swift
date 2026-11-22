@@ -21,9 +21,11 @@ enum Holidays {
         defaults.set(offeredIn1_0.map(\.rawValue).filter(now.contains), forKey: defaultsKey)
     }
 
-    /// The key that joins every person's moment for one holiday in one year.
-    static func groupKey(type: OccasionType, year: Int) -> String? {
-        type.kind == .holiday ? "\(type.rawValue)-\(year)" : nil
+    /// The key that joins every person's moment for one holiday in one year. A holiday the user added is told
+    /// apart by its name.
+    static func groupKey(type: OccasionType, year: Int, partner: String? = nil) -> String? {
+        guard type.kind == .holiday else { return nil }
+        return "\(HolidayRef(type: type, name: partner).raw)-\(year)"
     }
 
     /// Lead time for the single holiday heads-up (roadmap 1.4): six weeks.
@@ -57,13 +59,17 @@ enum Holidays {
     }
 
     /// The heads-up six weeks out: "Christmas is in 6 weeks. 5 people to plan for."
-    static func headsUpText(type: OccasionType, people: Int) -> String {
-        "\(type.label) is in 6 weeks. \(people) \(people == 1 ? "person" : "people") to plan for."
+    static func headsUpText(type: OccasionType, people: Int, partner: String? = nil) -> String {
+        let base = "\(type.title(partner: partner)) is in 6 weeks. \(people) \(people == 1 ? "person" : "people") to plan for."
+        // A holiday the user added keeps one date; this is the one reminder to change it if it moves (story 2.10).
+        return type == .custom ? base + " If the date moves this year, change it in You." : base
     }
 
     /// The morning of: "Merry Christmas. Held Dear has your messages ready for 5 people."
-    static func dayOfText(type: OccasionType, people: Int) -> String {
-        let opening = type.cardOpening.hasSuffix(",") ? String(type.cardOpening.dropLast()) : type.cardOpening
+    /// A holiday the user added: "Today is Hanukkah. …" (the app doesn't guess its greeting).
+    static func dayOfText(type: OccasionType, people: Int, partner: String? = nil) -> String {
+        let opening = type == .custom ? "Today is \(type.title(partner: partner))"
+            : (type.cardOpening.hasSuffix(",") ? String(type.cardOpening.dropLast()) : type.cardOpening)
         return "\(opening). Held Dear has your messages ready for \(people) \(people == 1 ? "person" : "people")."
     }
 }
@@ -117,14 +123,17 @@ enum PlanLimit {
     }
 }
 
-/// Features that talk to Held Dear's server ship built in but switched off in 1.0 (roadmap R2). The switch is set
-/// when the app is built, never from the server (R4): add HELDDEAR_SERVER_FEATURES to the Swift compilation
-/// conditions to turn them on in a later, reviewed update.
+/// Features that talk to Held Dear's server. Switches are set when the app is built, never from the server (R4).
 enum AppFeatures {
-    #if HELDDEAR_SERVER_FEATURES
-    static let serverFeatures = true
+    /// Mailed cards are on, in test builds and in 1.0 (decided Nov 21, 2026). Only MailedCards.swift talks to the
+    /// server, at checkout.
+    static let mailedCards = true
+
+    /// Family pages stay off in 1.0. They come back only in builds made with HELDDEAR_FAMILY_PAGES.
+    #if HELDDEAR_FAMILY_PAGES
+    static let familyPages = true
     #else
-    static let serverFeatures = false
+    static let familyPages = false
     #endif
 
     /// The TestFlight-only Lifetime switch (roadmap R3) exists only in builds made with HELDDEAR_TESTFLIGHT_TOOLS,
@@ -134,4 +143,12 @@ enum AppFeatures {
     #else
     static let testFlightTools = false
     #endif
+
+    /// Home's medallion (approved Nov 21, 2026, as an easy-to-undo change): the date above, the featured person's
+    /// face in a warm-toned circle, the name on its rim. Off brings back the small circle above the date. To roll it
+    /// back for everyone, change the default below to false. Test builds can switch it in You.
+    static let homeMedallionKey = "homeMedallion"
+    static var homeMedallion: Bool {
+        UserDefaults.standard.object(forKey: homeMedallionKey) as? Bool ?? true
+    }
 }

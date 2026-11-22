@@ -20,17 +20,21 @@ struct PersonView: View {
     @State private var addingTo: Moment?
     @State private var linking = false
     @State private var editingDate = false
-    @State private var photoItem: PhotosPickerItem?
+    /// Several photos at once (Graham, Nov 21, 2026): pick as many as you like in one go.
+    @State private var photoItems: [PhotosPickerItem] = []
     @State private var wishToEdit: Wish?
     @State private var entryToEdit: LedgerEntry?
     @State private var editedLine = ""
     @State private var confirmRemove = false
     @State private var phoneText = ""
+    @State private var editingAddress = false
     @State private var showLifetime = false
     @State private var editingPortrait = false
     @State private var addingOccasion = false
     @State private var occasionToEdit: Occasion?
     @State private var showIdeas = false
+    @State private var sendingCard = false
+    @State private var sharingDay: Moment?
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -43,6 +47,12 @@ struct PersonView: View {
         .sheet(item: $addingTo) { m in
             PlanView(moment: m, onClose: { addingTo = nil }, startOnAdd: true)
                 .environmentObject(model)
+        }
+        .fullScreenCover(item: $sharingDay) { day in
+            ShareDayFlow(moment: day) { sharingDay = nil }.environmentObject(model)
+        }
+        .fullScreenCover(isPresented: $sendingCard) {
+            ReasonCardFlow(person: person) { sendingCard = false }.environmentObject(model)
         }
         .sheet(isPresented: $showRing) { RingSheet(person: person).presentationDetents([.medium]) }
         .onChange(of: linking) { _, open in
@@ -61,13 +71,14 @@ struct PersonView: View {
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .sheet(isPresented: $editingAddress) { AddressEditor(person: person) }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
                             titleVisibility: .visible) {
             Button("Remove", role: .destructive) { if let o = occasionToEdit { model.removeOccasion(o) } }
         }
-        .onChange(of: photoItem) { _, item in addPhoto(item) }
+        .onChange(of: photoItems) { _, items in addPhotos(items) }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
                             titleVisibility: .visible) {
             Button("Mark as given") { wishToEdit?.status = .used; model.commit() }
@@ -202,23 +213,24 @@ struct PersonView: View {
                 }
                 OptionRow(title: "Reminders", caption: person.ring.label) { showRing = true }
                 if let next = model.nextMoment(for: person) {
-                    if AppFeatures.serverFeatures { FamilyPageSection(person: person, moment: next) }
+                    if AppFeatures.familyPages { FamilyPageSection(person: person, moment: next) }
                     scheduleCard(next)
                 }
                 if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
                 if let b = person.birthday {
                     BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
                 }
-                if person.ring == .inner && person.photoFiles.isEmpty { photoNudge }
+                if person.photoFiles.isEmpty { photoNudge }
                 if person.contactID == nil { linkRow }
                 if model.phone(for: person) == nil { phoneRow }
+                if ContactsService.shared.mailAddress(contactID: person.contactID) == nil { addressRow }
                 section("Days") {
                     ForEach(sortedOccasions, id: \.id) { o in
                         if o.type == .birthday {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
                         } else {
                             OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
-                                      : (o.type == .event ? (o.partnerName ?? o.type.label) : o.type.label),
+                                      : o.type.title(partner: o.partnerName),
                                       caption: occasionCaption(o)) { occasionToEdit = o }
                         }
                     }
@@ -228,11 +240,25 @@ struct PersonView: View {
                 }
                 section("Saved ideas") {
                     ForEach(person.openWishes, id: \.id) { wish in
-                        OptionRow(title: wish.text, caption: wishCaption(wish)) { wishToEdit = wish }
+                        Button { wishToEdit = wish } label: {
+                            HStack(spacing: Brand.space3) {
+                                WishPreview(wish: wish).frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                                    .accessibilityHidden(true)
+                            }
+                            .padding(.vertical, Brand.space3)
+                            .frame(minHeight: 56)
+                            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityHint(wishCaption(wish))
                     }
                     SecondaryButton(title: "Save an idea") { model.route = .addWish(person.id) }
                 }
-                section("Photos for the card") {
+                section("Photos of \(DisplayName.plain(person.name))") {
+                    Text("The first is the photo at the top of \(DisplayName.plain(person.name))'s page. Cards offer all of them. Press and hold one to change which is first.")
+                        .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                     photoStrip
                     Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
                         Text("Show \(DisplayName.plain(person.name))'s age on the card").textStyle(.body)
@@ -293,13 +319,14 @@ struct PersonView: View {
                     TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
                 }
                 TextLink(title: "Save an idea") { model.route = .addWish(person.id) }
-                if AppFeatures.serverFeatures, let next = model.nextMoment(for: person),
-                   OccasionDates.daysBetween(Date(), next.dueDate) >= 6 {
-                    TextLink(title: "Mail a card") { model.route = .moment(next.id, .mailCard) }
-                }
+                TextLink(title: "Send a card") { sendingCard = true }
                 TextLink(title: "Edit") { editingPortrait = true }
             }
             .padding(.leading, -8)
+            if let day = model.nextPersonalMoment(for: person) {
+                TextLink(title: "Share \(DisplayName.plain(person.name))'s day") { sharingDay = day }
+                    .padding(.leading, -8)
+            }
         }
         .padding(Brand.space4)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -346,7 +373,7 @@ struct PersonView: View {
     private func subline(_ next: Moment) -> String {
         let date = next.dueDate.formatted(.dateTime.month(.wide).day())
         let what = next.countLine.map { $0.prefix(1).lowercased() + $0.dropFirst() } ?? next.label.lowercased()
-        return next.type.kind == .holiday ? "\(next.type.label), \(date)" : "\(date), \(what)"
+        return next.type.kind == .holiday ? "\(next.type.title(partner: next.occasion?.partnerName)), \(date)" : "\(date), \(what)"
     }
 
     /// The portrait, written as sentences: what they love, sizes, good to know, what they mentioned.
@@ -373,7 +400,7 @@ struct PersonView: View {
                     if let note = person.goodToKnow { portraitLine("Good to know", note) }
                 }
             }
-            if let wish = person.openWishes.first {
+            if let wish = person.openWishes.first, !LinkPreviews.isOnlyALink(wish.text) {
                 (Text("Mentioned wanting ") + Text(wish.text).italic() + Text("."))
                     .font(Brand.serif(19, relativeTo: .body)).foregroundStyle(Brand.inkSoft)
             }
@@ -472,14 +499,15 @@ struct PersonView: View {
 
     /// A skipped Get ahead photo: one quiet next step.
     private var photoNudge: some View {
-        PhotosPicker(selection: $photoItem, matching: .images) {
+        PhotosPicker(selection: $photoItems, maxSelectionCount: 30, selectionBehavior: .ordered, matching: .images) {
             HStack(spacing: 14) {
                 Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.ink)
                     .frame(width: 56, height: 56)
                     .background(Brand.faceFills[0], in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add a photo for \(DisplayName.plain(person.name))'s card").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
-                    Text("It stays on this iPhone").textStyle(.caption, color: Brand.inkMuted)
+                    Text("Choose photos of \(DisplayName.plain(person.name))").font(TypeStyle.callout.strong).foregroundStyle(Brand.ink)
+                    Text("Open their album in Photos and select all, or pick any you like. Only these come into Held Dear.")
+                        .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -491,6 +519,14 @@ struct PersonView: View {
 
     private var linkRow: some View {
         OptionRow(title: "Link to a contact", caption: "For their number, address and photo") { linking = true }
+    }
+
+    /// Story 2.13: an address kept on this iPhone when Contacts has none for this person.
+    private var addressRow: some View {
+        let _ = model.revision
+        let saved = person.mailingAddress
+        return OptionRow(title: saved == nil ? "Add a mailing address" : "Mailing address",
+                         caption: saved?.oneLine ?? "For mailed cards. Never added to Contacts") { editingAddress = true }
     }
 
     private var phoneRow: some View {
@@ -557,7 +593,7 @@ struct PersonView: View {
     private var photoStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                PhotosPicker(selection: $photoItem, matching: .images) {
+                PhotosPicker(selection: $photoItems, maxSelectionCount: 30, selectionBehavior: .ordered, matching: .images) {
                     Image(systemName: "plus").font(.system(size: 20, weight: .regular)).foregroundStyle(Brand.action)
                         .frame(width: 88, height: 88)
                         .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
@@ -565,11 +601,29 @@ struct PersonView: View {
                 .accessibilityLabel("Add a photo")
                 ForEach(person.photoFiles.reversed(), id: \.self) { file in
                     if let image = PhotoStore.load(file) {
+                        let isTop = file == person.photoFiles.last
                         Image(uiImage: image).resizable().scaledToFill()
                             .frame(width: 88, height: 88)
                             .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                            .overlay(alignment: .bottomLeading) {
+                                if isTop {
+                                    Text("Top").font(.caption2.weight(.semibold)).foregroundStyle(Brand.page)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Brand.ink, in: Capsule())
+                                        .padding(6)
+                                }
+                            }
+                            .accessibilityLabel(isTop ? "Photo at the top of the page" : "Photo")
                             .contextMenu {
-                                Button("Remove photo", role: .destructive) {
+                                if !isTop {
+                                    // The newest saved photo is the top one, so moving it to the end makes it first.
+                                    Button("Use at the top") {
+                                        person.photoFiles.removeAll { $0 == file }
+                                        person.photoFiles.append(file)
+                                        model.save()
+                                    }
+                                }
+                                Button("Remove from Held Dear", role: .destructive) {
                                     person.photoFiles.removeAll { $0 == file }
                                     PhotoStore.delete(file)
                                     model.save()
@@ -602,14 +656,20 @@ struct PersonView: View {
         .buttonStyle(.plain)
     }
 
-    private func addPhoto(_ item: PhotosPickerItem?) {
-        guard let item else { return }
+    private func addPhotos(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
-                person.photoFiles.append(file)
+            var added: [String] = []
+            for item in items {
+                if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                    added.append(file)
+                }
+            }
+            if !added.isEmpty {
+                person.photoFiles.append(contentsOf: added)
                 model.save()
             }
-            photoItem = nil
+            photoItems = []
         }
     }
 }
@@ -732,7 +792,71 @@ final class ContactPickerPresenter: NSObject, CNContactPickerDelegate {
     }
 }
 
+/// Apple's contact picker with checkmarks: implementing the plural delegate method turns on picking several.
+/// A separate delegate from ContactPickerPresenter, which links one contact to one person.
+@MainActor
+final class MultiContactPickerPresenter: NSObject, CNContactPickerDelegate {
+    static let shared = MultiContactPickerPresenter()
+    private var onPick: (([CNContact]) -> Void)?
+
+    func present(onPick: @escaping ([CNContact]) -> Void) {
+        guard let top = ContactPickerPresenter.topViewController() else { return }
+        self.onPick = onPick
+        let picker = CNContactPickerViewController()
+        picker.delegate = self
+        top.present(picker, animated: true)
+    }
+
+    nonisolated func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
+        Task { @MainActor in
+            let callback = self.onPick
+            self.onPick = nil
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            callback?(contacts)
+        }
+    }
+
+    nonisolated func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+        Task { @MainActor in self.onPick = nil }
+    }
+}
+
 /// Edit the portrait: loves (comma separated), sizes, and one line of good to know.
+/// Change or clear the address kept for a person (story 2.13). Contacts are never written.
+struct AddressEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var address = MailAddress()
+    @State private var hadOne = false
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "\(DisplayName.plain(person.name))'s address",
+                     subtitle: "For mailed cards. It stays with your plans and is never added to Contacts.", style: .title)
+            AddressForm(address: $address)
+        } footer: {
+            PrimaryButton(title: "Save") {
+                person.mailingAddress = address
+                model.save()
+                dismiss()
+            }
+            .disabled(!address.isComplete)
+            if hadOne {
+                TextLink(title: "Clear the address") {
+                    person.mailingAddress = nil
+                    model.save()
+                    dismiss()
+                }
+            }
+        }
+        .onAppear {
+            if let saved = person.mailingAddress { address = saved; hadOne = true }
+            else { address.firstName = DisplayName.plain(person.name).split(separator: " ").first.map(String.init) ?? "" }
+        }
+    }
+}
+
 struct PortraitEditor: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -794,73 +918,45 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Photos from past birthdays, found in the Photos library on this iPhone.
-/// Free shows the most recent year; Lifetime shows every year.
+/// Photos from past birthdays, from the photos the user chose for this person (Nov 21, 2026), by the day each was
+/// taken. Free shows the most recent year; Lifetime shows every year.
 struct BirthdayMemories: View {
     @EnvironmentObject var model: AppModel
-    @ObservedObject private var photos = PhotoMemories.shared
     @ObservedObject private var purchases = Purchases.shared
     let person: Person
     let month: Int
     let day: Int
     var showLifetime: () -> Void
-    @State private var years: [PhotoMemories.Year] = []
-    @State private var opened: PickedPhoto?
-    @State private var hiddenCount = 0
 
     var body: some View {
+        let years = ChosenPhotos.birthdayYears(files: person.photoFiles, month: month, day: day)
         VStack(alignment: .leading, spacing: Brand.space3) {
-            if photos.canRead {
-                if !years.isEmpty {
-                    Text("On \(DisplayName.plain(person.name))'s birthdays").textStyle(.headline)
-                    Text("Tap a photo to open it, use it on the card, or hide it.").textStyle(.caption, color: Brand.inkMuted)
-                    ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
-                    if !purchases.hasLifetime && years.count > 1 {
-                        TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
-                    }
-                }
-                if hiddenCount > 0 {
-                    TextLink(title: hiddenCount == 1 ? "Show 1 hidden photo" : "Show \(hiddenCount) hidden photos") {
-                        HiddenPhotos.showAll()
-                        load()
-                    }
-                    .padding(.leading, -8)
-                }
-            } else if photos.status == .notDetermined {
-                OptionRow(title: "Photos from \(DisplayName.plain(person.name))'s birthdays",
-                          caption: "Held Dear looks in your library on this iPhone") {
-                    Task { await photos.requestAccess(); load() }
+            if !years.isEmpty {
+                Text("On \(DisplayName.plain(person.name))'s birthdays").textStyle(.headline)
+                ForEach(purchases.hasLifetime ? years : Array(years.prefix(1))) { y in yearRow(y) }
+                if !purchases.hasLifetime && years.count > 1 {
+                    TextLink(title: "See all \(years.count) years with Lifetime", action: showLifetime)
                 }
             }
         }
-        .onAppear(perform: load)
-        .fullScreenCover(item: $opened) { p in
-            PhotoViewer(asset: p.asset, person: person, caption: p.caption) { load() }
-                .environmentObject(model)
-        }
     }
 
-    private func yearRow(_ y: PhotoMemories.Year) -> some View {
+    private func yearRow(_ y: ChosenPhotos.Year) -> some View {
         VStack(alignment: .leading, spacing: Brand.space2) {
             Text(String(y.year)).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(y.assets, id: \.localIdentifier) { asset in
-                        Button { opened = PickedPhoto(asset: asset, caption: String(y.year)) } label: { AssetThumb(asset: asset, side: 104) }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Photo from \(String(y.year))")
-                            .accessibilityHint("Opens the photo")
+                    ForEach(y.files, id: \.self) { file in
+                        if let image = PhotoStore.load(file) {
+                            Image(uiImage: image).resizable().scaledToFill()
+                                .frame(width: 104, height: 104)
+                                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                                .accessibilityLabel("Photo from \(y.year)")
+                        }
                     }
                 }
             }
         }
-    }
-
-    private func load() {
-        let all = photos.years(month: month, day: day)
-        years = HiddenPhotos.filter(all)
-        let ids = Set(all.flatMap { $0.assets.map(\.localIdentifier) })
-        hiddenCount = HiddenPhotos.all().intersection(ids).count
     }
 }
 
@@ -896,7 +992,8 @@ struct AddOccasionView: View {
 
     private var choices: [OccasionType] {
         OccasionType.allCases.filter { t in
-            t != .birthday && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
+            (t != .birthday || OccasionOffer.offersBirthday(existing: person.occasions.map(\.type)))
+                && !(t.kind == .holiday && person.occasions.contains { $0.type == t })
                 && (t.kind != .holiday || (Holidays.enabled().contains(t)
                     && OccasionOffer.offersHoliday(t, relationship: person.relationship)))
                 && (t.kind != .once || OccasionOffer.bigDays.contains(t))
@@ -906,9 +1003,29 @@ struct AddOccasionView: View {
     private var pickStep: some View {
         FlowScreen(onClose: { dismiss() }) {
             Question(title: "What else matters for \(DisplayName.plain(person.name))?")
-            section("Every year", choices.filter { $0.kind == .yearly })
+            section("Every year", choices.filter { $0.kind == .yearly }.sorted { $0 == .birthday && $1 != .birthday })
             section("Holidays", choices.filter { $0.kind == .holiday })
+            ownHolidays
             section("Big days", OccasionOffer.bigDays.filter(choices.contains))
+        }
+    }
+
+    /// Holidays the user added (story 2.10) that this person isn't in yet.
+    @ViewBuilder private var ownHolidays: some View {
+        let own = CustomHolidays.all().filter { h in
+            !person.occasions.contains { $0.type == .custom && CustomHolidays.sameName($0.partnerName ?? "", h.name) }
+        }
+        if !own.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Your holidays")
+                ForEach(own) { h in
+                    OptionRow(title: h.name, caption: OccasionDates.date(month: h.month, day: h.day, year: 2028)
+                        .formatted(.dateTime.month(.wide).day())) {
+                        model.addToHoliday(person, ref: h.ref, year: Calendar.current.component(.year, from: Date()))
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 
@@ -947,6 +1064,8 @@ struct AddOccasionView: View {
                 .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
             if t == .anniversary {
                 LineField(label: "With (optional)", text: $partner, placeholder: "Dad", showsDictation: false)
+            }
+            if t == .anniversary || t == .birthday {
                 Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
             }
         } footer: {
@@ -959,7 +1078,7 @@ struct AddOccasionView: View {
 
     private func save(_ t: OccasionType) {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        let year: Int? = t.kind == .once ? c.year : (t == .anniversary && knowsYear ? c.year : nil)
+        let year: Int? = t.kind == .once ? c.year : ((t == .anniversary || t == .birthday) && knowsYear ? c.year : nil)
         model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
                           partnerName: t == .anniversary || t == .event ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
         dismiss()

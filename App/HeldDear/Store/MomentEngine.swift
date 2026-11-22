@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// Keeps Moments on a rolling 12-month window and moves them through their statuses.
 /// No status counts against the user: a missed Moment closes quietly after 3 days.
