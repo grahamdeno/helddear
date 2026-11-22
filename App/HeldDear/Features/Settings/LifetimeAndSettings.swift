@@ -133,7 +133,7 @@ struct SettingsView: View {
                     .buttonStyle(PressStyle())
                 lifetimeCard
                 group("Make") {
-                    YouRow(icon: "envelope", title: "Make a card", detail: nil, caption: "Christmas or any reason") { makingCard = true }
+                    YouRow(icon: "photo.on.rectangle", title: "Make a digital card", detail: nil, caption: "To text or post, for Christmas or any reason") { makingCard = true }
                 }
                 group("Your people and days") {
                     NavigationLink { subpage("People") { peoplePage } } label: {
