@@ -695,6 +695,43 @@ final class AppModel: ObservableObject {
     }
 
     /// Takes one part out of a plan for good (feedback on build 1019). The rest of the plan, and the day, stay.
+    // MARK: Remove with Undo (Nov 21, 2026)
+
+    struct UndoNote: Equatable { let id: UUID; let text: String }
+    /// The banner's line while a removal can still be undone.
+    @Published var undo: UndoNote?
+    /// Items hidden while their removal can be undone; removed for good when the banner goes.
+    @Published var removing: Set<UUID> = []
+    private var undoTask: Task<Void, Never>?
+
+    /// Hides an item at once, shows Undo for five seconds, then removes it.
+    func removePartWithUndo(_ act: Act, name: String) {
+        finishPendingRemoval()
+        let id = act.id
+        removing.insert(id)
+        withAnimation(.snappy) { undo = UndoNote(id: id, text: "\(name) removed") }
+        undoTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            self?.finishPendingRemoval()
+        }
+    }
+
+    func undoRemoval() {
+        undoTask?.cancel()
+        if let note = undo { removing.remove(note.id) }
+        withAnimation(.snappy) { undo = nil }
+    }
+
+    /// Removes the hidden item for good (also when another removal starts).
+    func finishPendingRemoval() {
+        undoTask?.cancel()
+        guard let note = undo else { return }
+        if let act = act(note.id) { removePart(act) }
+        removing.remove(note.id)
+        withAnimation(.snappy) { undo = nil }
+    }
+
     func removePart(_ act: Act) {
         guard act.role == .plan else { return }
         let moment = act.moment
