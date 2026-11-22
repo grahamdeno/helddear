@@ -1334,56 +1334,92 @@ struct PhotoActions: View {
 }
 
 
-/// Choose who or what a photo centers on (Graham, Nov 22, 2026): tap a found face, or tap anywhere. The round preview
-/// shows what Home and the person's page will use.
+/// Choose who or what a photo centers on (Graham, Nov 22, 2026): tap a face in the row of faces, or pinch to zoom
+/// the photo and tap any spot. The round preview shows what Home and the person's page will use.
 struct FocusPicker: View {
     let file: String
     var close: () -> Void
     @State private var faces: [CGRect] = []
     @State private var focus: CGRect?
     @State private var image: UIImage?
+    @State private var zoom: CGFloat = 1
+    @State private var zoomStart: CGFloat = 1
+    @State private var pan: CGSize = .zero
+    @State private var panStart: CGSize = .zero
+
+    private func same(_ a: CGRect?, _ b: CGRect) -> Bool {
+        guard let a else { return false }
+        return abs(a.midX - b.midX) < 0.01 && abs(a.midY - b.midY) < 0.01
+    }
 
     var body: some View {
         FlowScreen(onClose: close) {
             Question(title: "Who should it center on?",
-                     subtitle: faces.count > 1 ? "Tap a face, or tap anywhere in the photo." : "Tap anywhere in the photo.",
+                     subtitle: faces.count > 1 ? "Tap a face below. Or pinch the photo to zoom and tap any spot." : "Pinch to zoom, then tap any spot.",
                      style: .title)
             if let image {
+                if faces.count > 1 {
+                    // Every face, big enough to tap without aiming.
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Brand.space3) {
+                            ForEach(Array(faces.enumerated()), id: \.offset) { i, f in
+                                Button { focus = f } label: {
+                                    crop(image, f, share: 0.7)
+                                        .frame(width: 64, height: 64).clipShape(Circle())
+                                        .overlay { Circle().strokeBorder(same(focus, f) ? Brand.action : Brand.raisedLine, lineWidth: same(focus, f) ? 3 : 1) }
+                                }
+                                .buttonStyle(PressStyle())
+                                .accessibilityLabel("Face \(i + 1)")
+                                .accessibilityAddTraits(same(focus, f) ? [.isButton, .isSelected] : .isButton)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
                 GeometryReader { geo in
                     let fit = fitted(image.size, in: geo.size)
                     ZStack(alignment: .topLeading) {
                         Image(uiImage: image).resizable().scaledToFit()
                             .frame(width: fit.width, height: fit.height)
-                            .contentShape(Rectangle())
-                            .onTapGesture { p in
-                                focus = PhotoFocus.box(around: CGPoint(x: p.x / fit.width, y: p.y / fit.height), imageSize: image.size)
-                            }
-                        ForEach(Array(faces.enumerated()), id: \.offset) { _, f in
-                            let on = focus.map { abs($0.midX - f.midX) < 0.01 && abs($0.midY - f.midY) < 0.01 } ?? false
-                            Circle()
-                                .strokeBorder(on ? Brand.action : Color.white.opacity(0.85), lineWidth: on ? 3 : 2)
-                                .frame(width: max(f.width * fit.width, f.height * fit.height) * 1.2,
-                                       height: max(f.width * fit.width, f.height * fit.height) * 1.2)
-                                .position(x: f.midX * fit.width, y: f.midY * fit.height)
-                                .contentShape(Circle())
-                                .onTapGesture { focus = f }
-                                .accessibilityLabel("A face")
-                                .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
-                        }
-                        if let focus, !faces.contains(where: { abs($0.midX - focus.midX) < 0.01 && abs($0.midY - focus.midY) < 0.01 }) {
-                            Circle().strokeBorder(Brand.action, lineWidth: 3)
-                                .frame(width: focus.width * fit.width * 1.2, height: focus.width * fit.width * 1.2)
+                        if let focus {
+                            Circle().strokeBorder(Brand.action, lineWidth: 3 / zoom)
+                                .frame(width: max(focus.width * fit.width, focus.height * fit.height) * 1.3,
+                                       height: max(focus.width * fit.width, focus.height * fit.height) * 1.3)
                                 .position(x: focus.midX * fit.width, y: focus.midY * fit.height)
                                 .allowsHitTesting(false)
                         }
                     }
                     .frame(width: fit.width, height: fit.height)
-                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    // The tap is read before zooming, so it lands on the photo's own spot at any zoom.
+                    .onTapGesture { p in
+                        let spot = CGPoint(x: p.x / fit.width, y: p.y / fit.height)
+                        focus = faces.first { $0.insetBy(dx: -$0.width * 0.3, dy: -$0.height * 0.3).contains(spot) }
+                            ?? PhotoFocus.box(around: spot, imageSize: image.size, share: 0.12)
+                    }
+                    .scaleEffect(zoom)
+                    .offset(pan)
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+                    .gesture(MagnifyGesture()
+                        .onChanged { zoom = min(6, max(1, zoomStart * $0.magnification)) }
+                        .onEnded { _ in zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } })
+                    .simultaneousGesture(DragGesture(minimumDistance: 8)
+                        .onChanged { g in
+                            guard zoom > 1 else { return }
+                            pan = CGSize(width: panStart.width + g.translation.width, height: panStart.height + g.translation.height)
+                        }
+                        .onEnded { _ in panStart = pan })
+                    .onTapGesture(count: 2) {
+                        withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 3; zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } }
+                    }
                 }
-                .frame(height: 380)
+                .frame(height: 340)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 if let focus {
                     HStack(spacing: Brand.space3) {
-                        preview(image, focus).frame(width: 72, height: 72).clipShape(Circle())
+                        crop(image, focus, share: 0.5).frame(width: 72, height: 72).clipShape(Circle())
                         Text("How it looks on Home").textStyle(.caption, color: Brand.inkMuted)
                     }
                 }
@@ -1405,19 +1441,19 @@ struct FocusPicker: View {
         }
     }
 
+    /// A square crop around a box, the way Home frames a face.
+    @ViewBuilder private func crop(_ image: UIImage, _ box: CGRect, share: CGFloat) -> some View {
+        if let cg = image.cgImage {
+            let size = CGSize(width: cg.width, height: cg.height)
+            let square = FaceFrame.portraitSquare(face: PhotoFocus.pixels(box, imageSize: size), imageSize: size, faceShare: share)
+            if let c = cg.cropping(to: square.integral) {
+                Image(uiImage: UIImage(cgImage: c)).resizable().scaledToFill()
+            }
+        }
+    }
+
     private func fitted(_ size: CGSize, in box: CGSize) -> CGSize {
         let scale = min(box.width / max(size.width, 1), box.height / max(size.height, 1))
         return CGSize(width: size.width * scale, height: size.height * scale)
-    }
-
-    /// The round crop Home makes, from the chosen box.
-    @ViewBuilder private func preview(_ image: UIImage, _ focus: CGRect) -> some View {
-        if let cg = image.cgImage {
-            let size = CGSize(width: cg.width, height: cg.height)
-            let square = FaceFrame.portraitSquare(face: PhotoFocus.pixels(focus, imageSize: size), imageSize: size)
-            if let crop = cg.cropping(to: square.integral) {
-                Image(uiImage: UIImage(cgImage: crop)).resizable().scaledToFill()
-            }
-        }
     }
 }
