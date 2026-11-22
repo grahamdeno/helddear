@@ -19,4 +19,16 @@ final class NameHintTests: XCTestCase {
         NameHint.markTapped(d)
         XCTAssertTrue(NameHint.tapped(d))
     }
+
+    func testANewStylePlaysAgainOnce() {
+        let d = UserDefaults(suiteName: "NameHintStyleTests")!
+        d.removePersistentDomain(forName: "NameHintStyleTests")
+        d.set(1, forKey: NameHint.styleKey)
+        d.set(true, forKey: NameHint.tappedKey)
+        d.set(9, forKey: NameHint.launchesKey)
+        NameHint.resetForNewStyle(d)
+        XCTAssertFalse(NameHint.tapped(d))
+        XCTAssertEqual(d.integer(forKey: NameHint.launchesKey), 0)
+        XCTAssertEqual(d.integer(forKey: NameHint.styleKey), NameHint.style)
+    }
 }

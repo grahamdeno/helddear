@@ -825,9 +825,13 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                         // A soft band of light passes once through the letters on the first few launches (Nov 22, 2026).
                         if hinting {
                             GeometryReader { g in
-                                LinearGradient(colors: [.clear, glint, .clear], startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: g.size.width * 0.35)
-                                    .offset(x: -g.size.width * 0.35 + sweep * g.size.width * 1.35)
+                                // "Stronger" (Graham, Nov 22, 2026): amber edges, a bright center, a wider band.
+                                LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: glint, location: 0.3),
+                                                       .init(color: glintCore, location: 0.5), .init(color: glint, location: 0.7),
+                                                       .init(color: .clear, location: 1)],
+                                               startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: g.size.width * 0.47)
+                                    .offset(x: -g.size.width * 0.47 + sweep * g.size.width * 1.47)
                             }
                             .mask(nameText)
                             .allowsHitTesting(false)
@@ -894,8 +898,11 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
 
     /// Warm light: pale gold on the dark page, a soft lighter streak on the light one.
     private var glint: Color {
-        scheme == .dark ? Color(red: 0.97, green: 0.89, blue: 0.70).opacity(0.95)
-                        : Color(red: 1.0, green: 0.93, blue: 0.80).opacity(0.85)
+        scheme == .dark ? Color(red: 0.91, green: 0.75, blue: 0.43) : Color(red: 0.85, green: 0.64, blue: 0.27)
+    }
+
+    private var glintCore: Color {
+        scheme == .dark ? Color(red: 1.0, green: 0.95, blue: 0.84) : Color(red: 0.98, green: 0.86, blue: 0.62)
     }
 
     private func startHint() {
@@ -903,7 +910,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
         guard NameHint.shows(launches: launches, tapped: NameHint.tapped(), reduceMotion: reduceMotion), !hinting else { return }
         hinting = true
         sweep = 0
-        withAnimation(.easeInOut(duration: 1.8).delay(0.6)) { sweep = 1 }
+        withAnimation(.easeInOut(duration: 2.0).delay(0.6)) { sweep = 1 }
         withAnimation(.easeOut(duration: 1.0).delay(2.0)) { seeLine = true }
     }
 
