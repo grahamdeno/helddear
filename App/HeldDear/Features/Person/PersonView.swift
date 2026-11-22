@@ -79,6 +79,10 @@ struct PersonView: View {
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
         .sheet(isPresented: $editingAddress) { AddressEditor(person: person) }
+        .onAppear {
+            // From the six-week "What does Ana love?" alert.
+            if model.openLovesFor == person.id { model.openLovesFor = nil; editingPortrait = true }
+        }
         .sheet(isPresented: $editingPhone) { PhoneEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
