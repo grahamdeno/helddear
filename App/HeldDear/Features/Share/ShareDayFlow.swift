@@ -41,6 +41,7 @@ struct ShareDayFlow: View {
             VStack(alignment: .leading, spacing: 0) {
                 TextField("Add a line (optional)", text: $note, axis: .vertical)
                     .lineLimit(1...2)
+                    .returnEnds($note)
                     .font(Brand.serif(17, italic: true))
                     .padding(.vertical, Brand.space3)
                     .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
