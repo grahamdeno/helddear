@@ -10,6 +10,8 @@ struct AddBirthdayView: View {
         _text = State(initialValue: initialText)
     }
     @State private var showHint = false
+    /// Set when this opened for a contact whose card has no birthday.
+    @State private var missingFrom: String?
     @State private var choices: [ContactInfo] = []
     @State private var pendingChange: (person: Person, parsed: ParsedBirthday)?
     @State private var whichOne: ParsedBirthday?
@@ -49,7 +51,15 @@ struct AddBirthdayView: View {
 
     private var entry: some View {
         FlowScreen(onClose: close) {
-            Question(title: "Add someone", subtitle: "Say or type their name and a date to remember.", style: .display)
+            if let missing = missingFrom {
+                // Say plainly what happened, so this doesn't look like a form out of nowhere (Graham, Nov 22, 2026).
+                Question(title: "\(missing)'s contact has no birthday",
+                         subtitle: "Type it after the name to add \(missing) to Held Dear, or close to skip."
+                            + (model.contactsToDate.isEmpty ? "" : " \(model.contactsToDate.count) more after this."),
+                         style: .title)
+            } else {
+                Question(title: "Add someone", subtitle: "Say or type their name and a date to remember.", style: .display)
+            }
             LineField(label: "Name and date", text: $text, placeholder: "Mike, March 3", onSubmit: save)
             if showHint {
                 Text("Try: Mike, March 3").textStyle(.caption, color: Brand.inkMuted).padding(.top, -12)
@@ -57,6 +67,12 @@ struct AddBirthdayView: View {
             if let p = parsed { preview(p) }
         } footer: {
             PrimaryButton(title: "Save", action: save)
+        }
+        .onAppear {
+            if let name = model.contactWithoutBirthday {
+                missingFrom = name
+                model.contactWithoutBirthday = nil
+            }
         }
         .onChange(of: text) { _, _ in
             showHint = false

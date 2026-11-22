@@ -68,7 +68,10 @@ struct RootView: View {
                 let next = model.contactsToDate.removeFirst()
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    if model.route == nil { model.route = .addBirthday("\(next), ") }
+                    if model.route == nil {
+                        model.contactWithoutBirthday = next
+                        model.route = .addBirthday("\(next), ")
+                    }
                 }
                 return
             }

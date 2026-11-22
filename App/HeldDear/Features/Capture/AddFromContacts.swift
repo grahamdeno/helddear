@@ -37,6 +37,7 @@ struct AddFromContactsModifier: ViewModifier {
         let needDates = outcome.needDate.map(\.name)
         if let first = needDates.first {
             model.contactsToDate = Array(needDates.dropFirst())
+            model.contactWithoutBirthday = first
             model.route = .addBirthday("\(first), ")
         } else {
             result = ContactImport.summary(outcome)

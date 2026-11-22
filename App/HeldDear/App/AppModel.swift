@@ -86,6 +86,8 @@ final class AppModel: ObservableObject {
     @Published var route: Route?
     /// Picked contacts still waiting for a date, shown one after another after Add a birthday closes.
     var contactsToDate: [String] = []
+    /// The contact just picked had no birthday on their card, so Add someone says so (Graham, Nov 22, 2026).
+    var contactWithoutBirthday: String?
     /// Pages pushed from Home, oldest first.
     @Published var navPath: [Nav] = []
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }
