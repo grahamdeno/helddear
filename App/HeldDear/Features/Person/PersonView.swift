@@ -22,6 +22,8 @@ struct PersonView: View {
     @State private var editingDate = false
     /// Several photos at once (Graham, Nov 21, 2026): pick as many as you like in one go.
     @State private var photoItems: [PhotosPickerItem] = []
+    /// A photo opened from the strip: shown large with plain buttons, in place of a press-and-hold menu.
+    @State private var photoToManage: String?
     @State private var wishToEdit: Wish?
     @State private var entryToEdit: LedgerEntry?
     @State private var editedLine = ""
