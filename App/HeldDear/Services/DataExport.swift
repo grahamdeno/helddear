@@ -40,6 +40,7 @@ enum DataExport {
         var dinnerDate: Date?, arrivesBy: Date?, photoFile: String?, cardFile: String?, completedAt: Date?
         var confirmedBy: String?, createdAt: Date, momentID: UUID?
         var label: String?, step: String?, ownerIDs: [UUID], note: String?, sortOrder: Int
+        var orderNumber: String? = nil, trackingURL: String? = nil
     }
     struct WishRecord: Codable, Equatable {
         var id: UUID, text: String, url: String?, imageFile: String?, capturedAt: Date, status: String, personID: UUID?
@@ -133,7 +134,8 @@ enum DataExport {
                           fromNote: $0.fromNote, dinnerDate: $0.dinnerDate, arrivesBy: $0.arrivesBy,
                           photoFile: $0.photoFile, cardFile: $0.cardFile, completedAt: $0.completedAt,
                           confirmedBy: $0.confirmedRaw, createdAt: $0.createdAt, momentID: $0.moment?.id,
-                          label: $0.label, step: $0.step, ownerIDs: $0.ownerIDs, note: $0.note, sortOrder: $0.sortOrder)
+                          label: $0.label, step: $0.step, ownerIDs: $0.ownerIDs, note: $0.note, sortOrder: $0.sortOrder,
+                          orderNumber: $0.orderNumber, trackingURL: $0.trackingURL)
             },
             wishes: wishes.map {
                 WishRecord(id: $0.id, text: $0.text, url: $0.url, imageFile: $0.imageFile, capturedAt: $0.capturedAt,

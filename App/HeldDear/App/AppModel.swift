@@ -692,6 +692,17 @@ final class AppModel: ObservableObject {
 
     /// A link for an item (what was bought, tracking): kept with the item through a shelf entry, so nothing new is
     /// stored. Replaces the item's link if it had one from a shelf entry.
+    /// Takes the link off an item (Nov 22, 2026). A link added for this item is cleared; a saved idea stays on the
+    /// person's shelf and is only unlinked from the item.
+    func clearLink(from act: Act) {
+        if let id = act.wishID, let wish = act.moment?.person?.wishes.first(where: { $0.id == id }), wish.status == .used {
+            wish.url = nil
+        } else {
+            act.wishID = nil
+        }
+        commit()
+    }
+
     func attachLink(_ url: URL, to act: Act) {
         guard let person = act.moment?.person else { return }
         let text = act.title ?? PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)

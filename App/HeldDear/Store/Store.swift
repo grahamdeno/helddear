@@ -150,8 +150,8 @@ enum Store {
         let storeURL = url ?? productionURL
         let oldURL = legacyURL ?? (url == nil ? LegacyStore.productionURL : nil)
 
-        // A store from build 1030 (model 3.0) moves to model 3.1 first, from a backup copy kept next to it.
-        upgradeFromV30IfNeeded(storeURL, now: now)
+        // A store from an older model (3.0 or 3.1) moves to the current one first, from a backup copy kept next to it.
+        upgradeIfNeeded(storeURL, now: now)
 
         // Open version 3, trying twice before setting it aside.
         var outcome = OpenedStore.Outcome.opened
@@ -196,20 +196,22 @@ enum Store {
         }
     }
 
-    /// Model 3.0 to 3.1 (item 3.1: Photo added, free text marked for iCloud encryption). The model is built in code,
-    /// so Core Data can't find the old one by itself; this migrates with both models. A copy of the store is kept
-    /// first ("HeldDear-before-3.1-<date>.sqlite"); on any failure the store is left as it was.
-    static func upgradeFromV30IfNeeded(_ url: URL, now: Date) {
+    /// An older model to the current one: 3.0 or 3.1 to 3.2 (3.1 added Photo and iCloud encryption; 3.2 adds two
+    /// optional Act fields). The model is built in code, so Core Data can't find the old one by itself; this migrates
+    /// with both models. A copy of the store is kept first ("HeldDear-before-3.2-<date>.sqlite"); on any failure the
+    /// store is left as it was.
+    static func upgradeIfNeeded(_ url: URL, now: Date) {
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path),
               let meta = try? NSPersistentStoreCoordinator.metadataForPersistentStore(ofType: NSSQLiteStoreType, at: url),
               !CoreStore.model.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta),
-              CoreStore.modelV30.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) else { return }
+              let source = CoreStore.olderModels.first(where: { $0.model.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) })?.model
+        else { return }
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd-HHmmss"
         let dir = url.deletingLastPathComponent()
-        let backup = dir.appending(path: "HeldDear-before-3.1-\(f.string(from: now)).sqlite")
+        let backup = dir.appending(path: "HeldDear-before-3.2-\(f.string(from: now)).sqlite")
         let temp = dir.appending(path: "HeldDear-upgrading-\(UUID().uuidString).sqlite")
         do {
             if !fm.fileExists(atPath: backup.path) {
@@ -218,9 +220,8 @@ enum Store {
                     try fm.copyItem(atPath: url.path + suffix, toPath: backup.path + suffix)
                 }
             }
-            let mapping = try NSMappingModel.inferredMappingModel(forSourceModel: CoreStore.modelV30,
-                                                                 destinationModel: CoreStore.model)
-            let manager = NSMigrationManager(sourceModel: CoreStore.modelV30, destinationModel: CoreStore.model)
+            let mapping = try NSMappingModel.inferredMappingModel(forSourceModel: source, destinationModel: CoreStore.model)
+            let manager = NSMigrationManager(sourceModel: source, destinationModel: CoreStore.model)
             try manager.migrateStore(from: url, type: .sqlite, options: nil, mapping: mapping, to: temp, type: .sqlite, options: nil)
             let coordinator = NSPersistentStoreCoordinator(managedObjectModel: CoreStore.model)
             try coordinator.replacePersistentStore(at: url, withPersistentStoreFrom: temp, type: .sqlite)
