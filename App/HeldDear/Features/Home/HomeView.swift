@@ -708,6 +708,8 @@ struct NavPage: View {
             if let act = model.act(id) { ItemView(act: act) } else { Color.clear }
         case .personDetails(let id):
             if let p = model.person(id) { PersonView(person: p, showsDetails: true) } else { Color.clear }
+        case .personPart(let id, let part):
+            if let p = model.person(id) { PersonView(person: p, part: part) } else { Color.clear }
         case .relationship(let id):
             if let p = model.person(id) { RelationshipPage(person: p) } else { Color.clear }
         }
