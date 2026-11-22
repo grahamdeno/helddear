@@ -126,175 +126,58 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                // The You page (approved Nov 21, 2026): you first, then Lifetime, then short groups whose rows show
+                // their value and open a page of their own. Every control from before is kept, one tap deeper.
                 Text("You").textStyle(.title).accessibilityAddTraits(.isHeader)
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Your name")
-                    TextField("Your first name", text: $yourName)
-                        .textContentType(.givenName)
-                        .textStyle(.body)
-                        .padding(.horizontal, Brand.space4)
-                        .frame(minHeight: 52)
-                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    Text("Shown in the circle on Home.").textStyle(.caption, color: Brand.inkMuted)
+                NavigationLink { subpage("Your profile") { profilePage } } label: { profileCard }
+                    .buttonStyle(PressStyle())
+                lifetimeCard
+                group("Make") {
+                    YouRow(icon: "envelope", title: "Make a card", detail: nil, caption: "Christmas or any reason") { makingCard = true }
                 }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Your photo and dates")
-                    PhotosPicker(selection: $yourPhotoItem, matching: .images) {
-                        HStack(spacing: Brand.space3) {
-                            YourPhotoCircle(file: yourPhotoFile, size: 44)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(yourPhotoFile == nil ? "Add your photo" : "Change your photo").textStyle(.body)
-                                Text("Shown with your partner's on your anniversary.").textStyle(.caption, color: Brand.inkMuted)
-                            }
-                            Spacer()
-                        }
-                        .frame(minHeight: 52)
-                        .contentShape(Rectangle())
+                group("Your people and days") {
+                    NavigationLink { subpage("People") { peoplePage } } label: {
+                        YouRowLabel(icon: "person.2", title: "People", detail: "\(model.allPeople().count)")
                     }
-                    .buttonStyle(.plain)
-                    OptionRow(title: YouProfile.birthday().map { "Your birthday, \(YouDates.text($0))" } ?? "Add your birthday",
-                              caption: "Kept on this iPhone.") { editingBirthday = true }
-                    OptionRow(title: "Add your anniversary",
-                              caption: "Pick your partner. Their page gets the day, with both your photos.") { addingAnniversary = true }
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Cards from you")
-                    OptionRow(title: "Make a card", caption: "For Christmas or any reason. Text it or post it.") { makingCard = true }
-                    TextField("Sign cards as (like The Hollands)", text: $signedAs)
-                        .textStyle(.body)
-                        .padding(.horizontal, Brand.space4)
-                        .frame(minHeight: 52)
-                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                        .accessibilityLabel("Sign cards as")
-                    Text("Your cards end with \"from\" and this. Empty uses your name.").textStyle(.caption, color: Brand.inkMuted)
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Held Dear Lifetime")
-                    OptionRow(title: purchases.hasLifetime ? "Lifetime is on" : "Held Dear Lifetime",
-                              caption: purchases.hasLifetime ? "Thank you" : "Every card design, Lock Screen, look-back · \(purchases.priceText)") {
-                        showLifetime = true
+                    YouDivider()
+                    NavigationLink { subpage("Holidays") { holidaysPage } } label: {
+                        YouRowLabel(icon: "calendar", title: "Holidays", detail: holidaysSummary)
                     }
                 }
-                if purchases.isTestBuild && AppFeatures.testFlightTools {
-                    VStack(alignment: .leading, spacing: Brand.space2) {
-                        Eyebrow(text: "TestFlight only")
-                        Toggle(isOn: Binding(get: { purchases.hasLifetime },
-                                             set: { on in Task { await purchases.setTestOverride(on) } })) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Lifetime for testing").textStyle(.bodyStrong)
-                                Text("Turns the paid features on without buying. Not in the App Store version. A sandbox purchase also works and is free.")
-                                    .textStyle(.caption, color: Brand.inkMuted)
-                            }
-                        }
-                        .tint(Brand.action)
-                        .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    Toggle(isOn: $medallionOn) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Home medallion").textStyle(.bodyStrong)
-                            Text("The face in a warm-toned circle with the name on its rim. Off brings back the small circle.")
-                                .textStyle(.caption, color: Brand.inkMuted)
-                        }
-                    }
-                    .tint(Brand.action)
-                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    }
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Holidays you celebrate")
-                    ForEach(Holidays.offeredIn1_0) { type in
-                        Toggle(isOn: Binding(get: { Holidays.enabled().contains(type) },
-                                             set: { on in Holidays.setEnabled(type, on); model.save() })) {
-                            Text(type.label).textStyle(.body)
-                        }
-                        .tint(Brand.action)
-                        .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-                        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    }
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Your own holidays")
-                    let _ = model.revision
-                    let own = CustomHolidays.all()
-                    ForEach(own) { h in
-                        let count = model.customHolidayPeople(h.name).count
-                        OptionRow(title: h.name,
-                                  caption: "\(OccasionDates.date(month: h.month, day: h.day, year: 2028).formatted(.dateTime.month(.wide).day())) · \(count) \(count == 1 ? "person" : "people")") {
-                            holidayToEdit = h
-                        }
-                    }
-                    TextLink(title: "+ Add a holiday") { addingHoliday = true }.padding(.leading, -8)
-                    Text("Your own holidays keep the same date each year. Six weeks before, Held Dear reminds you to change it if it moves.")
-                        .textStyle(.caption, color: Brand.inkMuted)
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "People")
-                    OptionRow(title: "Add from contacts", caption: "Pick several at once") { addingFromContacts = true }
-                    OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Lock Screen")
-                    Toggle(isOn: $initialsOnly) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Initials only").textStyle(.bodyStrong)
-                            Text("The Lock Screen widget shows initials instead of names").textStyle(.caption, color: Brand.inkMuted)
-                        }
-                    }
-                    .tint(Brand.action)
-                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Alerts")
-                    OptionRow(title: model.notificationsAllowed ? "Alerts are on" : "Alerts are off",
-                              caption: "Change them in the Settings app") {
+                group("On this iPhone") {
+                    YouRow(icon: "bell", title: "Alerts", detail: model.notificationsAllowed ? "On" : "Off", caption: nil) {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
                     }
-                }
-                VStack(alignment: .leading, spacing: Brand.space2) {
-                    Eyebrow(text: "Your data")
-                    OptionRow(title: "Export my data",
-                              caption: exporting ? "Getting your file ready…" : exportFailed ? "The export didn't work. Nothing was changed. Try again."
-                                                    : "Everything you've added, with photos, in one file. You choose where it goes.") {
-                        exportData()
-                    }
-                    Toggle(isOn: $keepInICloud) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Keep in iCloud").textStyle(.body)
-                            Text(keepInICloud == ICloudSync.isOnAtLaunch
-                                 ? "Your plans and photos, in your own iCloud, on your iPhones. Held Dear never sees them."
-                                 : "Takes effect the next time Held Dear opens. Everything stays on this iPhone either way.")
-                                .textStyle(.caption, color: Brand.inkMuted)
-                        }
-                    }
-                    .tint(Brand.action)
-                    .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
-                    if ICloudSync.isOnAtLaunch {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text([iCloudStatus.account, iCloudStatus.last].filter { !$0.isEmpty }.joined(separator: " · "))
-                                .textStyle(.caption, color: Brand.inkMuted)
-                            if let problem = iCloudStatus.problem {
-                                Text(problem).textStyle(.caption, color: Brand.ink).textSelection(.enabled)
-                            }
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                    OptionRow(title: "Import my data",
-                              caption: importNote ?? "Puts back everything from an export file: people, days, plans, ideas, years and photos.") {
-                        importing = true
+                    YouDivider()
+                    NavigationLink { subpage("Home and Lock Screen") { screensPage } } label: {
+                        YouRowLabel(icon: "rectangle.on.rectangle", title: "Home and Lock Screen", detail: nil)
                     }
                 }
-                Text("Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail. Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
-                    .textStyle(.caption, color: Brand.inkMuted)
-                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
-                    .textStyle(.caption, color: Brand.inkMuted)
+                group("Your data") {
+                    NavigationLink { subpage("iCloud") { iCloudPage } } label: {
+                        YouRowLabel(icon: "icloud", title: "iCloud", detail: ICloudSync.isOnAtLaunch ? "On" : "Off",
+                                    caption: ICloudSync.isOnAtLaunch && !iCloudStatus.last.isEmpty ? iCloudStatus.last : nil)
+                    }
+                    YouDivider()
+                    NavigationLink { subpage("Export and import") { dataPage } } label: {
+                        YouRowLabel(icon: "archivebox", title: "Export and import", detail: nil)
+                    }
+                }
+                VStack(spacing: 4) {
+                    Text("Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail.")
+                    Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
+                }
+                .textStyle(.caption, color: Brand.inkMuted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.top, Brand.space2)
             }
             .padding(.horizontal, Brand.space5)
             .padding(.vertical, 8)
         }
         .background(Brand.page.ignoresSafeArea())
+        .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
+        .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingBirthday) { YourBirthdayEditor() }
         .sheet(isPresented: $addingAnniversary) { YourAnniversaryFlow().environmentObject(model) }
@@ -329,6 +212,261 @@ struct SettingsView: View {
         .fullScreenCover(item: $holidayToEdit) { h in OwnHolidayFlow(editing: h) { holidayToEdit = nil }.environmentObject(model) }
         .fullScreenCover(isPresented: $makingCard) { MakeCardFlow { makingCard = false }.environmentObject(model) }
         .addFromContacts(isPresented: $addingFromContacts)
+    }
+
+    // MARK: The You page's parts
+
+    private var yourAnniversaryPartner: String? {
+        let you = yourName.trimmingCharacters(in: .whitespaces)
+        for p in model.allPeople() {
+            for o in p.occasions where o.type == .anniversary {
+                let partner = (o.partnerName ?? "").trimmingCharacters(in: .whitespaces)
+                if partner == "you" || (!you.isEmpty && partner == you) { return DisplayName.plain(p.name) }
+            }
+        }
+        return nil
+    }
+
+    private var profileCard: some View {
+        let _ = model.revision
+        let birthday = YouProfile.birthday().map { "Birthday \(YouDates.text($0))" }
+        let anniversary = yourAnniversaryPartner.map { "Anniversary with \($0)" }
+        let line = [birthday, anniversary].compactMap { $0 }.joined(separator: " · ")
+        return HStack(spacing: Brand.space4) {
+            YourPhotoCircle(file: yourPhotoFile, size: 64)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(yourName.isEmpty ? "Add your name" : yourName)
+                    .font(Brand.display(28, relativeTo: .title2)).foregroundStyle(Brand.ink)
+                Text(line.isEmpty ? "Your photo, birthday and anniversary" : line)
+                    .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Brand.inkMuted)
+                .accessibilityHidden(true)
+        }
+        .padding(Brand.space4)
+        .background(Brand.raised, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous).stroke(Brand.raisedLine, lineWidth: 1))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens your profile")
+    }
+
+    @ViewBuilder private var lifetimeCard: some View {
+        if purchases.hasLifetime {
+            YouRow(icon: "heart", title: "Held Dear Lifetime", detail: "On", caption: "Thank you") { showLifetime = true }
+                .padding(.horizontal, Brand.space4)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+        } else {
+            VStack(alignment: .leading, spacing: Brand.space3) {
+                Text("Held Dear Lifetime").font(Brand.display(24, relativeTo: .title3)).foregroundStyle(Brand.ink)
+                Text("Every card design, the Lock Screen widget and the look-back. Pay once, \(purchases.priceText).")
+                    .textStyle(.callout, color: Brand.inkSoft)
+                PrimaryButton(title: "See Lifetime") { showLifetime = true }
+            }
+            .padding(Brand.space4)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+        }
+    }
+
+    private func group<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: title).padding(.leading, Brand.space1)
+            VStack(spacing: 0) { content() }
+                .buttonStyle(PressStyle())
+                .padding(.horizontal, Brand.space4)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusLg, style: .continuous))
+        }
+    }
+
+    private func subpage<Content: View>(_ title: String, @ViewBuilder _ content: @escaping () -> Content) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Brand.space5) {
+                Text(title).textStyle(.title).accessibilityAddTraits(.isHeader)
+                content()
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.vertical, 8)
+        }
+        .background(Brand.page.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .environmentObject(model)
+    }
+
+    private var holidaysSummary: String {
+        let _ = model.revision
+        let count = Holidays.enabled().count + CustomHolidays.all().count
+        return count == 0 ? "None" : "\(count)"
+    }
+
+    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+    }
+
+    private func toggleText(_ title: String, _ caption: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).textStyle(.bodyStrong)
+            if let caption { Text(caption).textStyle(.caption, color: Brand.inkMuted) }
+        }
+    }
+
+    // MARK: Subpages
+
+    @ViewBuilder private var profilePage: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            PhotosPicker(selection: $yourPhotoItem, matching: .images) {
+                HStack(spacing: Brand.space4) {
+                    YourPhotoCircle(file: yourPhotoFile, size: 72)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(yourPhotoFile == nil ? "Add your photo" : "Change your photo").textStyle(.bodyStrong, color: Brand.action)
+                        Text("Shown with your partner's on your anniversary.").textStyle(.caption, color: Brand.inkMuted)
+                    }
+                    Spacer()
+                }
+                .frame(minHeight: 72)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Your name")
+            TextField("Your first name", text: $yourName)
+                .textContentType(.givenName)
+                .textStyle(.body)
+                .padding(.horizontal, Brand.space4)
+                .frame(minHeight: 52)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            Text("Shown in the circle on Home.").textStyle(.caption, color: Brand.inkMuted)
+        }
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "Your days")
+            OptionRow(title: YouProfile.birthday().map { "Your birthday, \(YouDates.text($0))" } ?? "Add your birthday",
+                      caption: "Kept on this iPhone.") { editingBirthday = true }
+            OptionRow(title: yourAnniversaryPartner.map { "Anniversary with \($0)" } ?? "Add your anniversary",
+                      caption: yourAnniversaryPartner == nil
+                        ? "Pick your partner. Their page gets the day, with both your photos."
+                        : "Change it on their page. Tap to add another.") { addingAnniversary = true }
+        }
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Sign cards as")
+            TextField("Like The Hollands", text: $signedAs)
+                .textStyle(.body)
+                .padding(.horizontal, Brand.space4)
+                .frame(minHeight: 52)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                .accessibilityLabel("Sign cards as")
+            Text("Your cards end with \"from\" and this. Empty uses your name.").textStyle(.caption, color: Brand.inkMuted)
+        }
+    }
+
+    @ViewBuilder private var peoplePage: some View {
+        let _ = model.revision
+        Text("\(model.allPeople().count) people in Held Dear.").textStyle(.callout, color: Brand.inkSoft)
+        VStack(spacing: 0) {
+            OptionRow(title: "Add from contacts", caption: "Pick several at once") { addingFromContacts = true }
+            OptionRow(title: "Add someone", caption: "A name and a date to remember") { model.route = .addBirthday("") }
+        }
+    }
+
+    @ViewBuilder private var holidaysPage: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Holidays you celebrate")
+            ForEach(Holidays.offeredIn1_0) { type in
+                card {
+                    Toggle(isOn: Binding(get: { Holidays.enabled().contains(type) },
+                                         set: { on in Holidays.setEnabled(type, on); model.save() })) {
+                        Text(type.label).textStyle(.body)
+                    }
+                    .tint(Brand.action)
+                }
+            }
+        }
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Your own holidays")
+            let _ = model.revision
+            ForEach(CustomHolidays.all()) { h in
+                let count = model.customHolidayPeople(h.name).count
+                OptionRow(title: h.name,
+                          caption: "\(OccasionDates.date(month: h.month, day: h.day, year: 2028).formatted(.dateTime.month(.wide).day())) · \(count) \(count == 1 ? "person" : "people")") {
+                    holidayToEdit = h
+                }
+            }
+            TextLink(title: "+ Add a holiday") { addingHoliday = true }.padding(.leading, -8)
+            Text("Your own holidays keep the same date each year. Six weeks before, Held Dear reminds you to change it if it moves.")
+                .textStyle(.caption, color: Brand.inkMuted)
+        }
+    }
+
+    @ViewBuilder private var screensPage: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: "Lock Screen")
+            card {
+                Toggle(isOn: $initialsOnly) {
+                    toggleText("Initials only", "The Lock Screen widget shows initials instead of names")
+                }
+                .tint(Brand.action)
+            }
+        }
+        if purchases.isTestBuild && AppFeatures.testFlightTools {
+            VStack(alignment: .leading, spacing: Brand.space2) {
+                Eyebrow(text: "TestFlight only")
+                card {
+                    Toggle(isOn: $medallionOn) {
+                        toggleText("Home medallion", "The face in a warm-toned circle with the name on its rim. Off brings back the small circle.")
+                    }
+                    .tint(Brand.action)
+                }
+                card {
+                    Toggle(isOn: Binding(get: { purchases.hasLifetime },
+                                         set: { on in Task { await purchases.setTestOverride(on) } })) {
+                        toggleText("Lifetime for testing", "Turns the paid features on without buying. Not in the App Store version. A sandbox purchase also works and is free.")
+                    }
+                    .tint(Brand.action)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var iCloudPage: some View {
+        card {
+            Toggle(isOn: $keepInICloud) {
+                toggleText("Keep in iCloud",
+                           keepInICloud == ICloudSync.isOnAtLaunch
+                           ? "Your plans and photos, in your own iCloud, on your iPhones. Held Dear never sees them."
+                           : "Takes effect the next time Held Dear opens. Everything stays on this iPhone either way.")
+            }
+            .tint(Brand.action)
+        }
+        if ICloudSync.isOnAtLaunch {
+            VStack(alignment: .leading, spacing: 4) {
+                Eyebrow(text: "Status")
+                ForEach([iCloudStatus.account, iCloudStatus.last].filter { !$0.isEmpty }, id: \.self) { line in
+                    Text(line).textStyle(.body)
+                }
+                if let problem = iCloudStatus.problem {
+                    Text(problem).textStyle(.caption, color: Brand.ink).textSelection(.enabled)
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    @ViewBuilder private var dataPage: some View {
+        VStack(spacing: 0) {
+            OptionRow(title: "Export my data",
+                      caption: exporting ? "Getting your file ready…" : exportFailed ? "The export didn't work. Nothing was changed. Try again."
+                                            : "Everything you've added, with photos, in one file. You choose where it goes.") {
+                exportData()
+            }
+            OptionRow(title: "Import my data",
+                      caption: importNote ?? "Puts back everything from an export file: people, days, plans, ideas, years and photos.") {
+                importing = true
+            }
+        }
+        Text("Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
+            .textStyle(.caption, color: Brand.inkMuted)
     }
 
     private var replaceQuestion: String {
@@ -509,4 +647,45 @@ extension PhotoAccessRow {
             PhotoMemories.shared.refresh()
         }
     }
+}
+
+/// A row on the You page: icon, title, value on the right, chevron (Nov 21, 2026).
+struct YouRowLabel: View {
+    var icon: String
+    var title: String
+    var detail: String?
+    var caption: String? = nil
+    var body: some View {
+        HStack(spacing: Brand.space3) {
+            Image(systemName: icon).font(.body).foregroundStyle(Brand.inkSoft).frame(width: 26).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).textStyle(.body).multilineTextAlignment(.leading)
+                if let caption { Text(caption).textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.leading) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let detail { Text(detail).textStyle(.callout, color: Brand.inkMuted) }
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Brand.inkMuted)
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, Brand.space3)
+        .frame(minHeight: 52)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct YouRow: View {
+    var icon: String
+    var title: String
+    var detail: String?
+    var caption: String?
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) { YouRowLabel(icon: icon, title: title, detail: detail, caption: caption) }
+            .buttonStyle(PressStyle())
+    }
+}
+
+struct YouDivider: View {
+    var body: some View { Rectangle().fill(Brand.line).frame(height: 1).padding(.leading, 38) }
 }

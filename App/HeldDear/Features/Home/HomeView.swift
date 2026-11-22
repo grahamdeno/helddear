@@ -60,6 +60,9 @@ struct HomeView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                // Raised 40 points into the empty space under the bar (Graham, Nov 21, 2026). The bar is clear here and
+                // its only item, the You circle, sits at the right, so nothing overlaps the centered date.
+                .padding(.top, -40)
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
                 otherReady(moments, featured: featured, now: now)
@@ -238,11 +241,26 @@ struct FeaturedView: View {
         case .allSet: return state.isPlanMoment ? "Everything for \(name) is ready." : plannedLine(name: name)
         case .openPlan(let ready, let total): return "\(ready) of \(total) ready"
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now): return ideaLine(name: name)
-        case .pick, .saveWish: return "Nothing to do yet."
+        case .pick, .saveWish: return nextDayLine(name: name) ?? "Nothing to do yet."
         default:
             let p = progress
             return p.isEmpty ? "" : "\(p.filter { $0 == .ready }.count) of \(p.count) ready"
         }
+    }
+
+    /// With nothing to do for this day, the person's next other day, like a shared Christmas (Graham, Nov 21, 2026).
+    private func nextDayLine(name: String) -> String? {
+        guard let person = moment.person else { return nil }
+        let today = Calendar.current.startOfDay(for: now)
+        guard let next = person.occasions.flatMap(\.moments)
+            .filter({ $0.id != moment.id && $0.dueDate >= today })
+            .min(by: { $0.dueDate < $1.dueDate }) else { return nil }
+        let parts = next.type.kind == .holiday
+            ? model.holidayMembers(ref: HolidayRef(type: next.type, name: next.occasion?.partnerName), year: next.year).flatMap(\.planParts)
+            : next.planParts
+        var line = "\(next.dueDate < moment.dueDate ? "First" : "Next") for \(name): \(next.label), \(next.dueDate.formatted(.dateTime.month(.abbreviated).day()))"
+        if !parts.isEmpty { line += " · \(parts.filter(\.isReady).count) of \(parts.count) ready" }
+        return line + "."
     }
 
     /// The main button: always in the same place. It's the next real thing to do.
