@@ -38,7 +38,8 @@ struct FamilyPageSection: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, Brand.space3)
                     .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
-                    .contextMenu { Button("Remove note", role: .destructive) { noteToRemove = n } }
+                    .swipeToRemove { noteToRemove = n }
+                    .accessibilityAction(named: "Remove note") { noteToRemove = n }
                 }
                 if let loadError { Text(loadError).textStyle(.caption, color: Brand.error) }
                 TextLink(title: "Delete the page") { confirmDelete = true }

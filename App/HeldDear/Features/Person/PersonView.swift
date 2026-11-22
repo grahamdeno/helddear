@@ -22,6 +22,8 @@ struct PersonView: View {
     @State private var editingDate = false
     /// Several photos at once (Graham, Nov 21, 2026): pick as many as you like in one go.
     @State private var photoItems: [PhotosPickerItem] = []
+    /// A photo opened from the strip: shown large with plain buttons, in place of a press-and-hold menu.
+    @State private var photoToManage: String?
     /// The anniversary getting a couple photo, and the picked photo (Graham, Nov 21, 2026).
     @State private var couplePhotoFor: Occasion?
     @State private var couplePick: PhotosPickerItem?
@@ -100,6 +102,22 @@ struct PersonView: View {
             }
         }
         .onChange(of: photoItems) { _, items in addPhotos(items) }
+        .sheet(item: Binding(get: { photoToManage.map { ManagedPhoto(file: $0) } }, set: { photoToManage = $0?.file })) { p in
+            PhotoActions(file: p.file, isTop: p.file == person.photoFiles.last,
+                         useAtTop: {
+                             person.photoFiles.removeAll { $0 == p.file }
+                             person.photoFiles.append(p.file)
+                             model.save()
+                             photoToManage = nil
+                         },
+                         remove: {
+                             person.photoFiles.removeAll { $0 == p.file }
+                             PhotoStore.delete(p.file)
+                             model.save()
+                             photoToManage = nil
+                         })
+                .presentationDetents([.medium, .large])
+        }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
                             titleVisibility: .visible) {
             Button("Mark as given") { wishToEdit?.status = .used; model.commit() }
@@ -633,33 +651,22 @@ struct PersonView: View {
                 ForEach(person.photoFiles.reversed(), id: \.self) { file in
                     if let image = PhotoStore.load(file) {
                         let isTop = file == person.photoFiles.last
-                        Image(uiImage: image).resizable().scaledToFill()
-                            .frame(width: 88, height: 88)
-                            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
-                            .overlay(alignment: .bottomLeading) {
-                                if isTop {
-                                    Text("Top").font(.caption2.weight(.semibold)).foregroundStyle(Brand.page)
-                                        .padding(.horizontal, 6).padding(.vertical, 2)
-                                        .background(Brand.ink, in: Capsule())
-                                        .padding(6)
-                                }
-                            }
-                            .accessibilityLabel(isTop ? "Photo at the top of the page" : "Photo")
-                            .contextMenu {
-                                if !isTop {
-                                    // The newest saved photo is the top one, so moving it to the end makes it first.
-                                    Button("Use at the top") {
-                                        person.photoFiles.removeAll { $0 == file }
-                                        person.photoFiles.append(file)
-                                        model.save()
+                        Button { photoToManage = file } label: {
+                            Image(uiImage: image).resizable().scaledToFill()
+                                .frame(width: 88, height: 88)
+                                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+                                .overlay(alignment: .bottomLeading) {
+                                    if isTop {
+                                        Text("Top").font(.caption2.weight(.semibold)).foregroundStyle(Brand.page)
+                                            .padding(.horizontal, 6).padding(.vertical, 2)
+                                            .background(Brand.ink, in: Capsule())
+                                            .padding(6)
                                     }
                                 }
-                                Button("Remove from Held Dear", role: .destructive) {
-                                    person.photoFiles.removeAll { $0 == file }
-                                    PhotoStore.delete(file)
-                                    model.save()
-                                }
-                            }
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityLabel(isTop ? "Photo at the top of the page" : "Photo")
+                        .accessibilityHint("Opens the photo, to use it at the top or remove it")
                     }
                 }
             }
@@ -1152,5 +1159,34 @@ struct PersonYears: View {
                 .lineLimit(3)
         }
         .frame(maxWidth: 90, alignment: .leading)
+    }
+}
+
+
+struct ManagedPhoto: Identifiable { let file: String; var id: String { file } }
+
+/// A photo opened from a person's strip: big, with its two choices as plain buttons below (Nov 21, 2026).
+struct PhotoActions: View {
+    let file: String
+    let isTop: Bool
+    var useAtTop: () -> Void
+    var remove: () -> Void
+
+    var body: some View {
+        VStack(spacing: Brand.space4) {
+            if let image = PhotoStore.load(file) {
+                Image(uiImage: image).resizable().scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .frame(maxHeight: 320)
+                    .accessibilityHidden(true)
+            }
+            if !isTop { SecondaryButton(title: "Use at the top") { useAtTop() } }
+            TextLink(title: "Remove from Held Dear") { remove() }
+            Text("Removing takes it out of Held Dear only. It stays in your Photos.")
+                .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.center)
+        }
+        .padding(Brand.space5)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Brand.page.ignoresSafeArea())
     }
 }

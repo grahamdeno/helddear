@@ -443,17 +443,19 @@ struct SettingsView: View {
                         } trailing: {
                             ChevronDisc()
                         }
-                        .contextMenu {
-                            Button("Delete card", role: .destructive) {
-                                CardDrafts.delete(card)
-                                savedCards = CardDrafts.all()
-                            }
+                        .swipeToRemove("Delete") {
+                            CardDrafts.delete(card)
+                            savedCards = CardDrafts.all()
+                        }
+                        .accessibilityAction(named: "Delete card") {
+                            CardDrafts.delete(card)
+                            savedCards = CardDrafts.all()
                         }
                     }
                 }
             }
         }
-        Text("Kept on this iPhone. Press and hold a card to delete it.").textStyle(.caption, color: Brand.inkMuted)
+        Text("Kept on this iPhone. Swipe a card left to delete it.").textStyle(.caption, color: Brand.inkMuted)
     }
 
     @ViewBuilder private var holidaysPage: some View {
