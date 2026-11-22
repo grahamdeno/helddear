@@ -35,4 +35,32 @@ enum ChosenPhotos {
                 return inside.isEmpty ? nil : Year(year: w.year, files: inside)
             }
     }
+
+    /// Picking a whole album (Graham, Nov 22, 2026): every photo taken near one of the person's days is kept, so
+    /// past birthdays fill in, plus up to `others` more, in the order picked. The rest aren't copied in, so a big
+    /// album doesn't fill the phone or iCloud.
+    static func keep(taken: [Date?], days: [(month: Int, day: Int)], within window: Int = 3, others: Int = 30,
+                     calendar: Calendar = .current) -> [Bool] {
+        var extra = 0
+        return taken.map { date in
+            if let date, nearDay(date, days: days, within: window, calendar: calendar) { return true }
+            guard extra < others else { return false }
+            extra += 1
+            return true
+        }
+    }
+
+    static func nearDay(_ date: Date, days: [(month: Int, day: Int)], within window: Int, calendar: Calendar = .current) -> Bool {
+        let year = calendar.component(.year, from: date)
+        let start = calendar.startOfDay(for: date)
+        for d in days {
+            for y in [year - 1, year, year + 1] {
+                guard let day = calendar.date(from: DateComponents(year: y, month: d.month, day: d.day)) else { continue }
+                let gap = abs(calendar.dateComponents([.day], from: start, to: day).day ?? 999)
+                if gap <= window { return true }
+            }
+        }
+        return false
+    }
 }
+
