@@ -103,7 +103,7 @@ enum BandLayout {
     /// Places every name, widening any month whose names don't fit until they do (or the month is as wide as it may
     /// get). Quiet months keep the base width, so the line keeps its rhythm.
     static func fit(_ days: [Day], months: Int, base: CGFloat, lead: CGFloat, tops: [CGFloat],
-                    maxMonth: CGFloat = 1000) -> Fit {
+                    maxMonth: CGFloat = 2400) -> Fit {
         var widths = Array(repeating: base, count: months)
         func build() -> Fit {
             var starts: [CGFloat] = []
