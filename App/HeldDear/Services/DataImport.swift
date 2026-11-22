@@ -170,6 +170,8 @@ enum DataImport {
             a.fromNote = r.fromNote
             a.dinnerDate = r.dinnerDate
             a.arrivesBy = r.arrivesBy
+            a.orderNumber = r.orderNumber
+            a.trackingURL = r.trackingURL
             a.photoFile = r.photoFile
             a.cardFile = r.cardFile
             a.completedAt = r.completedAt

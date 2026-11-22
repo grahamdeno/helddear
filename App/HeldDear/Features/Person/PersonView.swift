@@ -13,6 +13,8 @@ struct PersonView: View {
     var focus: UUID? = nil
     /// One page in: relationship, days, reminders, card photos and Remove.
     var showsDetails = false
+    /// One part on its own page, opened from its tile.
+    var part: PersonPart? = nil
     @State private var selectedID: UUID?
     /// Past the photo, the page's own bar shows: the back link and the person's name.
     @State private var pastHero = false
@@ -50,7 +52,7 @@ struct PersonView: View {
     var body: some View {
         let _ = model.revision
         Group {
-            if showsDetails { detailsPage } else { mainPage }
+            if showsDetails { detailsPage } else if let part { partPage(part) } else { mainPage }
         }
         .background(Brand.page.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
@@ -189,24 +191,14 @@ struct PersonView: View {
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
                     }
-                    lovesSection
-                    savedIdeasSection
-                    photosSection
+                    // Four doors, one tap each, instead of every section stacked (Graham, Nov 22, 2026).
+                    partTiles
                     if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
                     if !person.ledger.isEmpty {
                         section("Through the years") {
                             ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
                         }
                     }
-                    Button { model.push(.personDetails(person.id)) } label: {
-                        YouRowLabel(icon: "person.text.rectangle", title: "\(DisplayName.plain(person.name))'s details",
-                                    detail: nil, caption: detailsCaption)
-                            .padding(.horizontal, Brand.space4)
-                            .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
-                    }
-                    .buttonStyle(PressStyle())
-                    .accessibilityHint("Relationship, reminders, days, phone and address")
                 }
                 .padding(.top, Brand.space3)
             }
@@ -450,23 +442,61 @@ struct PersonView: View {
         }
     }
 
-    private var lovesSection: some View {
-        VStack(alignment: .leading, spacing: Brand.space1) {
-            header("What \(DisplayName.plain(person.name)) loves", link: "Edit") { editingPortrait = true }
-            portrait
+    // MARK: Tiles and part pages
+
+    private var partTiles: some View {
+        let name = DisplayName.plain(person.name)
+        let ideas = person.openWishes.count
+        let photos = person.photoFiles.count
+        return LazyVGrid(columns: [GridItem(.flexible(), spacing: Brand.space3), GridItem(.flexible(), spacing: Brand.space3)],
+                         spacing: Brand.space3) {
+            PartTile(icon: "heart", title: "Loves",
+                     detail: person.loves.isEmpty ? "Add what \(name) loves" : person.loves.prefix(2).joined(separator: ", "),
+                     empty: person.loves.isEmpty) { model.push(.personPart(person.id, .loves)) }
+            PartTile(icon: "lightbulb", title: "Ideas",
+                     detail: ideas == 0 ? "Save an idea" : (ideas == 1 ? "1 saved" : "\(ideas) saved"),
+                     empty: ideas == 0) { model.push(.personPart(person.id, .ideas)) }
+            PartTile(icon: "photo.on.rectangle", title: "Photos",
+                     detail: photos == 0 ? "Add photos" : (photos == 1 ? "1 photo" : "\(photos) photos"),
+                     empty: photos == 0, image: PhotoStore.load(person.photoFiles.last)) { model.push(.personPart(person.id, .photos)) }
+            PartTile(icon: "person.text.rectangle", title: "Details", detail: detailsCaption, empty: false) {
+                model.push(.personDetails(person.id))
+            }
+        }
+    }
+
+    private func partPage(_ part: PersonPart) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Brand.space5) {
+                switch part {
+                case .loves:
+                    Text("What \(DisplayName.plain(person.name)) loves").textStyle(.title).accessibilityAddTraits(.isHeader)
+                    portrait
+                    TextLink(title: person.loves.isEmpty ? "+ Add what \(DisplayName.plain(person.name)) loves" : "Edit") { editingPortrait = true }
+                        .padding(.leading, -8)
+                case .ideas:
+                    Text("Ideas for \(DisplayName.plain(person.name))").textStyle(.title).accessibilityAddTraits(.isHeader)
+                    savedIdeasSection
+                case .photos:
+                    Text("\(DisplayName.plain(person.name))'s photos").textStyle(.title).accessibilityAddTraits(.isHeader)
+                    photosSection
+                }
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.vertical, 16)
         }
     }
 
     private var savedIdeasSection: some View {
         let wishes = person.openWishes
         return VStack(alignment: .leading, spacing: Brand.space2) {
-            header("Saved ideas", link: "+ Save") { model.route = .addWish(person.id) }
+            header("Saved", link: "+ Save") { model.route = .addWish(person.id) }
             if wishes.isEmpty {
                 Text("Links and ideas you save for \(DisplayName.plain(person.name)) show here.")
                     .textStyle(.caption, color: Brand.inkMuted)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(wishes.prefix(4), id: \.id) { wish in
+                    ForEach(wishes, id: \.id) { wish in
                         Button { wishToEdit = wish } label: {
                             HStack(spacing: Brand.space3) {
                                 WishPreview(wish: wish).frame(maxWidth: .infinity, alignment: .leading)
@@ -481,9 +511,6 @@ struct PersonView: View {
                         .buttonStyle(PressStyle())
                         .accessibilityHint(wishCaption(wish))
                     }
-                }
-                if wishes.count > 4 {
-                    TextLink(title: "See all \(wishes.count)") { showIdeas = true }.padding(.leading, -8)
                 }
             }
         }
@@ -1509,4 +1536,44 @@ struct FamilyAsk: Identifiable {
     let moment: Moment
     let followUp: Bool
     var id: UUID { moment.id }
+}
+
+/// A door on a person's page: an icon, a name, and one line of what's inside (Nov 22, 2026).
+struct PartTile: View {
+    var icon: String
+    var title: String
+    var detail: String
+    var empty: Bool
+    var image: UIImage? = nil
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: Brand.space2) {
+                HStack {
+                    if let image {
+                        Image(uiImage: image).resizable().scaledToFill().frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    } else {
+                        Image(systemName: icon).font(.system(size: 20, weight: .light)).foregroundStyle(Brand.action)
+                            .frame(height: 32)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                }
+                Text(title).font(Brand.serif(20, relativeTo: .title3)).foregroundStyle(Brand.ink)
+                Text(detail).textStyle(.caption, color: empty ? Brand.action : Brand.inkMuted)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+            .padding(Brand.space4)
+            .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title). \(detail)")
+        .accessibilityAddTraits(.isButton)
+    }
 }

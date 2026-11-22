@@ -290,10 +290,9 @@ struct ItemFlowView: View {
         } else if let chosenPlace {
             PlaceStore.shared.choose(chosenPlace, for: act.id)
         }
-        let summary = ItemFlow.summary(dates)
+        // The note is only what was typed; the arrival day is its own field on the item page (Nov 22, 2026).
         let extra = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lines = [summary, extra].filter { !$0.isEmpty }
-        if !lines.isEmpty { act.note = lines.joined(separator: "\n") }
+        if !extra.isEmpty { act.note = extra }
         if let arrives = dates.first(where: { $0.label == "Arrives by" })?.date { act.arrivesBy = arrives }
         model.save()
         showDetails()

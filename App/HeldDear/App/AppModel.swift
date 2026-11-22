@@ -66,7 +66,12 @@ enum Nav: Hashable {
     case relationship(UUID)
     /// Everything else about a person, one page in from their page.
     case personDetails(UUID)
+    /// One part of a person's page on its own (Graham, Nov 22, 2026): what they love, saved ideas, or photos.
+    case personPart(UUID, PersonPart)
 }
+
+/// The parts of a person's page that open from a tile, one at a time.
+enum PersonPart: String, Hashable { case loves, ideas, photos }
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -265,6 +270,13 @@ final class AppModel: ObservableObject {
         case .ideas: return "Ideas"
         case .relationship: return "Who they are"
         case .personDetails(let id): return person(id).map { "\(DisplayName.plain($0.name))'s details" } ?? "Back"
+        case .personPart(let id, let part):
+            let name = person(id).map { DisplayName.plain($0.name) } ?? "Back"
+            switch part {
+            case .loves: return "What \(name) loves"
+            case .ideas: return "Ideas for \(name)"
+            case .photos: return "\(name)'s photos"
+            }
         case .item(let id): return act(id).map { PartSteps.displayName(kindRaw: $0.kindRaw, label: $0.label, title: $0.title) } ?? "Back"
         }
     }
@@ -692,6 +704,17 @@ final class AppModel: ObservableObject {
 
     /// A link for an item (what was bought, tracking): kept with the item through a shelf entry, so nothing new is
     /// stored. Replaces the item's link if it had one from a shelf entry.
+    /// Takes the link off an item (Nov 22, 2026). A link added for this item is cleared; a saved idea stays on the
+    /// person's shelf and is only unlinked from the item.
+    func clearLink(from act: Act) {
+        if let id = act.wishID, let wish = act.moment?.person?.wishes.first(where: { $0.id == id }), wish.status == .used {
+            wish.url = nil
+        } else {
+            act.wishID = nil
+        }
+        commit()
+    }
+
     func attachLink(_ url: URL, to act: Act) {
         guard let person = act.moment?.person else { return }
         let text = act.title ?? PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title)

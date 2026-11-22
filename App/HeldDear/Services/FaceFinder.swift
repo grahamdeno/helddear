@@ -95,6 +95,19 @@ final class FaceFinder {
         return (upright, rect)
     }
 
+    /// One of a person's saved photos, upright, with the crop for a shape around the chosen focus (PhotoFocus) or the
+    /// largest face: the same start the card had before, now with a crop the user can slide (Nov 22, 2026).
+    func framing(file: String, aspect: CGFloat) async -> (image: CGImage, rect: CGRect)? {
+        guard let source = PhotoStore.load(file), let upright = Self.upright(source, longest: 1600) else { return nil }
+        let focus = PhotoFocus.box(for: file)
+        let rect = await Task.detached(priority: .userInitiated) { () -> CGRect in
+            let size = CGSize(width: upright.width, height: upright.height)
+            let face = focus.map { PhotoFocus.pixels($0, imageSize: size) } ?? Self.face(in: upright)
+            return FaceFrame.bannerRect(face: face, imageSize: size, aspect: aspect).integral
+        }.value
+        return (upright, rect)
+    }
+
     nonisolated private static func face(in cg: CGImage) -> CGRect? {
         let size = CGSize(width: cg.width, height: cg.height)
         let request = VNDetectFaceRectanglesRequest()

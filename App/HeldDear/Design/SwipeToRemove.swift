@@ -7,6 +7,9 @@ struct SwipeToRemove: ViewModifier {
     var action: () -> Void
     @State private var offset: CGFloat = 0
     @State private var open = false
+    /// True while a sideways swipe is under way and just after: the row's own tap is off, so a swipe never also
+    /// opens the row (Graham's report, Nov 22, 2026). An open row's tap closes it instead.
+    @State private var swiping = false
     private let reveal: CGFloat = 92
 
     func body(content: Content) -> some View {
@@ -25,15 +28,25 @@ struct SwipeToRemove: ViewModifier {
                 .accessibilityHidden(true)
             }
             content
+                .disabled(swiping || open)
+                .overlay {
+                    if open {
+                        Color.clear.contentShape(Rectangle())
+                            .onTapGesture { withAnimation(.snappy) { offset = 0; open = false } }
+                    }
+                }
                 .offset(x: offset)
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 18)
                         .onChanged { g in
                             guard abs(g.translation.width) > abs(g.translation.height) * 1.4 else { return }
+                            swiping = true
                             let base: CGFloat = open ? -reveal : 0
                             offset = min(0, base + g.translation.width)
                         }
                         .onEnded { g in
+                            // The lift that ends the swipe can arrive as a tap; keep taps off a moment longer.
+                            if swiping { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { swiping = false } }
                             guard abs(g.translation.width) > abs(g.translation.height) * 1.4 else {
                                 withAnimation(.snappy) { offset = open ? -reveal : 0 }
                                 return
