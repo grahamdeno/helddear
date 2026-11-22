@@ -1272,6 +1272,8 @@ struct PhoneEditor: View {
             }
         }
         .onAppear { number = person.manualPhone ?? "" }
+    }
+}
 
 struct ManagedPhoto: Identifiable { let file: String; var id: String { file } }
 
