@@ -33,7 +33,15 @@ final class NameSizeTests: XCTestCase {
 
     func testRelationshipChoices_everydayWordsAndTheirGroups() {
         XCTAssertEqual(Relationship.mainChoices, ["Wife", "Husband", "Son", "Daughter", "Mom", "Dad", "Friend"])
-        XCTAssertEqual(Relationship.moreChoices.count, 12)
+        XCTAssertEqual(Relationship.moreChoices.count, 26)
+        XCTAssertEqual(Relationship.group("Niece"), .extended)
+        XCTAssertEqual(Relationship.group("Stepmom"), .parent)
+        XCTAssertEqual(Relationship.group("Boss"), .community)
+        XCTAssertEqual(Relationship.matches("ni"), ["Niece"])
+        XCTAssertEqual(Relationship.matches("step").first, "Stepson")
+        XCTAssertEqual(Relationship.matches("law"), ["In-law"])
+        XCTAssertTrue(Relationship.matches("").isEmpty)
+        XCTAssertTrue(Relationship.commonMore.allSatisfy { Relationship.moreChoices.contains($0) })
         XCTAssertEqual(Set(Relationship.choices).count, Relationship.choices.count, "No word twice")
         for word in Relationship.choices {
             XCTAssertNotEqual(Relationship.group(word), .unknown, word)

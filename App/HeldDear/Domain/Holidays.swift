@@ -79,9 +79,25 @@ enum Relationship {
     /// The big choices when asking "Who is Ben to you?", in the order people add them, in everyday words
     /// (approved Nov 20, 2026). "Someone else" opens `moreChoices`. The word tapped is the word kept.
     static let mainChoices = ["Wife", "Husband", "Son", "Daughter", "Mom", "Dad", "Friend"]
-    static let moreChoices = ["Grandma", "Grandpa", "Brother", "Sister", "Aunt", "Uncle", "Cousin", "In-law",
-                              "Teacher", "Coach", "Neighbor", "Coworker"]
+    // Family first, then everyone else (more added Nov 22, 2026: nieces, nephews, grandchildren, step and god family).
+    static let moreChoices = ["Partner", "Brother", "Sister", "Niece", "Nephew", "Grandma", "Grandpa",
+                              "Grandson", "Granddaughter", "Aunt", "Uncle", "Cousin", "In-law",
+                              "Stepson", "Stepdaughter", "Stepmom", "Stepdad", "Godchild", "Godparent",
+                              "Teacher", "Coach", "Neighbor", "Coworker", "Boss", "Mentor", "Babysitter"]
     static var choices: [String] { mainChoices + moreChoices }
+
+    /// The few shown under the type-to-find field before anything is typed.
+    static let commonMore = ["Brother", "Sister", "Niece", "Nephew", "Grandma", "Grandpa", "Coworker"]
+
+    /// Words that start with what's typed, then words that contain it; at most five.
+    static func matches(_ query: String) -> [String] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return [] }
+        let all = mainChoices + moreChoices
+        let starts = all.filter { $0.lowercased().hasPrefix(q) }
+        let contains = all.filter { !$0.lowercased().hasPrefix(q) && $0.lowercased().contains(q) }
+        return Array((starts + contains).prefix(5))
+    }
 
     enum Group: Equatable { case partner, child, parent, sibling, extended, community, unknown }
 
@@ -103,10 +119,12 @@ enum Relationship {
         if ["wife", "husband", "spouse", "partner", "girlfriend", "boyfriend", "fiancée", "fiance", "fiancé"].contains(r) { return .partner }
         if ["daughter", "son", "child", "kid", "stepdaughter", "stepson"].contains(r) { return .child }
         if ["mother", "father", "mom", "dad", "parent", "grandmother", "grandfather", "grandma", "grandpa",
-            "grandparent", "stepmother", "stepfather"].contains(r) { return .parent }
+            "grandparent", "stepmother", "stepfather", "stepmom", "stepdad"].contains(r) { return .parent }
         if ["sister", "brother", "sibling"].contains(r) || r.hasSuffix("in-law") || r == "in-law" { return .sibling }
-        if ["aunt", "uncle", "cousin", "niece", "nephew"].contains(r) { return .extended }
-        if ["teacher", "coach", "neighbor", "neighbour", "coworker", "friend", "babysitter", "nanny"].contains(r) { return .community }
+        if ["aunt", "uncle", "cousin", "niece", "nephew", "grandson", "granddaughter", "grandchild", "godchild",
+            "goddaughter", "godson", "godparent", "godmother", "godfather"].contains(r) { return .extended }
+        if ["teacher", "coach", "neighbor", "neighbour", "coworker", "friend", "babysitter", "nanny", "boss",
+            "mentor"].contains(r) { return .community }
         return .unknown
     }
 }

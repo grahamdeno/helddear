@@ -93,6 +93,7 @@ struct FindBirthdaysView: View {
             guard let month = c.month, let day = c.day, BirthdayParser.isValid(month: month, day: day),
                   !existing.contains(c.id) else { continue }
             let person = Person(name: c.displayName, fullName: c.fullName, contactID: c.id, ring: .outer)
+            person.showAgeOnCard = true   // On by default for new people (Nov 22, 2026).
             model.context.insert(person)
             let occasion = Occasion(month: month, day: day, birthYear: c.year)
             model.context.insert(occasion)
