@@ -875,9 +875,9 @@ final class AppModel: ObservableObject {
         let entries = coming.prefix(6).compactMap { m -> WidgetSnapshot.Entry? in widgetEntry(m, now: now) }
         let holidays = coming.filter { $0.type.kind == .holiday }.compactMap { widgetEntry($0, now: now) }
         AppGroup.write(WidgetSnapshot(next: Array(entries), writtenAt: now, holidays: holidays), to: AppGroup.widgetURL)
-        let people = entries.compactMap(\.personID).compactMap { id in allPeople().first { $0.id == id } }
+        let widgetPeople = entries.compactMap(\.personID).compactMap { id in allPeople().first { $0.id == id } }
         Task { @MainActor in
-            for p in people {
+            for p in widgetPeople {
                 guard let image = await FaceFinder.shared.portrait(for: p, side: 160) else { continue }
                 try? image.jpegData(compressionQuality: 0.8)?.write(to: AppGroup.faceURL(p.id), options: .atomic)
             }
