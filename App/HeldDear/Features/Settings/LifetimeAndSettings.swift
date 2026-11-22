@@ -445,11 +445,24 @@ struct SettingsView: View {
                 ForEach([iCloudStatus.account, iCloudStatus.last].filter { !$0.isEmpty }, id: \.self) { line in
                     Text(line).textStyle(.body)
                 }
-                if let problem = iCloudStatus.problem {
-                    Text(problem).textStyle(.caption, color: Brand.ink).textSelection(.enabled)
+                if !iCloudStatus.lastSent.isEmpty { Text("Last sent \(iCloudStatus.lastSent)").textStyle(.body) }
+                if !iCloudStatus.lastReceived.isEmpty { Text("Last received \(iCloudStatus.lastReceived)").textStyle(.body) }
+                if ICloudSync.environment == "Development" {
+                    Text(iCloudStatus.schemaReady ? "iCloud records: created" : "iCloud records: not created yet")
+                        .textStyle(.caption, color: Brand.inkMuted)
                 }
             }
             .accessibilityElement(children: .combine)
+            if let problem = iCloudStatus.problem {
+                VStack(alignment: .leading, spacing: Brand.space2) {
+                    Eyebrow(text: "Problem")
+                    Text(problem).font(.caption.monospaced()).foregroundStyle(Brand.ink).textSelection(.enabled)
+                    HStack(spacing: Brand.space4) {
+                        TextLink(title: "Try again") { ICloudSync.retrySchema() }.padding(.leading, -8)
+                        TextLink(title: "Copy") { UIPasteboard.general.string = problem }
+                    }
+                }
+            }
         }
     }
 
