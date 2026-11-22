@@ -85,9 +85,25 @@ final class AppModel: ObservableObject {
 
     @Published var route: Route?
     /// Picked contacts still waiting for a date, shown one after another after Add a birthday closes.
-    var contactsToDate: [String] = []
+    /// Contacts picked without a birthday, still to date: name and contact ID.
+    var contactsToDate: [(name: String, id: String)] = []
     /// The contact just picked had no birthday on their card, so Add someone says so (Graham, Nov 22, 2026).
-    var contactWithoutBirthday: String?
+    var contactWithoutBirthday: (name: String, id: String)?
+
+    /// Brings a contact card's other dates in as days (Lifetime, like Add a day). Returns how many were added.
+    @discardableResult
+    func addContactDates(_ dates: [ContactDate], partner: String?, to person: Person) -> Int {
+        guard Purchases.shared.hasLifetime else { return 0 }
+        let offers = ContactDates.offers(dates, existing: person.occasions.map { ($0.type, $0.month, $0.day) })
+        for d in offers {
+            if d.isAnniversary {
+                addOccasion(person, type: .anniversary, month: d.month, day: d.day, year: d.year, partnerName: partner)
+            } else {
+                addOccasion(person, type: .event, month: d.month, day: d.day, year: d.year, partnerName: ContactDates.title(d))
+            }
+        }
+        return offers.count
+    }
     /// Pages pushed from Home, oldest first.
     @Published var navPath: [Nav] = []
     @Published var onboarded: Bool { didSet { defaults.set(onboarded, forKey: "onboarded") } }

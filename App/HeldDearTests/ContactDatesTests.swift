@@ -26,3 +26,12 @@ final class ContactDatesTests: XCTestCase {
         XCTAssertTrue(ContactDates.offers([d], existing: []).isEmpty)
     }
 }
+
+final class ContactImportSummaryTests: XCTestCase {
+    func testSummaryMentionsOtherDates() {
+        var o = ContactImport.Outcome()
+        o.ready = [ContactImport.Pick(id: "1", name: "Ada", month: 1, day: 2)]
+        o.otherDates = 2
+        XCTAssertEqual(ContactImport.summary(o), "Ada added. Also added 2 other dates from their contact cards.")
+    }
+}

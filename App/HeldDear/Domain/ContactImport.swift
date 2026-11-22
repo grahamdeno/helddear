@@ -11,9 +11,14 @@ enum ContactImport {
         var month: Int?
         var day: Int?
         var year: Int?
+        /// The card's other dates and the spouse or partner it names, brought in with the person (Nov 22, 2026).
+        var dates: [ContactDate] = []
+        var partner: String?
 
-        init(id: String, name: String, fullName: String? = nil, month: Int? = nil, day: Int? = nil, year: Int? = nil) {
+        init(id: String, name: String, fullName: String? = nil, month: Int? = nil, day: Int? = nil, year: Int? = nil,
+             dates: [ContactDate] = [], partner: String? = nil) {
             self.id = id; self.name = name; self.fullName = fullName; self.month = month; self.day = day; self.year = year
+            self.dates = dates; self.partner = partner
         }
 
         init(_ contact: CNContact) {
@@ -27,8 +32,20 @@ enum ContactImport {
                 month = m; day = d
                 year = (b.year == nil || b.year == NSDateComponentUndefined) ? nil : b.year
             }
+            let dates: [ContactDate] = contact.isKeyAvailable(CNContactDatesKey) ? contact.dates.compactMap { item in
+                let c = item.value as DateComponents
+                guard let m = c.month, let d = c.day else { return nil }
+                let raw = item.label ?? ""
+                return ContactDate(label: raw.isEmpty ? "" : CNLabeledValue<NSDateComponents>.localizedString(forLabel: raw),
+                                   isAnniversary: raw == CNLabelDateAnniversary, month: m, day: d,
+                                   year: c.year.flatMap { $0 == NSDateComponentUndefined ? nil : $0 })
+            } : []
+            let partner: String? = contact.isKeyAvailable(CNContactRelationsKey) ? contact.contactRelations.first {
+                [CNLabelContactRelationSpouse, CNLabelContactRelationPartner, CNLabelContactRelationWife,
+                 CNLabelContactRelationHusband].contains($0.label ?? "")
+            }?.value.name : nil
             self.init(id: contact.identifier, name: !nick.isEmpty ? nick : (!given.isEmpty ? given : family),
-                      fullName: full.isEmpty ? nil : full, month: month, day: day, year: year)
+                      fullName: full.isEmpty ? nil : full, month: month, day: day, year: year, dates: dates, partner: partner)
         }
 
         var hasBirthday: Bool { month != nil && day != nil }
@@ -38,6 +55,8 @@ enum ContactImport {
         var ready: [Pick] = []
         var needDate: [Pick] = []
         var already = 0
+        /// Other dates brought in from the cards.
+        var otherDates = 0
     }
 
     static func sort(_ picks: [Pick], known: Set<String>) -> Outcome {
@@ -59,6 +78,8 @@ enum ContactImport {
         else if o.ready.count > 1 { parts.append("\(o.ready.count) added.") }
         if o.already == 1 { parts.append(parts.isEmpty ? "Already in Held Dear." : "1 already in Held Dear.") }
         else if o.already > 1 { parts.append("\(o.already) already in Held Dear.") }
+        if o.otherDates == 1 { parts.append("Also added 1 other date from their contact cards.") }
+        else if o.otherDates > 1 { parts.append("Also added \(o.otherDates) other dates from their contact cards.") }
         return parts.isEmpty ? "Nobody added." : parts.joined(separator: " ")
     }
 }

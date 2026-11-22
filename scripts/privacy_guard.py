@@ -34,6 +34,8 @@ NETWORK_ALLOWED = {"App/HeldDear/Services/MailedCards.swift", "App/HeldDear/Serv
 # Link previews (Graham, Nov 21, 2026): only this file may ask a saved idea's own page for its title and image,
 # with Apple's LinkPresentation. No other network call is allowed in it.
 PREVIEW_ALLOWED = {"App/HeldDear/Services/LinkPreviews.swift"}
+# The one Contacts write (Graham, Nov 22, 2026): a birthday added to a card that has none, on the user's tap.
+CONTACT_WRITE_ALLOWED = {"App/HeldDear/Services/ContactWriteBack.swift"}
 NETWORK_RULES = {"network request"}
 ALLOWED_HOST = "helddear-mail.vercel.app"
 
@@ -48,6 +50,8 @@ def scan(text, name="<text>"):
             if name in NETWORK_ALLOWED and why in NETWORK_RULES:
                 continue
             if name in PREVIEW_ALLOWED and why == "link preview fetch (network)":
+                continue
+            if name in CONTACT_WRITE_ALLOWED and why == "writing to Contacts":
                 continue
             if re.search(pattern, line):
                 hits.append(f"{name}:{i}: {why}: {stripped}")
@@ -88,7 +92,7 @@ def check():
         print(f"::error::{h}")
     if hits:
         sys.exit(1)
-    print("Privacy guard: no network, analytics, contact writes or calendar reads found.")
+    print("Privacy guard: no network, analytics, contact writes (beyond ContactWriteBack) or calendar reads found.")
 
 
 def selftest():
@@ -108,6 +112,10 @@ def selftest():
     assert not scan("let provider = LPMetadataProvider()", preview), "link previews may fetch a saved page"
     assert scan("let s = URLSession.shared", preview), "link previews may not make other requests"
     assert scan("let provider = LPMetadataProvider()", "App/HeldDear/Features/Plan/PlanView.swift"), "only LinkPreviews fetches previews"
+    writer = "App/HeldDear/Services/ContactWriteBack.swift"
+    assert not scan("let request = CNSaveRequest()", writer), "the write-back file may add a birthday"
+    assert scan("let s = URLSession.shared", writer), "the write-back file stays offline"
+    assert scan("let r = CNSaveRequest()", "App/HeldDear/Features/Person/PersonView.swift"), "only ContactWriteBack writes"
     assert name_hits('XCTAssertEqual(NameSize.page("' + "Hei" + 'di"), 96)'), "real names are caught"
     assert not name_hits('XCTAssertEqual(NameSize.page("Ada"), 96)'), "invented names pass"
     print("Privacy guard selftest passed.")

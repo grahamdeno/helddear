@@ -70,7 +70,7 @@ struct RootView: View {
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     if model.route == nil {
                         model.contactWithoutBirthday = next
-                        model.route = .addBirthday("\(next), ")
+                        model.route = .addBirthday("\(next.name), ")
                     }
                 }
                 return
