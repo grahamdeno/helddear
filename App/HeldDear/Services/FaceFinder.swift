@@ -13,19 +13,34 @@ final class FaceFinder {
     func portrait(for person: Person?, side: CGFloat, toned: Bool = false) async -> UIImage? {
         guard let person else { return nil }
         let file = person.photoFiles.last
-        let key = "\(person.id.uuidString)-\(file ?? "contact")-\(Int(side))-\(toned)" as NSString
+        let focus = PhotoFocus.box(for: file)
+        let key = "\(person.id.uuidString)-\(file ?? "contact")-\(Int(side))-\(toned)-\(PhotoFocus.tag(focus))" as NSString
         if let hit = cache.object(forKey: key) { return hit }
         guard let source = PhotoStore.load(file) ?? ContactsService.shared.photo(contactID: person.contactID) else { return nil }
         // Draw upright and smaller first, here (UIKit drawing stays on the main thread): Vision runs faster and the
         // photo's orientation can't go wrong. Finding the face and cropping run off the main thread.
         guard let upright = Self.upright(source) else { return nil }
         let cropped = await Task.detached(priority: .userInitiated) { () -> CGImage? in
-            guard let face = Self.cropOnFace(upright) else { return nil }
+            guard let face = Self.cropOnFace(upright, focus: focus) else { return nil }
             return toned ? Self.warmTone(face) : face
         }.value
         let made = cropped.map { UIImage(cgImage: $0) }
         if let made { cache.setObject(made, forKey: key) }
         return made
+    }
+
+    /// The faces in a photo, as boxes in its own proportions (0 to 1, top-left origin), largest first, for choosing
+    /// who the photo centers on.
+    func faces(in image: UIImage) async -> [CGRect] {
+        guard let upright = Self.upright(image) else { return [] }
+        return await Task.detached(priority: .userInitiated) { () -> [CGRect] in
+            let request = VNDetectFaceRectanglesRequest()
+            try? VNImageRequestHandler(cgImage: upright, orientation: .up).perform([request])
+            return (request.results ?? []).map { r in
+                CGRect(x: r.boundingBox.minX, y: 1 - r.boundingBox.maxY, width: r.boundingBox.width, height: r.boundingBox.height)
+            }
+            .sorted { $0.width * $0.height > $1.width * $1.height }
+        }.value
     }
 
     /// The user's own photo (You page), framed on the face, for an anniversary that's theirs.
@@ -49,9 +64,11 @@ final class FaceFinder {
         guard let person,
               let source = PhotoStore.load(person.photoFiles.last) ?? ContactsService.shared.photo(contactID: person.contactID),
               let upright = Self.upright(source, longest: 1600) else { return nil }
+        let focus = PhotoFocus.box(for: person.photoFiles.last)
         let cropped = await Task.detached(priority: .userInitiated) { () -> CGImage? in
             let size = CGSize(width: upright.width, height: upright.height)
-            let rect = FaceFrame.bannerRect(face: Self.face(in: upright), imageSize: size, aspect: aspect)
+            let face = focus.map { PhotoFocus.pixels($0, imageSize: size) } ?? Self.face(in: upright)
+            let rect = FaceFrame.bannerRect(face: face, imageSize: size, aspect: aspect)
             return upright.cropping(to: rect.integral)
         }.value
         return cropped.map { UIImage(cgImage: $0) }
@@ -111,9 +128,10 @@ final class FaceFinder {
         return CIContext(options: nil).createCGImage(out, from: input.extent) ?? cg
     }
 
-    nonisolated private static func cropOnFace(_ cg: CGImage) -> CGImage? {
+    nonisolated private static func cropOnFace(_ cg: CGImage, focus: CGRect? = nil) -> CGImage? {
         let size = CGSize(width: cg.width, height: cg.height)
-        let square = FaceFrame.portraitSquare(face: face(in: cg), imageSize: size)
+        let chosen = focus.map { PhotoFocus.pixels($0, imageSize: size) } ?? face(in: cg)
+        let square = FaceFrame.portraitSquare(face: chosen, imageSize: size)
         return cg.cropping(to: square.integral)
     }
 }
