@@ -359,6 +359,10 @@ private struct PartScreen: View {
         if family == .card && current == "open" && !showDetails, let moment = act.moment {
             CardChoice(act: act, moment: moment, personName: personName, person: person, inNav: inNav,
                        back: back, showDetails: { showDetails = true })
+        } else if ItemFlow.handles(act.kind) && current == "open" && !showDetails, let moment = act.moment {
+            // Every other item opens on its first real question too (Graham, Nov 22, 2026).
+            ItemFlowView(act: act, moment: moment, person: person, personName: personName, inNav: inNav,
+                         back: back, showDetails: { showDetails = true })
         } else {
             details
         }
