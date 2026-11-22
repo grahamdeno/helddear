@@ -325,6 +325,7 @@ private struct PartScreen: View {
     @State private var placeToForget: Place?
     @State private var editingPlaces = false
     @State private var removed = false
+    @State private var showDetails = false
     @FocusState private var noteFocused: Bool
     @FocusState private var nameFocused: Bool
 
@@ -354,6 +355,16 @@ private struct PartScreen: View {
     }
 
     var body: some View {
+        // A card not started yet opens on how to send it, the one decision that matters first (Graham, Nov 22, 2026).
+        if family == .card && current == "open" && !showDetails, let moment = act.moment {
+            CardChoice(act: act, moment: moment, personName: personName, person: person, inNav: inNav,
+                       back: back, showDetails: { showDetails = true })
+        } else {
+            details
+        }
+    }
+
+    private var details: some View {
         FlowScreen {
             if !inNav { TextLink(title: "‹ \(personName)'s plan") { save(); back() } }
             VStack(alignment: .leading, spacing: Brand.space1) {
@@ -875,5 +886,83 @@ struct RelationshipPage: View {
 
     var body: some View {
         RelationshipPicker(person: person, showsBack: false) { dismiss() }
+    }
+}
+
+
+/// "How do you want to send Aaron a card?" (Graham, Nov 22, 2026): mailed by hand through Held Dear, a digital card,
+/// or one you get yourself. What you do sets the card's status; the details page is one tap away.
+private struct CardChoice: View {
+    @EnvironmentObject var model: AppModel
+    let act: Act
+    let moment: Moment
+    let personName: String
+    let person: Person?
+    var inNav: Bool
+    let back: () -> Void
+    let showDetails: () -> Void
+
+    @State private var mailing = false
+    @State private var making = false
+
+    private var name: String { DisplayName.plain(personName) }
+    private var daysLeft: Int { OccasionDates.daysBetween(Date(), moment.dueDate) }
+    /// Mail at least six days ahead to arrive on time.
+    private var mailBy: Date { Calendar.current.date(byAdding: .day, value: -6, to: moment.dueDate) ?? moment.dueDate }
+
+    var body: some View {
+        FlowScreen {
+            if !inNav { TextLink(title: "‹ \(personName)'s plan") { back() } }
+            Question(title: "How do you want to send \(name) a card?",
+                     subtitle: "\(moment.label) · \(moment.dueDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))",
+                     style: .title)
+            VStack(spacing: 0) {
+                if AppFeatures.mailedCards && daysLeft >= 6 {
+                    OptionRow(title: "Mail a handwritten card",
+                              caption: "Written in pen by a real hand and mailed for you. Pick the card, write the message, pay with Apple Pay.") {
+                        mailing = true
+                    }
+                }
+                OptionRow(title: "Send a digital card",
+                          caption: "A card with \(name)'s photo to text or post, ready on the day.") { making = true }
+                OptionRow(title: "I'll get one myself",
+                          caption: daysLeft >= 6
+                              ? "Mail it by \(mailBy.formatted(.dateTime.month(.abbreviated).day())) to arrive on time."
+                              : "Held Dear keeps it on the plan until it's written.") {
+                    _ = model.setStep(act, "idea")
+                    if daysLeft >= 6 && act.note == nil {
+                        act.note = "Mail by \(mailBy.formatted(.dateTime.month(.abbreviated).day()))"
+                        model.save()
+                    }
+                    showDetails()
+                }
+            }
+            TextLink(title: "See the card's details") { showDetails() }.padding(.leading, -8)
+        }
+        .fullScreenCover(isPresented: $mailing) {
+            MailCardFlow(context: MailContext(person: moment.person, occasionKey: MailContext.occasionKey(for: moment.type),
+                                              opening: moment.type.cardOpening,
+                                              greeting: moment.type.greeting(name: name),
+                                              onMailed: { cardName in
+                                                  // This card item is done; the rest of the plan stays as it is.
+                                                  _ = model.setStep(act, "written")
+                                                  act.title = "A handwritten card, mailed (\(cardName))"
+                                                  model.save()
+                                              }),
+                         close: { mailing = false })
+                .environmentObject(model)
+        }
+        .fullScreenCover(isPresented: $making) {
+            MakeCardFlow(close: { making = false },
+                         preset: moment.type.kind == .holiday ? .holiday(moment.type) : .holiday(.birthday),
+                         presetHeading: moment.type == .birthday ? "Happy birthday, \(name)" : nil,
+                         presetPhotos: person.map { p in p.photoFiles.reversed().prefix(3).compactMap { PhotoStore.load($0) } } ?? [],
+                         onShared: {
+                             _ = model.setStep(act, "written")
+                             if act.title == nil { act.title = "Digital card" }
+                             model.save()
+                         })
+                .environmentObject(model)
+        }
     }
 }
