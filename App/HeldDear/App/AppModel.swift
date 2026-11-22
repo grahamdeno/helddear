@@ -284,8 +284,9 @@ final class AppModel: ObservableObject {
 
     func phone(for person: Person?) -> String? {
         guard let person else { return nil }
-        if let p = ContactsService.shared.phone(contactID: person.contactID) { return p }
-        return person.manualPhone.flatMap { $0.isEmpty ? nil : $0 }
+        // A number typed in Held Dear wins over the contact's (Nov 21, 2026): it's there because it should be used.
+        if let typed = person.manualPhone, !typed.isEmpty { return typed }
+        return ContactsService.shared.phone(contactID: person.contactID)
     }
 
     func address(for person: Person?) -> String? {

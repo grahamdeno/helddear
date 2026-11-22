@@ -81,6 +81,33 @@ final class ContactsService {
         return (mobile ?? c.phoneNumbers.first)?.value.stringValue
     }
 
+    /// The other dates on the contact card (anniversary and any labeled date), read only (Nov 21, 2026).
+    func dates(contactID: String?) -> [ContactDate] {
+        guard canRead, let id = contactID,
+              let c = try? store.unifiedContact(withIdentifier: id, keysToFetch: [CNContactDatesKey as CNKeyDescriptor])
+        else { return [] }
+        return c.dates.compactMap { item in
+            let comps = item.value as DateComponents
+            guard let month = comps.month, let day = comps.day else { return nil }
+            let raw = item.label ?? ""
+            let label = raw.isEmpty ? "" : CNLabeledValue<NSDateComponents>.localizedString(forLabel: raw)
+            return ContactDate(label: label, isAnniversary: raw == CNLabelDateAnniversary, month: month, day: day,
+                               year: comps.year.flatMap { $0 == NSDateComponentUndefined ? nil : $0 })
+        }
+    }
+
+    /// The spouse or partner named on the contact card, for an anniversary's other half.
+    func partnerName(contactID: String?) -> String? {
+        guard canRead, let id = contactID,
+              let c = try? store.unifiedContact(withIdentifier: id, keysToFetch: [CNContactRelationsKey as CNKeyDescriptor])
+        else { return nil }
+        let partner = c.contactRelations.first {
+            $0.label == CNLabelContactRelationSpouse || $0.label == CNLabelContactRelationPartner
+                || $0.label == CNLabelContactRelationWife || $0.label == CNLabelContactRelationHusband
+        }
+        return partner?.value.name
+    }
+
     func address(contactID: String?) -> String? {
         guard canRead, let id = contactID,
               let c = try? store.unifiedContact(withIdentifier: id, keysToFetch: [CNContactPostalAddressesKey as CNKeyDescriptor]),

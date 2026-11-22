@@ -26,8 +26,8 @@ struct PersonView: View {
     @State private var entryToEdit: LedgerEntry?
     @State private var editedLine = ""
     @State private var confirmRemove = false
-    @State private var phoneText = ""
     @State private var editingAddress = false
+    @State private var editingPhone = false
     @State private var showLifetime = false
     @State private var editingPortrait = false
     @State private var addingOccasion = false
@@ -72,6 +72,7 @@ struct PersonView: View {
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
         .sheet(isPresented: $editingAddress) { AddressEditor(person: person) }
+        .sheet(isPresented: $editingPhone) { PhoneEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
@@ -112,6 +113,7 @@ struct PersonView: View {
                 PersonHero(person: person, line: heroLine, tag: heroTag)
                     .padding(.horizontal, -Brand.space5)
                 VStack(alignment: .leading, spacing: Brand.space5) {
+                    actionsRow
                     if !moments.isEmpty {
                         PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }),
                                        addTitle: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
@@ -121,24 +123,24 @@ struct PersonView: View {
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
                     }
-                    ideasSection
-                    Button { model.push(.personDetails(person.id)) } label: {
-                        HStack(spacing: Brand.space3) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(DisplayName.plain(person.name))'s details").textStyle(.bodyStrong)
-                                Text(detailsCaption).textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                    lovesSection
+                    savedIdeasSection
+                    photosSection
+                    if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
+                    if !person.ledger.isEmpty {
+                        section("Through the years") {
+                            ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
                         }
-                        .frame(minHeight: 64)
-                        .padding(.horizontal, Brand.space4)
-                        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
-                        .contentShape(Rectangle())
+                    }
+                    Button { model.push(.personDetails(person.id)) } label: {
+                        YouRowLabel(icon: "person.text.rectangle", title: "\(DisplayName.plain(person.name))'s details",
+                                    detail: nil, caption: detailsCaption)
+                            .padding(.horizontal, Brand.space4)
+                            .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
                     }
                     .buttonStyle(PressStyle())
-                    .accessibilityHint("Relationship, days, reminders, card photos")
+                    .accessibilityHint("Relationship, reminders, days, phone and address")
                 }
                 .padding(.top, Brand.space3)
             }
@@ -207,79 +209,216 @@ struct PersonView: View {
     }
 
     /// Everything else about the person, one page in from their page.
+    /// Everything else about the person, one page in (restructured Nov 21, 2026): short groups whose rows show
+    /// their value and open one thing. Nothing appears or disappears depending on what's missing.
     private var detailsPage: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("\(DisplayName.plain(person.name))'s details").textStyle(.title).accessibilityAddTraits(.isHeader)
-                OptionRow(title: "Relationship", caption: person.relationship ?? "Not set yet. Helps with suggestions and who gives what") {
-                    model.push(.relationship(person.id))
+        let name = DisplayName.plain(person.name)
+        let phone = model.phone(for: person)
+        let contactAddress = ContactsService.shared.mailAddress(contactID: person.contactID)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: Brand.space5) {
+                Text("\(name)'s details").textStyle(.title).accessibilityAddTraits(.isHeader)
+                group("About") {
+                    YouRow(icon: "heart", title: "Relationship", detail: person.relationship ?? "Add", caption: nil) {
+                        model.push(.relationship(person.id))
+                    }
+                    YouDivider()
+                    YouRow(icon: "bell", title: "Reminders", detail: person.ring.label, caption: nil) { showRing = true }
+                    YouDivider()
+                    YouRow(icon: "person.crop.circle", title: "Contact", detail: person.contactID == nil ? "Link" : "Linked",
+                           caption: person.contactID == nil ? "For their number, address and photo" : nil) { linking = true }
                 }
-                OptionRow(title: "Reminders", caption: person.ring.label) { showRing = true }
+                group("Days") {
+                    ForEach(Array(sortedOccasions.enumerated()), id: \.element.id) { i, o in
+                        if i > 0 { YouDivider() }
+                        YouRow(icon: dayIcon(o), title: dayTitle(o), detail: dayValue(o), caption: nil) {
+                            if o.type == .birthday { editingDate = true } else { occasionToEdit = o }
+                        }
+                    }
+                    ForEach(contactOffers) { d in
+                        YouDivider()
+                        YouRow(icon: "plus.circle", title: ContactDates.title(d),
+                               detail: OccasionDates.date(month: d.month, day: d.day, year: 2028).formatted(.dateTime.month(.abbreviated).day()),
+                               caption: "On \(name)'s contact. Tap to add") { addContactDate(d) }
+                    }
+                    YouDivider()
+                    YouRow(icon: "plus", title: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime", detail: nil, caption: nil) {
+                        if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
+                    }
+                }
+                group("Reaching \(name)") {
+                    YouRow(icon: "phone", title: "Phone", detail: phone ?? "Add",
+                           caption: person.manualPhone == nil && phone != nil ? "From Contacts" : nil) { editingPhone = true }
+                    YouDivider()
+                    YouRow(icon: "envelope", title: "Mailing address",
+                           detail: contactAddress.map { _ in "From Contacts" } ?? (person.mailingAddress == nil ? "Add" : "Saved"),
+                           caption: contactAddress?.oneLine ?? person.mailingAddress?.oneLine) {
+                        if contactAddress == nil { editingAddress = true }
+                    }
+                }
+                group("Cards") {
+                    Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
+                        Text("Show \(name)'s age on the card").textStyle(.body)
+                    }
+                    .tint(Brand.action)
+                    .padding(.vertical, Brand.space3)
+                }
                 if let next = model.nextMoment(for: person) {
                     if AppFeatures.familyPages { FamilyPageSection(person: person, moment: next) }
                     scheduleCard(next)
                 }
-                if purchases.hasLifetime, let entry = oneYearAgo { lookBack(entry) }
-                if let b = person.birthday {
-                    BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
-                }
-                if person.photoFiles.isEmpty { photoNudge }
-                if person.contactID == nil { linkRow }
-                if model.phone(for: person) == nil { phoneRow }
-                if ContactsService.shared.mailAddress(contactID: person.contactID) == nil { addressRow }
-                section("Days") {
-                    ForEach(sortedOccasions, id: \.id) { o in
-                        if o.type == .birthday {
-                            OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
-                        } else {
-                            OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
-                                      : o.type.title(partner: o.partnerName),
-                                      caption: occasionCaption(o)) { occasionToEdit = o }
-                        }
-                    }
-                    SecondaryButton(title: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
-                        if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
-                    }
-                }
-                section("Saved ideas") {
-                    ForEach(person.openWishes, id: \.id) { wish in
+                TextLink(title: "Remove \(name) from Held Dear") { confirmRemove = true }
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.vertical, 16)
+        }
+    }
+
+    private func group<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            Eyebrow(text: title).padding(.leading, Brand.space1)
+            VStack(spacing: 0) { content() }
+                .buttonStyle(PressStyle())
+                .padding(.horizontal, Brand.space4)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private func dayIcon(_ o: Occasion) -> String {
+        switch o.type {
+        case .birthday: "gift"
+        case .anniversary: "heart.circle"
+        default: o.type.kind == .holiday ? "star" : "calendar"
+        }
+    }
+
+    private func dayTitle(_ o: Occasion) -> String {
+        if o.type == .birthday { return "Birthday" }
+        if o.type == .anniversary, let p = o.partnerName { return "Anniversary with \(p)" }
+        return o.type.title(partner: o.partnerName)
+    }
+
+    private func dayValue(_ o: Occasion) -> String {
+        let date = OccasionDates.date(month: o.month, day: o.day, year: 2028)
+        if let y = o.birthYear { return date.formatted(.dateTime.month(.abbreviated).day()) + ", \(y)" }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    /// The contact card's other dates, not already here (Graham, Nov 21, 2026).
+    private var contactOffers: [ContactDate] {
+        let _ = model.revision
+        return ContactDates.offers(ContactsService.shared.dates(contactID: person.contactID),
+                                   existing: person.occasions.map { ($0.type, $0.month, $0.day) })
+    }
+
+    private func addContactDate(_ d: ContactDate) {
+        guard purchases.hasLifetime else { showLifetime = true; return }
+        if d.isAnniversary {
+            model.addOccasion(person, type: .anniversary, month: d.month, day: d.day, year: d.year,
+                              partnerName: ContactsService.shared.partnerName(contactID: person.contactID))
+        } else {
+            model.addOccasion(person, type: .event, month: d.month, day: d.day, year: d.year, partnerName: ContactDates.title(d))
+        }
+    }
+
+    // MARK: The person page's parts (restructured Nov 21, 2026)
+
+    /// Message, Call, Card and Share day, as round buttons under the photo. Message and Call show only with a number.
+    private var actionsRow: some View {
+        let phone = model.phone(for: person)
+        let digits = phone?.filter { $0.isNumber || $0 == "+" } ?? ""
+        return HStack(alignment: .top, spacing: 0) {
+            if !digits.isEmpty {
+                actionButton("Message", icon: "message") { if let u = URL(string: "sms:\(digits)") { UIApplication.shared.open(u) } }
+                actionButton("Call", icon: "phone") { if let u = URL(string: "tel:\(digits)") { UIApplication.shared.open(u) } }
+            }
+            actionButton("Card", icon: "envelope") { sendingCard = true }
+            if let day = model.nextPersonalMoment(for: person) {
+                actionButton("Share day", icon: "square.and.arrow.up") { sharingDay = day }
+            }
+            if let next = model.nextMoment(for: person), next.status != .missed {
+                actionButton("Ideas", icon: "lightbulb") { model.route = .ideas(next.id) }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func actionButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 18, weight: .regular)).foregroundStyle(Brand.action)
+                    .frame(width: 48, height: 48)
+                    .background(Brand.card, in: Circle())
+                Text(title).font(.caption.weight(.medium)).foregroundStyle(Brand.inkSoft).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle())
+    }
+
+    private func header(_ title: String, link: String, action: @escaping () -> Void) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Eyebrow(text: title)
+            Spacer()
+            Button(link, action: action).font(.callout.weight(.medium)).foregroundStyle(Brand.action).frame(minHeight: 44)
+        }
+    }
+
+    private var lovesSection: some View {
+        VStack(alignment: .leading, spacing: Brand.space1) {
+            header("What \(DisplayName.plain(person.name)) loves", link: "Edit") { editingPortrait = true }
+            portrait
+        }
+    }
+
+    private var savedIdeasSection: some View {
+        let wishes = person.openWishes
+        return VStack(alignment: .leading, spacing: Brand.space2) {
+            header("Saved ideas", link: "+ Save") { model.route = .addWish(person.id) }
+            if wishes.isEmpty {
+                Text("Links and ideas you save for \(DisplayName.plain(person.name)) show here.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(wishes.prefix(4), id: \.id) { wish in
                         Button { wishToEdit = wish } label: {
                             HStack(spacing: Brand.space3) {
                                 WishPreview(wish: wish).frame(maxWidth: .infinity, alignment: .leading)
                                 Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
                                     .accessibilityHidden(true)
                             }
-                            .padding(.vertical, Brand.space3)
-                            .frame(minHeight: 56)
+                            .padding(.vertical, Brand.space2)
+                            .frame(minHeight: 52)
                             .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(PressStyle())
                         .accessibilityHint(wishCaption(wish))
                     }
-                    SecondaryButton(title: "Save an idea") { model.route = .addWish(person.id) }
                 }
-                section("Photos of \(DisplayName.plain(person.name))") {
-                    Text("The first is the photo at the top of \(DisplayName.plain(person.name))'s page. Cards offer all of them. Press and hold one to change which is first.")
-                        .textStyle(.caption, color: Brand.inkMuted).fixedSize(horizontal: false, vertical: true)
-                    photoStrip
-                    Toggle(isOn: Binding(get: { person.showAgeOnCard }, set: { person.showAgeOnCard = $0; model.save() })) {
-                        Text("Show \(DisplayName.plain(person.name))'s age on the card").textStyle(.body)
-                    }
-                    .tint(Brand.action)
-                    .padding(.vertical, Brand.space3).padding(.horizontal, Brand.space4)
-                    .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+                if wishes.count > 4 {
+                    TextLink(title: "See all \(wishes.count)") { showIdeas = true }.padding(.leading, -8)
                 }
-                if !person.ledger.isEmpty {
-                    section("Through the years") {
-                        ForEach(person.sortedLedger, id: \.id) { entry in ledgerRow(entry) }
-                    }
-                }
-                TextLink(title: "Remove \(DisplayName.plain(person.name))") { confirmRemove = true }
-                    .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, Brand.space5)
-            .padding(.vertical, 16)
+        }
+    }
+
+    private var photosSection: some View {
+        VStack(alignment: .leading, spacing: Brand.space2) {
+            if person.photoFiles.isEmpty {
+                Eyebrow(text: "Photos")
+                photoNudge
+            } else {
+                Eyebrow(text: "Photos")
+                photoStrip
+                Text("The first is the photo at the top of this page. Tap one to change that or remove it.")
+                    .textStyle(.caption, color: Brand.inkMuted)
+            }
+            if let b = person.birthday {
+                BirthdayMemories(person: person, month: b.month, day: b.day) { showLifetime = true }
+            }
         }
     }
 
@@ -307,35 +446,8 @@ struct PersonView: View {
         if let r = person.relationship { bits.append(r) }
         let n = person.occasions.count
         bits.append(n == 1 ? "1 day" : "\(n) days")
-        bits.append("reminders")
-        bits.append("card photos")
+        bits.append(person.ring.label.lowercased() + " reminders")
         return bits.joined(separator: " · ")
-    }
-
-    /// "For ideas": what they love, sizes, what they mentioned, and the links that use it.
-    private var ideasSection: some View {
-        VStack(alignment: .leading, spacing: Brand.space2) {
-            Eyebrow(text: "For ideas")
-            portrait
-            HStack(spacing: Brand.space4) {
-                if let next = model.nextMoment(for: person), next.status != .missed {
-                    TextLink(title: "Gift ideas") { model.route = .ideas(next.id) }
-                }
-                TextLink(title: "Save an idea") { model.route = .addWish(person.id) }
-                TextLink(title: "Send a card") { sendingCard = true }
-                TextLink(title: "Edit") { editingPortrait = true }
-            }
-            .padding(.leading, -8)
-            if let day = model.nextPersonalMoment(for: person) {
-                TextLink(title: "Share \(DisplayName.plain(person.name))'s day") { sharingDay = day }
-                    .padding(.leading, -8)
-            }
-        }
-        .padding(Brand.space4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Brand.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.raisedLine, lineWidth: 1) }
-        .padding(.top, Brand.space2)
     }
 
     /// The days on this page's cards: the one it was opened from first if it isn't coming soon, then every day in
@@ -518,37 +630,6 @@ struct PersonView: View {
             .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-
-    private var linkRow: some View {
-        OptionRow(title: "Link to a contact", caption: "For their number, address and photo") { linking = true }
-    }
-
-    /// Story 2.13: an address kept on this iPhone when Contacts has none for this person.
-    private var addressRow: some View {
-        let _ = model.revision
-        let saved = person.mailingAddress
-        return OptionRow(title: saved == nil ? "Add a mailing address" : "Mailing address",
-                         caption: saved?.oneLine ?? "For mailed cards. Never added to Contacts") { editingAddress = true }
-    }
-
-    private var phoneRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Phone number, for the message on the day").font(TypeStyle.caption.strong).foregroundStyle(Brand.inkMuted)
-            HStack {
-                TextField("Add a number", text: $phoneText).keyboardType(.phonePad).textStyle(.body)
-                if !phoneText.isEmpty {
-                    Button("Save") {
-                        person.manualPhone = phoneText
-                        model.commit()
-                    }
-                    .font(TypeStyle.callout.strong)
-                }
-            }
-            .padding(.horizontal, Brand.space4).frame(minHeight: 56)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-        }
-        .onAppear { phoneText = person.manualPhone ?? "" }
     }
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -1124,5 +1205,42 @@ struct PersonYears: View {
                 .lineLimit(3)
         }
         .frame(maxWidth: 90, alignment: .leading)
+    }
+}
+
+
+/// A number for the message on the day, when Contacts has none or a different one should be used (Nov 21, 2026).
+struct PhoneEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var number = ""
+
+    var body: some View {
+        let fromContact = ContactsService.shared.phone(contactID: person.contactID)
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "\(DisplayName.plain(person.name))'s number", subtitle: fromContact.map { "Contacts has \($0). Add another here to use it instead." }
+                     ?? "For the message on the day. Kept in Held Dear, never added to Contacts.", style: .title)
+            TextField(fromContact ?? "Add a number", text: $number)
+                .keyboardType(.phonePad).textStyle(.body)
+                .padding(.horizontal, Brand.space4).frame(minHeight: 56)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            if person.manualPhone != nil {
+                TextLink(title: fromContact == nil ? "Clear the number" : "Use the number from Contacts") {
+                    person.manualPhone = nil
+                    model.commit()
+                    dismiss()
+                }
+                .padding(.leading, -8)
+            }
+        } footer: {
+            PrimaryButton(title: "Save") {
+                let trimmed = number.trimmingCharacters(in: .whitespaces)
+                person.manualPhone = trimmed.isEmpty ? nil : trimmed
+                model.commit()
+                dismiss()
+            }
+        }
+        .onAppear { number = person.manualPhone ?? "" }
     }
 }
