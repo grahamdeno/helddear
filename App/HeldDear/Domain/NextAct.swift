@@ -63,7 +63,7 @@ enum NextAct: Equatable {
         case .dayOfCall: return "Call \(name)"
         case .dayOfMessage: return "Send \(name) a message"
         case .pick: return "Pick what to do"
-        case .saveWish: return "Save a wish for \(name)"
+        case .saveWish: return "Save an idea for \(name)"
         case .orderBy(let d): return "Order by \(d.formatted(.dateTime.month(.abbreviated).day()))"
         case .mailBy(let d): return "Mail by \(d.formatted(.dateTime.month(.abbreviated).day()))"
         case .addDinner: return "Add dinner to calendar"
