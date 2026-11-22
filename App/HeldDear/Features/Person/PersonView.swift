@@ -71,6 +71,7 @@ struct PersonView: View {
                     let full = [contact.givenName, contact.familyName].filter { !$0.isEmpty }.joined(separator: " ")
                     if !full.isEmpty { person.fullName = full }
                 }
+                model.keepContactDetails(ContactImport.Pick(contact), on: person)
                 model.commit()
             }
         }

@@ -14,11 +14,15 @@ enum ContactImport {
         /// The card's other dates and the spouse or partner it names, brought in with the person (Nov 22, 2026).
         var dates: [ContactDate] = []
         var partner: String?
+        /// The number and mailing address on the card, kept at the moment of picking (Nov 22, 2026). The picker hands
+        /// them over even when Held Dear has no Contacts access, and a later lookup needs that access.
+        var phone: String?
+        var address: MailAddress?
 
         init(id: String, name: String, fullName: String? = nil, month: Int? = nil, day: Int? = nil, year: Int? = nil,
-             dates: [ContactDate] = [], partner: String? = nil) {
+             dates: [ContactDate] = [], partner: String? = nil, phone: String? = nil, address: MailAddress? = nil) {
             self.id = id; self.name = name; self.fullName = fullName; self.month = month; self.day = day; self.year = year
-            self.dates = dates; self.partner = partner
+            self.dates = dates; self.partner = partner; self.phone = phone; self.address = address
         }
 
         init(_ contact: CNContact) {
@@ -44,8 +48,28 @@ enum ContactImport {
                 [CNLabelContactRelationSpouse, CNLabelContactRelationPartner, CNLabelContactRelationWife,
                  CNLabelContactRelationHusband].contains($0.label ?? "")
             }?.value.name : nil
+            var phone: String?
+            if contact.isKeyAvailable(CNContactPhoneNumbersKey) {
+                let mobile = contact.phoneNumbers.first { $0.label == CNLabelPhoneNumberMobile || $0.label == CNLabelPhoneNumberiPhone }
+                phone = (mobile ?? contact.phoneNumbers.first)?.value.stringValue
+            }
+            var address: MailAddress?
+            if contact.isKeyAvailable(CNContactPostalAddressesKey), let postal = contact.postalAddresses.first?.value {
+                let lines = postal.street.split(separator: "\n").map(String.init)
+                address = MailAddress(firstName: given, lastName: family,
+                                      address1: lines.first ?? "", address2: lines.dropFirst().joined(separator: " "),
+                                      city: postal.city, state: String(postal.state.uppercased().prefix(2)), zip: postal.postalCode)
+            }
             self.init(id: contact.identifier, name: !nick.isEmpty ? nick : (!given.isEmpty ? given : family),
-                      fullName: full.isEmpty ? nil : full, month: month, day: day, year: year, dates: dates, partner: partner)
+                      fullName: full.isEmpty ? nil : full, month: month, day: day, year: year, dates: dates, partner: partner,
+                      phone: phone, address: address)
+        }
+
+        /// What this pick would fill on a person: only empty fields, so nothing typed in Held Dear is replaced.
+        func fills(phone current: String?, address currentAddress: MailAddress?) -> (phone: String?, address: MailAddress?) {
+            let p = (current ?? "").isEmpty ? phone.flatMap { $0.isEmpty ? nil : $0 } : nil
+            let a = currentAddress == nil ? address.flatMap { $0.address1.isEmpty && $0.city.isEmpty ? nil : $0 } : nil
+            return (p, a)
         }
 
         var hasBirthday: Bool { month != nil && day != nil }
@@ -55,6 +79,10 @@ enum ContactImport {
         var ready: [Pick] = []
         var needDate: [Pick] = []
         var already = 0
+        /// People already here, picked again: their number, address and dates are refreshed from the card (Nov 22, 2026).
+        var again: [Pick] = []
+        /// How many people gained a number or address from their card.
+        var detailsAdded = 0
         /// Other dates brought in from the cards.
         var otherDates = 0
     }
@@ -63,7 +91,11 @@ enum ContactImport {
         var out = Outcome()
         var seen = known
         for p in picks {
-            if seen.contains(p.id) { out.already += 1; continue }
+            if seen.contains(p.id) {
+                out.already += 1
+                if known.contains(p.id), !out.again.contains(where: { $0.id == p.id }) { out.again.append(p) }
+                continue
+            }
             seen.insert(p.id)
             if p.hasBirthday && !p.name.isEmpty { out.ready.append(p) }
             else if !p.name.isEmpty { out.needDate.append(p) }
@@ -78,6 +110,8 @@ enum ContactImport {
         else if o.ready.count > 1 { parts.append("\(o.ready.count) added.") }
         if o.already == 1 { parts.append(parts.isEmpty ? "Already in Held Dear." : "1 already in Held Dear.") }
         else if o.already > 1 { parts.append("\(o.already) already in Held Dear.") }
+        if o.detailsAdded == 1 { parts.append("Brought in a number or address from 1 card.") }
+        else if o.detailsAdded > 1 { parts.append("Brought in numbers or addresses from \(o.detailsAdded) cards.") }
         if o.otherDates == 1 { parts.append("Also added 1 other date from their contact cards.") }
         else if o.otherDates > 1 { parts.append("Also added \(o.otherDates) other dates from their contact cards.") }
         return parts.isEmpty ? "Nobody added." : parts.joined(separator: " ")

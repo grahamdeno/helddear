@@ -34,9 +34,17 @@ struct AddFromContactsModifier: ViewModifier {
         var toAsk: [UUID] = []
         for p in outcome.ready {
             let person = model.addPerson(name: p.name, fullName: p.fullName, contactID: p.id, month: p.month!, day: p.day!, year: p.year)
+            model.keepContactDetails(p, on: person)
             outcome.otherDates += model.addContactDates(p.dates, partner: p.partner, to: person)
             if person.relationship == nil { toAsk.append(person.id) }
         }
+        // Picked again: bring in what the card has that the person is missing (Nov 22, 2026).
+        for p in outcome.again {
+            guard let person = model.allPeople().first(where: { $0.contactID == p.id }) else { continue }
+            if model.keepContactDetails(p, on: person) { outcome.detailsAdded += 1 }
+            outcome.otherDates += model.addContactDates(p.dates, partner: p.partner, to: person)
+        }
+        if !outcome.again.isEmpty { model.commit() }
         // Who each one is, one tap each, after any birthdays still to type (Nov 22, 2026).
         if !toAsk.isEmpty {
             model.importSummary = ContactImport.summary(outcome)
