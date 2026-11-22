@@ -35,6 +35,15 @@ enum NameSize {
     /// The fixed height Home's featured name sits in, so the line under it stays put whatever the name's length.
     static let featuredSlot: CGFloat = 156
 
+    /// How far Home's featured name sits lower over the medallion, with the line under it rising by the same amount,
+    /// so more of the face shows and the name and line read together (Graham, Nov 21, 2026). The room comes from the
+    /// space kept below the letters for tails like g and y, so a name with those keeps most of it.
+    static func featuredDrop(_ name: String) -> CGFloat {
+        let size = featured(name)
+        let tails = name.contains { "gjpqyQ".contains($0) }
+        return (size * (tails ? 0.06 : 0.2)).rounded()
+    }
+
     /// Lines a name may use before it scales down further.
     static let maxLines = 2
 }
