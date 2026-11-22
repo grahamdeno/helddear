@@ -48,13 +48,13 @@ struct PersonPlanSection: View {
                     if !rows.isEmpty { groupCard(g, rows) }
                 }
             }
+            // Add sits with the plan it adds to; the main button closes the block (Nov 22, 2026).
+            TextLink(title: "+ Add to \(moment.label)", action: add)
+                .padding(.leading, -8)
             if nudge.isEnabled, let t = nudge.target, moment.planParts.indices.contains(t) {
                 let target = moment.planParts[t].id
                 PrimaryButton(title: nudge.buttonTitle) { model.push(.item(target)) }
-                    .padding(.top, Brand.space2)
             }
-            TextLink(title: "+ Add to \(moment.label)", action: add)
-                .padding(.leading, -8)
         }
     }
 
