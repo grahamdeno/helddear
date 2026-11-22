@@ -60,6 +60,9 @@ struct HomeView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                // Raised 40 points into the empty space under the bar (Graham, Nov 21, 2026). The bar is clear here and
+                // its only item, the You circle, sits at the right, so nothing overlaps the centered date.
+                .padding(.top, -40)
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
                 otherReady(moments, featured: featured, now: now)
