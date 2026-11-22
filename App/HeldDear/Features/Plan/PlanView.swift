@@ -1206,7 +1206,8 @@ private struct CardChoice: View {
                              _ = model.setStep(act, "written")
                              if act.title == nil { act.title = "Digital card" }
                              model.save()
-                         })
+                         },
+                         person: person)
                 .environmentObject(model)
         }
     }

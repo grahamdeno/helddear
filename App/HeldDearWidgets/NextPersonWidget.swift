@@ -8,6 +8,7 @@ struct HeldDearWidgetBundle: WidgetBundle {
         NextPersonWidget()
         HolidayWidget()
         LockScreenWidget()
+        DayLiveActivity()
     }
 }
 
