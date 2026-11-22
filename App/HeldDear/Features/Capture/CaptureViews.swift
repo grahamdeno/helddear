@@ -259,7 +259,7 @@ struct AddBirthdayView: View {
     private func close() { model.route = nil }
 }
 
-// MARK: B2. Save a wish (typed or spoken)
+// MARK: B2. Save an idea (typed or spoken)
 
 struct AddWishView: View {
     @EnvironmentObject var model: AppModel
@@ -275,9 +275,9 @@ struct AddWishView: View {
             } onClose: { askWho = false }
         } else {
             FlowScreen(onClose: { model.route = nil }) {
-                Question(title: preselected.map { "What would \($0.name) love?" } ?? "Save a wish",
-                         subtitle: preselected == nil ? "Say or type it, like \"Ada wants blue skates\"." : "One line is plenty.")
-                LineField(label: "The wish", text: $text, placeholder: preselected == nil ? "Ada wants blue skates" : "Blue gardening gloves",
+                Question(title: preselected.map { "What would \($0.name) love?" } ?? "Save an idea",
+                         subtitle: preselected == nil ? "Say or type it, like \"Ada: blue skates\"." : "One line is plenty.")
+                LineField(label: "The idea", text: $text, placeholder: preselected == nil ? "Ada: blue skates" : "Blue gardening gloves",
                           onSubmit: submit)
                 if let person = matched {
                     HStack(spacing: 12) {
