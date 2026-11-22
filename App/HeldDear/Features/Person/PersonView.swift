@@ -22,6 +22,9 @@ struct PersonView: View {
     @State private var editingDate = false
     /// Several photos at once (Graham, Nov 21, 2026): pick as many as you like in one go.
     @State private var photoItems: [PhotosPickerItem] = []
+    /// The anniversary getting a couple photo, and the picked photo (Graham, Nov 21, 2026).
+    @State private var couplePhotoFor: Occasion?
+    @State private var couplePick: PhotosPickerItem?
     @State private var wishToEdit: Wish?
     @State private var entryToEdit: LedgerEntry?
     @State private var editedLine = ""
@@ -76,7 +79,25 @@ struct PersonView: View {
         .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
                             titleVisibility: .visible) {
+            if let o = occasionToEdit, o.type == .anniversary {
+                let has = OccasionPhotos.file(for: o.id) != nil
+                Button(has ? "Change the couple photo" : "Add a couple photo") { couplePhotoFor = o }
+                if has { Button("Remove the couple photo") { OccasionPhotos.set(nil, for: o.id); model.save() } }
+            }
             Button("Remove", role: .destructive) { if let o = occasionToEdit { model.removeOccasion(o) } }
+        }
+        .photosPicker(isPresented: Binding(get: { couplePhotoFor != nil }, set: { if !$0 && couplePick == nil { couplePhotoFor = nil } }),
+                      selection: $couplePick, matching: .images)
+        .onChange(of: couplePick) { _, item in
+            guard let item, let o = couplePhotoFor else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                    OccasionPhotos.set(file, for: o.id)
+                    model.save()
+                }
+                couplePick = nil
+                couplePhotoFor = nil
+            }
         }
         .onChange(of: photoItems) { _, items in addPhotos(items) }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
@@ -232,9 +253,16 @@ struct PersonView: View {
                         if o.type == .birthday {
                             OptionRow(title: "Birthday", caption: occasionCaption(o)) { editingDate = true }
                         } else {
+                            let couple = o.type == .anniversary ? PhotoStore.load(OccasionPhotos.file(for: o.id)) : nil
                             OptionRow(title: o.type == .anniversary && o.partnerName != nil ? "Anniversary with \(o.partnerName!)"
                                       : o.type.title(partner: o.partnerName),
-                                      caption: occasionCaption(o)) { occasionToEdit = o }
+                                      caption: occasionCaption(o) + (o.type == .anniversary && couple == nil ? " · Tap to add a couple photo" : ""),
+                                      action: { occasionToEdit = o }) {
+                                if let couple {
+                                    Image(uiImage: couple).resizable().scaledToFill()
+                                        .frame(width: 44, height: 44).clipShape(Circle()).accessibilityHidden(true)
+                                }
+                            } trailing: { ChevronDisc() }
                         }
                     }
                     SecondaryButton(title: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {

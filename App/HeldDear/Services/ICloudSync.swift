@@ -213,7 +213,7 @@ enum ICloudSync {
     /// photos, remembered places, which holidays you keep.
     enum Settings {
         static let keys = ["yourName", "cardSignature", CustomHolidays.defaultsKey, Holidays.defaultsKey,
-                           "hiddenPhotoIDs", "rememberedPlaces"]
+                           "hiddenPhotoIDs", "rememberedPlaces", OccasionPhotos.key]
         private static var started = false
 
         static func start(local: UserDefaults = .standard, cloud: NSUbiquitousKeyValueStore = .default) {

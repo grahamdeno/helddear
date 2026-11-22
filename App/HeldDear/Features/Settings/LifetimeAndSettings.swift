@@ -121,6 +121,7 @@ struct SettingsView: View {
     @State private var keepInICloud = ICloudSync.isOn
     @ObservedObject private var iCloudStatus = ICloudSync.Status.shared
     @State private var yourPhotoItem: PhotosPickerItem?
+    @State private var couplePick: PhotosPickerItem?
     @State private var yourPhotoFile = YouProfile.photoFile
     @State private var editingBirthday = false
     @State private var addingAnniversary = false
@@ -364,6 +365,38 @@ struct SettingsView: View {
                       caption: yourAnniversaryPartner == nil
                         ? "Pick your partner. Their page gets the day, with both your photos."
                         : "Change it on their page. Tap to add another.") { addingAnniversary = true }
+            if let anniversary = model.yourAnniversary() {
+                let couple = PhotoStore.load(OccasionPhotos.file(for: anniversary.id))
+                PhotosPicker(selection: $couplePick, matching: .images) {
+                    HStack(spacing: Brand.space3) {
+                        if let couple {
+                            Image(uiImage: couple).resizable().scaledToFill()
+                                .frame(width: 44, height: 44).clipShape(Circle()).accessibilityHidden(true)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(couple == nil ? "Add a couple photo" : "Change the couple photo").textStyle(.bodyStrong)
+                            Text("For your anniversary. It shows here and on your partner's page.")
+                                .textStyle(.caption, color: Brand.inkMuted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        ChevronDisc()
+                    }
+                    .padding(.vertical, Brand.space4)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onChange(of: couplePick) { _, item in
+                    guard let item else { return }
+                    Task {
+                        if let data = try? await item.loadTransferable(type: Data.self), let file = PhotoStore.save(data: data) {
+                            OccasionPhotos.set(file, for: anniversary.id)
+                            model.save()
+                        }
+                        couplePick = nil
+                    }
+                }
+            }
         }
         VStack(alignment: .leading, spacing: Brand.space2) {
             Eyebrow(text: "Sign cards as")
