@@ -81,4 +81,57 @@ enum IdeaPrompts {
         guard !t.isEmpty, t.count <= cardWordsLimit else { return nil }
         return t
     }
+
+    // MARK: Lines written for the user (Graham, Nov 22, 2026)
+
+    /// Where a written line goes. A share card is public, so it gets no private details.
+    enum LineKind: Equatable {
+        case cardLine, shareLine
+
+        var limit: Int {
+            switch self {
+            case .cardLine: 90
+            case .shareLine: 60
+            }
+        }
+    }
+
+    static func lines(_ kind: LineKind, _ p: PersonFacts) -> String {
+        let name = String(p.name.prefix(40)).replacingOccurrences(of: "\"", with: "'")
+        switch kind {
+        case .cardLine:
+            return """
+            \(facts(p))
+
+            Write 3 different lines for the inside of a digital card to \(name) for \(p.occasion.subject(name: name)). \
+            Each is at most \(LineKind.cardLine.limit) characters, warm and plain, written by the sender directly to \(name) \
+            ("you"). Use one fact where it fits naturally. No he, she or they for \(name). No emoji, no hashtags, no dashes.
+            """
+        case .shareLine:
+            // Public: only the name and the occasion, never loves, sizes, notes or past years.
+            var publicFacts = "Name: \"\(name)\"\nOccasion: \(p.occasion.label)"
+            if let c = p.countLine { publicFacts += "\nThis year: \(c)" }
+            return """
+            \(publicFacts)
+
+            Write 3 different short lines for a public post celebrating \(p.occasion.subject(name: name)). \
+            Each is at most \(LineKind.shareLine.limit) characters, warm and plain. No private details. \
+            No he, she or they for \(name). No emoji, no hashtags, no dashes.
+            """
+        }
+    }
+
+    /// Cleans a written line: one line, no wrapping quotes, dashes made commas, within the kind's limit.
+    static func cleanLine(_ s: String, kind: LineKind) -> String? {
+        var t = s.replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: " \u{2014} ", with: ", ").replacingOccurrences(of: "\u{2014}", with: ", ")
+            .replacingOccurrences(of: " \u{2013} ", with: ", ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let quotes: Set<Character> = ["\"", "\u{201C}", "\u{201D}", "'"]
+        while let f = t.first, quotes.contains(f) { t.removeFirst() }
+        while let l = t.last, quotes.contains(l) { t.removeLast() }
+        t = t.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, t.count <= kind.limit else { return nil }
+        return t
+    }
 }

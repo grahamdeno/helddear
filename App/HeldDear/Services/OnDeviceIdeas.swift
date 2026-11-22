@@ -65,6 +65,24 @@ enum OnDeviceIdeas {
     }
 }
 
+@Generable
+struct WrittenLines {
+    @Guide(description: "Three different short lines", .count(3))
+    var lines: [String]
+}
+
+extension OnDeviceIdeas {
+    /// Three lines for a digital card or a share card, written on this iPhone (Nov 22, 2026).
+    static func lines(_ kind: IdeaPrompts.LineKind, for facts: PersonFacts) async throws -> [String] {
+        let session = LanguageModelSession(instructions: IdeaPrompts.instructions)
+        let response = try await session.respond(to: IdeaPrompts.lines(kind, facts), generating: WrittenLines.self,
+                                                 options: GenerationOptions(temperature: 0.9))
+        var seen = Set<String>()
+        return response.content.lines.compactMap { IdeaPrompts.cleanLine($0, kind: kind) }
+            .filter { seen.insert($0.lowercased()).inserted }
+    }
+}
+
 extension PersonFacts {
     /// Facts for a person and (optionally) one Moment, from what the user saved in Held Dear.
     init(person: Person, moment: Moment?) {
