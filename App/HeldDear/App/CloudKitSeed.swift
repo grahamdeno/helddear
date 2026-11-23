@@ -1,4 +1,4 @@
-#if DEBUG
+#if DEBUG || SCHEMA_TEST
 import CoreData
 import Foundation
 

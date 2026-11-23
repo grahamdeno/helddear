@@ -34,7 +34,8 @@ jobs:
         # any other environment makes the guard fail.
         run: |
           python3 -I scripts/cloudkit_env_guard.py selftest
-          python3 -I scripts/cloudkit_env_guard.py check .github/workflows/cloudkit-schema.yml
+          python3 -I scripts/cloudkit_env_guard.py check .github/workflows/cloudkit-schema.yml .github/workflows/cloudkit-schema-test.yml
+          python3 -I scripts/cloudkit_env_guard.py container .github/workflows/cloudkit-schema-test.yml .github/workflows/schematest-testflight.yml
 
       - name: Select Xcode 26
         run: |
@@ -171,3 +172,68 @@ jobs:
           path: probe/
           retention-days: 14
           if-no-files-found: warn
+
+  # Both apps build (Nov 23, 2026): the real HeldDear target and the Schema Test target (no extensions, own container and
+  # group). Prints each app's entitlements as built, so a reviewer can read them without downloading anything. Builds
+  # only; uploads and deploys nothing.
+  schema-test-build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
+          sudo xcode-select -s "$XC"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build both targets, Debug and Release, for the simulator
+        run: |
+          set -o pipefail
+          mkdir -p build-logs
+          for SCHEME in HeldDear HeldDearSchemaTest; do
+            for CONFIG in Debug Release; do
+              xcodebuild build -project HeldDear.xcodeproj -scheme "$SCHEME" -configuration "$CONFIG" \
+                -destination "generic/platform=iOS Simulator" -derivedDataPath "build/dd-$SCHEME-$CONFIG" \
+                CODE_SIGNING_ALLOWED=NO > "build-logs/$SCHEME-$CONFIG.log" 2>&1 \
+                || { grep -E "error:" "build-logs/$SCHEME-$CONFIG.log" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done; tail -40 "build-logs/$SCHEME-$CONFIG.log"; exit 1; }
+              echo "$SCHEME $CONFIG: built"
+            done
+          done
+
+      - name: Print each app's entitlements and identifiers as built
+        run: |
+          for SCHEME in HeldDear HeldDearSchemaTest; do
+            for CONFIG in Debug Release; do
+              echo "::group::$SCHEME $CONFIG"
+              APP=$(find "build/dd-$SCHEME-$CONFIG/Build/Products" -maxdepth 3 -name "$SCHEME.app" | head -1)
+              /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+              /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist"
+              /usr/libexec/PlistBuddy -c 'Print :HeldDearCloudKitEnvironment' "$APP/Info.plist" || true
+              /usr/libexec/PlistBuddy -c 'Print :HeldDearCloudKitContainer' "$APP/Info.plist" 2>/dev/null || echo "(no HeldDearCloudKitContainer key: the app uses its own container)"
+              /usr/libexec/PlistBuddy -c 'Print :HeldDearAppGroup' "$APP/Info.plist" 2>/dev/null || echo "(no HeldDearAppGroup key: the app uses its own group)"
+              echo "extensions: $(ls "$APP/PlugIns" 2>/dev/null | tr '\n' ' ')"
+              XCENT=$(find "build/dd-$SCHEME-$CONFIG/Build/Intermediates.noindex" -name "$SCHEME.app.xcent" | head -1)
+              if [ -n "$XCENT" ]; then echo "--- entitlements as built ($XCENT)"; cat "$XCENT"; else echo "::warning::no .xcent file found"; fi
+              echo "::endgroup::"
+            done
+          done
+
+      - name: The Schema Test app has its own identifiers and no extensions
+        run: |
+          APP=$(find build/dd-HeldDearSchemaTest-Release/Build/Products -maxdepth 3 -name HeldDearSchemaTest.app | head -1)
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "com.grahamdeno.helddear.schematest" ] || { echo '::error::wrong bundle ID'; exit 1; }
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :HeldDearCloudKitContainer' "$APP/Info.plist")" = "iCloud.com.grahamdeno.helddear.schematest" ] || { echo '::error::wrong container'; exit 1; }
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :HeldDearAppGroup' "$APP/Info.plist")" = "group.com.grahamdeno.helddear.schematest" ] || { echo '::error::wrong group'; exit 1; }
+          [ ! -d "$APP/PlugIns" ] || { echo '::error::the test app must have no extensions'; exit 1; }
+          REAL=$(find build/dd-HeldDear-Release/Build/Products -maxdepth 3 -name HeldDear.app | head -1)
+          if /usr/libexec/PlistBuddy -c 'Print :HeldDearCloudKitContainer' "$REAL/Info.plist" 2>/dev/null; then echo '::error::the real app must not carry the test container key'; exit 1; fi
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$REAL/Info.plist")" = "com.grahamdeno.helddear" ] || { echo '::error::real bundle ID changed'; exit 1; }
+          echo "Both apps are as intended."

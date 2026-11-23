@@ -22,6 +22,7 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
   at 34fdc3d (PR #10, Home name follows the timeline), uploaded Nov 14.
 - **Branches:** `main` and `testflight` are at the same commit (34fdc3d). PRs #1 to #10 are closed; every one but #4
   was merged (#4's contact picker fix went in with #5). The repo's default branch was `build/v1` until Nov 23, 2026; it is now `main`.
+- **Schema Test app (Nov 23, 2026, PR in review):** target `HeldDearSchemaTest`, bundle `com.grahamdeno.helddear.schematest`, container `iCloud.com.grahamdeno.helddear.schematest`, group `group.com.grahamdeno.helddear.schematest`, App Store Connect record "Held Dear Schema Test" (Apple ID 6838458371). It saves a short set and a long set of every record type and shows what iCloud accepted. Never part of the real app. Workflows `schematest-testflight.yml` and `cloudkit-schema-test.yml` run by hand with Graham's go.
 - **Server:** Vercel project helddear-mail is live in production (helddear-mail.vercel.app), last deployed Nov 13.
   Mailed cards run in Handwrytten and Stripe test mode. Family pages store on Vercel Blob and are deleted 30 days
   after the day.
