@@ -38,4 +38,23 @@ final class ShareCardLayoutTests: XCTestCase {
         XCTAssertTrue(r.contains(face))
         XCTAssertTrue(CGRect(origin: .zero, size: size).contains(r.integral.insetBy(dx: 1, dy: 1)))
     }
+
+    // Several photos (Nov 22, 2026)
+    func testSlideshowRunsBeforeTheLineAndStaysUnderAStory() {
+        XCTAssertEqual(ShareCardLayout.lead(photos: 0), 0)
+        XCTAssertEqual(ShareCardLayout.lead(photos: 1), 0)
+        XCTAssertEqual(ShareCardLayout.lead(photos: 3), 2 * GreetingCard.perPhoto, accuracy: 0.001)
+        XCTAssertEqual(ShareCardLayout.duration(photos: 1), ShareCardLayout.duration, accuracy: 0.001)
+        XCTAssertLessThan(ShareCardLayout.duration(photos: ShareCardLayout.maxPhotos), 15, "a Story is 15 seconds")
+    }
+
+    func testTappingAddsInOrderRemovesAndStopsAtFive() {
+        var picked: [Int] = []
+        for i in [4, 0, 7] { picked = ShareCardLayout.toggled(picked, i) }
+        XCTAssertEqual(picked, [4, 0, 7], "the order tapped is the slideshow's order")
+        picked = ShareCardLayout.toggled(picked, 0)
+        XCTAssertEqual(picked, [4, 7])
+        for i in 10..<20 { picked = ShareCardLayout.toggled(picked, i) }
+        XCTAssertEqual(picked.count, ShareCardLayout.maxPhotos)
+    }
 }

@@ -6,7 +6,13 @@ struct ShareCardContent {
     var subline: String
     var date: Date
     var note: String
-    var photo: UIImage?
+    /// One photo for a still card; several play as a slideshow first in the moving version (Nov 22, 2026). The first
+    /// is the still card's photo.
+    var photos: [UIImage] = []
+    /// The user's name under the line, as on the digital card ("Love, Graham"). Empty leaves it off.
+    var signature: String = ""
+
+    var photo: UIImage? { photos.first }
 }
 
 /// The share image (approved Nov 21, 2026): the photo across the top fading into the page, the name large, one
@@ -22,7 +28,8 @@ struct ShareCardView: View {
 
     let content: ShareCardContent
     let shape: Shape
-    var time: Double = ShareCardLayout.duration
+    /// The moment shown. nil is the still card (the last moment, with the first photo).
+    var time: Double? = nil
 
     private let width: CGFloat = 390
     private let ink = Color(red: 0.937, green: 0.910, blue: 0.863)
@@ -36,8 +43,11 @@ struct ShareCardView: View {
         shape == .post ? Spots(name: 226, sub: 312, note: 348, line: 432) : Spots(name: 396, sub: 486, note: 612, line: 560)
     }
 
+    /// The slideshow runs first; everything else starts after it, on the same timing as before.
+    private var lead: Double { ShareCardLayout.lead(photos: content.photos.count) }
+
     var body: some View {
-        let t = time
+        let t = time.map { $0 - lead } ?? ShareCardLayout.duration
         let r = ShareCardLayout.ramp
         ZStack(alignment: .topLeading) {
             page
@@ -55,13 +65,24 @@ struct ShareCardView: View {
                 .frame(width: width - 48)
                 .position(x: width / 2, y: spots.sub + 14)
                 .opacity(r(t, 3.75, 4.4)).offset(y: 10 * (1 - r(t, 3.75, 4.4)))
-            if !content.note.isEmpty {
-                Text(content.note)
-                    .font(Brand.display(17, relativeTo: .body, italic: true)).foregroundStyle(soft)
-                    .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.7)
-                    .frame(width: width - 60)
-                    .position(x: width / 2, y: spots.note + 12)
-                    .opacity(r(t, 4.3, 4.95))
+            if !content.note.isEmpty || !content.signature.isEmpty {
+                // The ending, as on the digital card: the line, then the user's name.
+                VStack(spacing: 6) {
+                    if !content.note.isEmpty {
+                        Text(content.note)
+                            .font(Brand.display(17, relativeTo: .body, italic: true)).foregroundStyle(soft)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(shape == .post && !content.signature.isEmpty ? 1 : 2).minimumScaleFactor(0.7)
+                            .opacity(r(t, 4.3, 4.95))
+                    }
+                    if !content.signature.isEmpty {
+                        Text(content.signature).font(.system(size: 13, weight: .medium)).tracking(0.6).foregroundStyle(muted)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .opacity(r(t, 4.7, 5.35))
+                    }
+                }
+                .frame(width: width - 60)
+                .position(x: width / 2, y: spots.note + (content.signature.isEmpty || content.note.isEmpty ? 12 : 20))
             }
             timeline(t)
             Text("HELD DEAR").font(.system(size: 10, weight: .regular)).tracking(1.6).foregroundStyle(muted.opacity(0.8))
@@ -76,14 +97,18 @@ struct ShareCardView: View {
 
     @ViewBuilder private func photo(_ t: Double) -> some View {
         let r = ShareCardLayout.ramp
-        let bright = r(t, 2.6, 3.9)
+        let n = content.photos.count
         ZStack {
-            if let photo = content.photo {
-                Image(uiImage: photo).resizable().scaledToFill()
-                    .frame(width: width, height: shape.photoHeight)
-                    .scaleEffect(1.06 - 0.06 * bright)
-                    .clipped()
-                    .opacity(0.25 + 0.75 * bright)
+            if n > 1, let raw = time {
+                // The slideshow, on the digital card's beat; the last photo stays bright under the line and the words.
+                let slide = GreetingCard.slide(at: min(raw, lead + 0.5), photos: n)
+                if slide.index > 0 { image(content.photos[slide.index - 1], zoom: 1) }
+                image(content.photos[slide.index],
+                      zoom: 1.04 - 0.04 * min(1, max(0, raw - Double(slide.index) * GreetingCard.perPhoto) / GreetingCard.perPhoto))
+                    .opacity(slide.fade)
+            } else if let photo = content.photo {
+                let bright = n > 1 ? 1 : r(t, 2.6, 3.9)
+                image(photo, zoom: 1.06 - 0.06 * bright).opacity(0.25 + 0.75 * bright)
             }
             LinearGradient(stops: [
                 .init(color: page.opacity(0.25), location: 0), .init(color: page.opacity(0), location: 0.2),
@@ -92,6 +117,13 @@ struct ShareCardView: View {
             ], startPoint: .top, endPoint: .bottom)
         }
         .frame(width: width, height: shape.photoHeight)
+    }
+
+    private func image(_ photo: UIImage, zoom: Double) -> some View {
+        Image(uiImage: photo).resizable().scaledToFill()
+            .frame(width: width, height: shape.photoHeight)
+            .scaleEffect(zoom)
+            .clipped()
     }
 
     @ViewBuilder private func timeline(_ t: Double) -> some View {
