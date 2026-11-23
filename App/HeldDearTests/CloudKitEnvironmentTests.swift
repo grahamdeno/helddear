@@ -34,17 +34,24 @@ final class CloudKitEnvironmentTests: XCTestCase {
         XCTAssertTrue(yml.contains("Release:\n          HELDDEAR_CLOUDKIT_ENVIRONMENT: Production"))
     }
 
-    func testRecordTypeNotFoundReadsAsNotReady() {
-        let unknown = NSError(domain: CKErrorDomain, code: CKError.unknownItem.rawValue)
-        XCTAssertTrue(ICloudSync.isSchemaNotReady(unknown))
-        let wrapped = NSError(domain: NSCocoaErrorDomain, code: 134060, userInfo: [NSUnderlyingErrorKey: unknown])
-        XCTAssertTrue(ICloudSync.isSchemaNotReady(wrapped), "found under another error")
-        let partial = NSError(domain: CKErrorDomain, code: CKError.partialFailure.rawValue,
-                              userInfo: [CKPartialErrorsByItemIDKey: ["zone": unknown]])
-        XCTAssertTrue(ICloudSync.isSchemaNotReady(partial), "found in a partial failure")
+    func testARecordTypeMessageReadsAsNotReady() {
         let message = NSError(domain: CKErrorDomain, code: CKError.serverRejectedRequest.rawValue,
                               userInfo: [NSLocalizedDescriptionKey: "Did not find record type: CD_Person"])
-        XCTAssertTrue(ICloudSync.isSchemaNotReady(message), "found in the server's words")
+        XCTAssertTrue(ICloudSync.isSchemaNotReady(message), "a server rejected request that names a record type")
+        let alone = NSError(domain: NSCocoaErrorDomain, code: 134404, userInfo: [NSLocalizedDescriptionKey: "Unknown record type CD_Wish"])
+        XCTAssertTrue(ICloudSync.isSchemaNotReady(alone), "the wording alone, whatever the code")
+        let wrapped = NSError(domain: NSCocoaErrorDomain, code: 134060, userInfo: [NSUnderlyingErrorKey: message])
+        XCTAssertTrue(ICloudSync.isSchemaNotReady(wrapped), "found under another error")
+        let partial = NSError(domain: CKErrorDomain, code: CKError.partialFailure.rawValue,
+                              userInfo: [CKPartialErrorsByItemIDKey: ["zone": message]])
+        XCTAssertTrue(ICloudSync.isSchemaNotReady(partial), "found in a partial failure")
+    }
+
+    func testAPlainUnknownItemErrorIsNotReadAsNotReady() {
+        let unknown = NSError(domain: CKErrorDomain, code: CKError.unknownItem.rawValue)
+        XCTAssertFalse(ICloudSync.isSchemaNotReady(unknown), "an unknown item can be anything: a record, a zone, a share")
+        let wrapped = NSError(domain: NSCocoaErrorDomain, code: 134060, userInfo: [NSUnderlyingErrorKey: unknown])
+        XCTAssertFalse(ICloudSync.isSchemaNotReady(wrapped))
     }
 
     func testOtherErrorsAreNotReadAsNotReady() {
@@ -57,8 +64,9 @@ final class CloudKitEnvironmentTests: XCTestCase {
 
     func testTheYouPageLine() {
         XCTAssertEqual(ICloudSync.notReadyLine, "iCloud sync isn't ready yet. Everything is safe on this iPhone.")
-        let unknown = NSError(domain: CKErrorDomain, code: CKError.unknownItem.rawValue)
-        XCTAssertEqual(ICloudSync.problemLine("Sent didn't finish", unknown), ICloudSync.notReadyLine)
+        let notFound = NSError(domain: CKErrorDomain, code: CKError.serverRejectedRequest.rawValue,
+                               userInfo: [NSLocalizedDescriptionKey: "Did not find record type: CD_Person"])
+        XCTAssertEqual(ICloudSync.problemLine("Sent didn't finish", notFound), ICloudSync.notReadyLine)
         let other = NSError(domain: CKErrorDomain, code: CKError.networkUnavailable.rawValue)
         XCTAssertTrue(ICloudSync.problemLine("Sent didn't finish", other).hasPrefix("Sent didn't finish: "), "other errors keep their reason")
     }
@@ -70,6 +78,11 @@ final class CloudKitEnvironmentTests: XCTestCase {
         XCTAssertFalse(yml.contains("pull_request") || yml.contains("push:") || yml.contains("schedule:"), "started by hand only")
         XCTAssertTrue(yml.contains("CLOUDKIT_MANAGEMENT_TOKEN"))
         XCTAssertTrue(yml.contains("--validate"), "validated before the import")
+        XCTAssertFalse(yml.contains("save-token"), "the token comes from the environment of each step")
+        XCTAssertEqual(yml.components(separatedBy: "CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}").count - 1, 3,
+                       "validate, import and export each take the token as environment")
+        XCTAssertTrue(yml.contains("export-schema"), "the schema is exported after the import")
+        XCTAssertTrue(yml.contains("exported.ckdb"))
         XCTAssertFalse(yml.lowercased().contains("pro" + "duction"))
     }
 }

@@ -19,8 +19,9 @@ final class CloudKitSchemaTests: XCTestCase {
         for entity in model.entities {
             let body = lines(of: entity, in: text)
             for (name, a) in entity.attributesByName {
-                let field = CloudKitSchema.field(for: a).name
-                XCTAssertEqual(body.filter { $0.hasPrefix("\"\(field)\" ") }.count, 1, "\(entity.name!).\(name)")
+                for field in CloudKitSchema.fields(for: a).map(\.name) {
+                    XCTAssertEqual(body.filter { $0.hasPrefix("\"\(field)\" ") }.count, 1, "\(entity.name!).\(name) -> \(field)")
+                }
             }
             for (name, r) in entity.relationshipsByName {
                 let count = body.filter { $0.hasPrefix("\"CD_\(name)\" ") }.count
@@ -51,8 +52,16 @@ final class CloudKitSchemaTests: XCTestCase {
         XCTAssertTrue(occasion.contains("\"CD_month\" INT64,"))
         XCTAssertTrue(occasion.contains("\"CD_person\" STRING,"), "a to-one link is a STRING record name")
         let photo = lines(of: model.entitiesByName["Photo"]!, in: text)
-        XCTAssertTrue(photo.contains("\"CD_data_ckAsset\" ASSET,"), "a large binary is an asset")
-        XCTAssertFalse(photo.contains { $0.hasPrefix("\"CD_data\" ") }, "and has no second BYTES line")
+        XCTAssertTrue(photo.contains("\"CD_data\" BYTES,"), "a large binary keeps its bytes field")
+        XCTAssertTrue(photo.contains("\"CD_data_ckAsset\" ASSET,"), "and has its asset field")
+        // Every attribute kept outside the database gets both fields, in every record type.
+        for entity in model.entities {
+            for (_, a) in entity.attributesByName where a.allowsExternalBinaryDataStorage {
+                let body = lines(of: entity, in: text)
+                XCTAssertTrue(body.contains("\"CD_\(a.name)\" BYTES,"), "\(entity.name!).\(a.name)")
+                XCTAssertTrue(body.contains("\"CD_\(a.name)_ckAsset\" ASSET,"), "\(entity.name!).\(a.name)")
+            }
+        }
     }
 
     func testEncryptedFieldsAreExactlyTheModelsEncryptedAttributes() {
@@ -67,10 +76,54 @@ final class CloudKitSchemaTests: XCTestCase {
         }
     }
 
-    func testTheOwnerKeyOfAFamilyPageIsStillAFieldTheModelHas() {
-        // Not a schema decision: the file mirrors the model. If a field is ever removed from the model, it leaves the file.
-        XCTAssertNotNil(model.entitiesByName["Moment"]?.attributesByName["familyOwnerKey"])
-        XCTAssertTrue(CloudKitSchema.ckdb(for: model).contains("\"CD_familyOwnerKey\" STRING,"))
+    func testTheFamilyPageFieldsAreEncryptedInICloud() {
+        let moment = lines(of: model.entitiesByName["Moment"]!, in: CloudKitSchema.ckdb(for: model))
+        for name in ["familyOwnerKey", "familyInviteURL", "familyGiftURL"] {
+            XCTAssertTrue(model.entitiesByName["Moment"]?.attributesByName[name]?.allowsCloudEncryption == true, name)
+            XCTAssertTrue(moment.contains("\"CD_\(name)\" ENCRYPTED STRING,"), name)
+        }
+        XCTAssertFalse(moment.contains("\"CD_familyPageID\" ENCRYPTED STRING,"), "the page id is not a secret and stays plain")
+    }
+
+    /// A store written by the 3.2 model as it was before the family-page fields were encrypted (the same model with
+    /// that flag off) opens with the new model as it is: no upgrade step, nothing kept aside, the value intact.
+    func testAStoreFromBeforeTheChangeOpensWithTheNewModelWithoutAnUpgrade() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("FamilyFields-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("HeldDear.sqlite")
+
+        let before = model.copy() as! NSManagedObjectModel
+        for name in ["familyOwnerKey", "familyInviteURL", "familyGiftURL"] {
+            before.entitiesByName["Moment"]!.attributesByName[name]!.allowsCloudEncryption = false
+        }
+        XCTAssertEqual(before.entityVersionHashesByName, model.entityVersionHashesByName,
+                       "the encryption flag does not change the model's version, so no upgrade step is needed")
+
+        do {
+            let old = NSPersistentContainer(name: "HeldDear", managedObjectModel: before)
+            let d = NSPersistentStoreDescription(url: url)
+            d.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            old.persistentStoreDescriptions = [d]
+            var failure: Error?
+            old.loadPersistentStores { _, e in failure = e }
+            XCTAssertNil(failure)
+            let m = NSEntityDescription.insertNewObject(forEntityName: "Moment", into: old.viewContext)
+            m.setValue(UUID(), forKey: "id")
+            m.setValue("page-1", forKey: "familyPageID")
+            m.setValue("owner-key-1", forKey: "familyOwnerKey")
+            m.setValue("https://example.invalid/invite", forKey: "familyInviteURL")
+            try old.viewContext.save()
+            for store in old.persistentStoreCoordinator.persistentStores { try old.persistentStoreCoordinator.remove(store) }
+        }
+
+        let opened = Store.open(url: url, copyFromLegacy: false)
+        XCTAssertEqual(opened.outcome, .opened)
+        XCTAssertNil(opened.keptStoreURL, "nothing was kept aside")
+        let moments = try HeldDear.ModelContext(opened.container).fetch(HeldDear.FetchDescriptor<Moment>())
+        XCTAssertEqual(moments.count, 1)
+        XCTAssertEqual(moments.first?.familyOwnerKey, "owner-key-1")
+        XCTAssertEqual(moments.first?.familyInviteURL, "https://example.invalid/invite")
     }
 
     func testTheOutputIsTheSameEveryTime() {

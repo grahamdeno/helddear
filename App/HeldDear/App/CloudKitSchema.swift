@@ -13,16 +13,22 @@ enum CloudKitSchema {
     /// The mapping, one line per attribute and per to-one link:
     /// - a record type `CD_<Entity>` with `CD_entityName`;
     /// - a field `CD_<attribute>`: strings, UUIDs and URLs are STRING; integers and booleans INT64; doubles DOUBLE;
-    ///   dates TIMESTAMP; binary BYTES; an attribute kept outside the database as a large file is `CD_<attribute>_ckAsset` ASSET;
+    ///   dates TIMESTAMP; binary BYTES; an attribute kept outside the database as a large file also has `CD_<attribute>_ckAsset` ASSET;
     ///   an attribute that iCloud encrypts is ENCRYPTED STRING (or ENCRYPTED type);
     /// - a to-one link is `CD_<link>`, a STRING holding the other record's name. A to-many link has no field of its
     ///   own: its to-one inverse holds it.
     /// - every record type has the indexes recordName QUERYABLE and CD_entityName QUERYABLE.
-    static func field(for attribute: NSAttributeDescription) -> (name: String, line: String) {
+    static func fields(for attribute: NSAttributeDescription) -> [(name: String, line: String)] {
+        let own = field(for: attribute)
         if attribute.attributeType == .binaryDataAttributeType, attribute.allowsExternalBinaryDataStorage {
-            let name = "CD_\(attribute.name)_ckAsset"
-            return (name, "\"\(name)\" ASSET")
+            // A large binary keeps its bytes (small values stay in the record) and its asset (large ones).
+            let asset = "CD_\(attribute.name)_ckAsset"
+            return [own, (asset, "\"\(asset)\" ASSET")]
         }
+        return [own]
+    }
+
+    static func field(for attribute: NSAttributeDescription) -> (name: String, line: String) {
         let type: String
         switch attribute.attributeType {
         case .stringAttributeType, .UUIDAttributeType, .URIAttributeType: type = "STRING"
@@ -44,7 +50,7 @@ enum CloudKitSchema {
     /// The fields of one record type, in name order.
     static func fields(of entity: NSEntityDescription) -> [(name: String, line: String)] {
         var list: [(name: String, line: String)] = []
-        for (_, a) in entity.attributesByName { list.append(field(for: a)) }
+        for (_, a) in entity.attributesByName { list += fields(for: a) }
         for (_, r) in entity.relationshipsByName { if let f = field(for: r) { list.append(f) } }
         return list.sorted { $0.name < $1.name }
     }

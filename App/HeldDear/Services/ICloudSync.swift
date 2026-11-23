@@ -28,14 +28,13 @@ enum ICloudSync {
     /// What the You page says when iCloud has no record types for the app yet.
     static let notReadyLine = "iCloud sync isn't ready yet. Everything is safe on this iPhone."
 
-    /// True for the "record type not found" class of iCloud errors: the container has no record types yet (CloudKit's
-    /// unknown item error, or a server message that says a record type wasn't found), at any depth of the error.
+    /// True for the "record type not found" class of iCloud errors: the wording, at any depth of the error, mentions a
+    /// record type (alone, or with a server rejected request). An unknown item error without that wording is not it.
     static func isSchemaNotReady(_ error: NSError, depth: Int = 0) -> Bool {
         guard depth < 6 else { return false }
-        if error.domain == CKErrorDomain, error.code == CKError.unknownItem.rawValue { return true }
         let words = [error.localizedDescription, error.userInfo[NSLocalizedFailureReasonErrorKey] as? String ?? "",
                      error.userInfo["ServerErrorDescription"] as? String ?? ""].joined(separator: " ").lowercased()
-        if words.contains("record type"), words.contains("not found") || words.contains("did not find") || words.contains("unknown") { return true }
+        if words.contains("record type") { return true }
         var inner: [NSError] = []
         if let u = error.userInfo[NSUnderlyingErrorKey] as? NSError { inner.append(u) }
         if let d = error.userInfo[NSDetailedErrorsKey] as? [NSError] { inner += d }

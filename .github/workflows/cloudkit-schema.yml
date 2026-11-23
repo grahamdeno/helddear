@@ -26,21 +26,37 @@ jobs:
           if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
           sudo xcode-select -s "$XC"
 
-      - name: Save the management token for cktool (never printed)
+      - name: Validate the schema (development)
         env:
           CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
         run: |
           if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
-          printf '%s' "$CLOUDKIT_MANAGEMENT_TOKEN" | xcrun cktool save-token --type management > /dev/null
-
-      - name: Validate the schema (development)
-        run: |
           xcrun cktool import-schema --validate \
             --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear \
             --environment development --file cloudkit/schema.ckdb
 
       - name: Import the schema (development)
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
         run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
           xcrun cktool import-schema \
             --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear \
             --environment development --file cloudkit/schema.ckdb
+
+      - name: Export the schema as Apple now holds it (development)
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
+          xcrun cktool export-schema \
+            --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear \
+            --environment development --output-file exported.ckdb
+
+      - name: Upload the export, to diff against cloudkit/schema.ckdb
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudkit-development-schema-export
+          path: exported.ckdb
+          retention-days: 30
+          if-no-files-found: error
