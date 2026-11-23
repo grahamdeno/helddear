@@ -41,6 +41,8 @@ struct PersonView: View {
     @State private var editingPortrait = false
     @State private var addingOccasion = false
     @State private var occasionToEdit: Occasion?
+    /// The anniversary whose other half is being picked (Nov 22, 2026).
+    @State private var partnerFor: Occasion?
     @State private var showIdeas = false
     @State private var sendingCard = false
     @State private var sharingDay: Moment?
@@ -97,6 +99,11 @@ struct PersonView: View {
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingPortrait) { PortraitEditor(person: person).presentationDetents([.large]) }
         .sheet(isPresented: $addingOccasion) { AddOccasionView(person: person) }
+        .sheet(item: $partnerFor) { o in
+            PartnerPicker(owner: o.person ?? person, current: o.partnerName, currentID: model.linkedPartner(of: o)?.id) { picked, typed in
+                model.setPartner(o, person: picked, typed: typed)
+            }
+        }
         .sheet(isPresented: $editingAddress) { AddressEditor(person: person) }
         .onAppear {
             // From the six-week "What does Ana love?" alert.
@@ -110,10 +117,11 @@ struct PersonView: View {
         }
         .sheet(isPresented: $editingPhone) { PhoneEditor(person: person).presentationDetents([.medium]) }
         .sheet(isPresented: $showIdeas) { IdeasSheet(person: person, moment: model.nextMoment(for: person)) }
-        .confirmationDialog(occasionToEdit.map { $0.type.subject(name: person.name, partner: $0.partnerName) } ?? "",
+        .confirmationDialog(occasionToEdit.map { $0.type.subject(name: ($0.person ?? person).name, partner: $0.partnerName) } ?? "",
                             isPresented: Binding(get: { occasionToEdit != nil }, set: { if !$0 { occasionToEdit = nil } }),
                             titleVisibility: .visible) {
             if let o = occasionToEdit, o.type == .anniversary {
+                Button(o.partnerName == nil ? "Who it's with" : "Change who it's with") { partnerFor = o }
                 let has = OccasionPhotos.file(for: o.id) != nil
                 Button(has ? "Change the couple photo" : "Add a couple photo") { couplePhotoFor = o }
                 if has { Button("Remove the couple photo") { OccasionPhotos.set(nil, for: o.id); model.save() } }
@@ -182,6 +190,9 @@ struct PersonView: View {
                     .padding(.horizontal, -Brand.space5)
                 VStack(alignment: .leading, spacing: Brand.space5) {
                     actionsRow
+                    if let offer = model.combineOffer(for: person) {
+                        CombineAnniversaryCard(keep: offer.keep, drop: offer.drop)
+                    }
                     if let next = model.nextMoment(for: person) {
                         FamilyInSuggestion(person: person, moment: next) { followUp in
                             familyAsk = FamilyAsk(moment: next, followUp: followUp)
@@ -380,6 +391,9 @@ struct PersonView: View {
 
     private func dayTitle(_ o: Occasion) -> String {
         if o.type == .birthday { return "Birthday" }
+        if o.type == .anniversary, let owner = o.person, owner.id != person.id {
+            return "Anniversary with \(DisplayName.plain(owner.name))"
+        }
         if o.type == .anniversary, let p = o.partnerName { return "Anniversary with \(p)" }
         return o.type.title(partner: o.partnerName)
     }
@@ -586,7 +600,7 @@ struct PersonView: View {
     private var planMoments: [Moment] {
         let today = Calendar.current.startOfDay(for: Date())
         let horizon = Calendar.current.date(byAdding: .day, value: 366, to: today) ?? today
-        var moments = person.occasions.flatMap(\.moments)
+        var moments = (person.occasions + model.sharedAnniversaries(for: person)).flatMap(\.moments)
             .filter { $0.dueDate >= today && $0.dueDate <= horizon && $0.status != .missed }
             .sorted { $0.dueDate < $1.dueDate }
         if let focus, !moments.contains(where: { $0.id == focus }),
@@ -810,7 +824,7 @@ struct PersonView: View {
     }
 
     private var sortedOccasions: [Occasion] {
-        person.occasions.sorted { a, b in
+        (person.occasions + model.sharedAnniversaries(for: person)).sorted { a, b in
             if a.type == .birthday { return true }
             if b.type == .birthday { return false }
             return (nextDate(a) ?? .distantFuture) < (nextDate(b) ?? .distantFuture)
@@ -1253,6 +1267,9 @@ struct AddOccasionView: View {
     @State private var date = Date()
     @State private var knowsYear = false
     @State private var partner = ""
+    /// The other half picked from the user's people (Nov 22, 2026), and whether that picker is open.
+    @State private var partnerID: UUID?
+    @State private var pickingPartner = false
 
     var body: some View {
         if let type { dateStep(type) } else { pickStep }
@@ -1331,7 +1348,25 @@ struct AddOccasionView: View {
             DatePicker(t.label, selection: $date, displayedComponents: .date)
                 .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
             if t == .anniversary {
-                LineField(label: "With (optional)", text: $partner, placeholder: "Dad", showsDictation: false)
+                Button { pickingPartner = true } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Married to (optional)").textStyle(.caption, color: Brand.inkMuted)
+                            Text(partner.isEmpty ? "Choose" : partner).textStyle(.body, color: partner.isEmpty ? Brand.action : Brand.ink)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(Brand.inkMuted)
+                    }
+                    .frame(minHeight: 56).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(partner.isEmpty ? "Married to, optional. Choose" : "Married to \(partner). Change")
+                .sheet(isPresented: $pickingPartner) {
+                    PartnerPicker(owner: person, current: partner.nilIfEmpty, currentID: partnerID) { picked, typed in
+                        partnerID = picked?.id
+                        partner = picked?.name ?? typed ?? ""
+                    }
+                }
             }
             if t == .anniversary || t == .birthday {
                 Toggle(t.yearLabel, isOn: $knowsYear).textStyle(.body).tint(Brand.action)
@@ -1348,7 +1383,8 @@ struct AddOccasionView: View {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
         let year: Int? = t.kind == .once ? c.year : ((t == .anniversary || t == .birthday) && knowsYear ? c.year : nil)
         model.addOccasion(person, type: t, month: c.month ?? 1, day: c.day ?? 1, year: year,
-                          partnerName: t == .anniversary || t == .event ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil)
+                          partnerName: t == .anniversary || t == .event ? partner.trimmingCharacters(in: .whitespaces).nilIfEmpty : nil,
+                          partnerID: t == .anniversary ? partnerID : nil)
         dismiss()
     }
 }
