@@ -1,0 +1,46 @@
+name: cloudkit-schema
+
+# Changes the CloudKit Development schema only, from cloudkit/schema.ckdb. Started by hand, with Graham's go.
+# It never touches the live environment: the guard step below fails the run if this file names any other.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import-development-schema:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if this workflow names any other environment
+        run: |
+          python3 -I scripts/cloudkit_env_guard.py selftest
+          python3 -I scripts/cloudkit_env_guard.py check .github/workflows/cloudkit-schema.yml
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
+          sudo xcode-select -s "$XC"
+
+      - name: Save the management token for cktool (never printed)
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
+          printf '%s' "$CLOUDKIT_MANAGEMENT_TOKEN" | xcrun cktool save-token --type management > /dev/null
+
+      - name: Validate the schema (development)
+        run: |
+          xcrun cktool import-schema --validate \
+            --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear \
+            --environment development --file cloudkit/schema.ckdb
+
+      - name: Import the schema (development)
+        run: |
+          xcrun cktool import-schema \
+            --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear \
+            --environment development --file cloudkit/schema.ckdb

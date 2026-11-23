@@ -76,4 +76,29 @@ final class CloudKitSchemaTests: XCTestCase {
     func testTheOutputIsTheSameEveryTime() {
         XCTAssertEqual(CloudKitSchema.ckdb(for: model), CloudKitSchema.ckdb(for: model))
     }
+
+    // MARK: The file in the repo
+
+    private static let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+
+    /// The generator writes cloudkit/schema.ckdb (set WRITE_CLOUDKIT_SCHEMA=1 to rewrite it), and the file in the
+    /// repo is always exactly what the model makes. A change to the model without a new file fails here.
+    func testTheSchemaFileIsExactlyWhatTheModelMakes() throws {
+        let url = Self.repo.appendingPathComponent("cloudkit/schema.ckdb")
+        let made = CloudKitSchema.ckdb(for: model)
+        if ProcessInfo.processInfo.environment["WRITE_CLOUDKIT_SCHEMA"] == "1" {
+            try made.write(to: url, atomically: true, encoding: .utf8)
+        }
+        let saved = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertEqual(saved, made, "cloudkit/schema.ckdb is out of date: run this test with WRITE_CLOUDKIT_SCHEMA=1")
+    }
+
+    func testTheSchemaFileNamesNoEnvironmentAndNoSecretsAndOnlyCDTypes() throws {
+        let saved = try String(contentsOf: Self.repo.appendingPathComponent("cloudkit/schema.ckdb"), encoding: .utf8)
+        XCTAssertTrue(saved.hasPrefix("DEFINE SCHEMA"))
+        for line in saved.split(separator: "\n") where line.contains("RECORD TYPE") {
+            XCTAssertTrue(line.contains("RECORD TYPE CD_"), "\(line)")
+        }
+        XCTAssertFalse(saved.lowercased().contains("environment"))
+    }
 }

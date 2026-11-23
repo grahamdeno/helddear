@@ -16,9 +16,38 @@ enum ICloudSync {
         set { UserDefaults.standard.set(newValue, forKey: settingKey) }
     }
 
-    /// Which CloudKit environment this build uses (Info.plist, matching the entitlement). Development until the
-    /// schema is deployed to production with Graham's go.
+    /// Which CloudKit environment this build uses. It comes from the build setting HELDDEAR_CLOUDKIT_ENVIRONMENT, which
+    /// feeds both the entitlement and Info.plist: Debug builds are Development; Release builds (TestFlight and the App
+    /// Store) are Production. The Development schema is made by the cloudkit-schema workflow from cloudkit/schema.ckdb;
+    /// this app never makes it on a phone that runs a Release build.
     static var environment: String { Bundle.main.object(forInfoDictionaryKey: "HeldDearCloudKitEnvironment") as? String ?? "Production" }
+
+    /// The app creates iCloud record types only in the Development environment, never in Production.
+    static func canInitializeSchema(in environment: String) -> Bool { environment == "Development" }
+
+    /// What the You page says when iCloud has no record types for the app yet.
+    static let notReadyLine = "iCloud sync isn't ready yet. Everything is safe on this iPhone."
+
+    /// True for the "record type not found" class of iCloud errors: the container has no record types yet (CloudKit's
+    /// unknown item error, or a server message that says a record type wasn't found), at any depth of the error.
+    static func isSchemaNotReady(_ error: NSError, depth: Int = 0) -> Bool {
+        guard depth < 6 else { return false }
+        if error.domain == CKErrorDomain, error.code == CKError.unknownItem.rawValue { return true }
+        let words = [error.localizedDescription, error.userInfo[NSLocalizedFailureReasonErrorKey] as? String ?? "",
+                     error.userInfo["ServerErrorDescription"] as? String ?? ""].joined(separator: " ").lowercased()
+        if words.contains("record type"), words.contains("not found") || words.contains("did not find") || words.contains("unknown") { return true }
+        var inner: [NSError] = []
+        if let u = error.userInfo[NSUnderlyingErrorKey] as? NSError { inner.append(u) }
+        if let d = error.userInfo[NSDetailedErrorsKey] as? [NSError] { inner += d }
+        if let partial = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: NSError] { inner += Array(partial.values) }
+        return inner.contains { isSchemaNotReady($0, depth: depth + 1) }
+    }
+
+    /// The line the You page shows for an iCloud error: a plain line when the record types aren't there yet, the full
+    /// reason otherwise.
+    static func problemLine(_ prefix: String, _ error: NSError) -> String {
+        isSchemaNotReady(error) ? notReadyLine : "\(prefix): \(reason(error))"
+    }
 
     /// The setting as it was when the store opened (a change applies at the next launch).
     static let isOnAtLaunch = isOn && !runningTests
@@ -50,7 +79,7 @@ enum ICloudSync {
             }
             if let end = event.endDate {
                 if let error = event.error as NSError? {
-                    problem = "\(kind) didn't finish: \(ICloudSync.reason(error))"
+                    problem = ICloudSync.problemLine("\(kind) didn't finish", error)
                 } else {
                     last = "\(kind) \(end.formatted(date: .omitted, time: .shortened))"
                     if event.type == .export { lastSent = end.formatted(date: .abbreviated, time: .shortened) }
@@ -191,11 +220,13 @@ enum ICloudSync {
         }
     }
 
-    /// Creates the record types in the Development environment once, so they can be checked and then deployed to
-    /// production (Graham's go). Never runs against production.
+    /// Creates the record types in the Development environment once, in a Debug build. Never runs in Production: a
+    /// Release build (TestFlight, the App Store) is signed for Production, where this call fails. The Development
+    /// schema normally comes from the cloudkit-schema workflow (cloudkit/schema.ckdb), and Graham decides when it is
+    /// deployed to Production.
     private static func initializeDevelopmentSchemaOnce(_ persistent: NSPersistentCloudKitContainer, force: Bool = false) {
         let key = "cloudKitSchemaInitialized-31"
-        guard environment == "Development", force || !UserDefaults.standard.bool(forKey: key) else { return }
+        guard canInitializeSchema(in: environment), force || !UserDefaults.standard.bool(forKey: key) else { return }
         DispatchQueue.global(qos: .utility).async {
             do {
                 try persistent.initializeCloudKitSchema(options: [])
@@ -204,7 +235,7 @@ enum ICloudSync {
             } catch {
                 // No iCloud account or no network: tried again next launch. The reason shows on the You page.
                 let e = error as NSError
-                DispatchQueue.main.async { Status.shared.problem = "Setting up iCloud didn't finish: \(ICloudSync.reason(e))" }
+                DispatchQueue.main.async { Status.shared.problem = ICloudSync.problemLine("Setting up iCloud didn't finish", e) }
             }
         }
     }

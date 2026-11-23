@@ -45,6 +45,13 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+      # The CloudKit environment, for the entitlement and for Info.plist (HeldDearCloudKitEnvironment): Debug builds
+      # use Development, Release builds (TestFlight and the App Store) use Production.
+      configs:
+        Debug:
+          HELDDEAR_CLOUDKIT_ENVIRONMENT: Development
+        Release:
+          HELDDEAR_CLOUDKIT_ENVIRONMENT: Production
   HeldDearShare:
     type: app-extension
     platform: iOS
