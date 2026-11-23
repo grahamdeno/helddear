@@ -691,7 +691,7 @@ struct PersonView: View {
                             .strikethrough(off, color: Brand.inkMuted)
                         if stop.alertID.hasPrefix("dayof-"), !past {
                             // The message itself: read it here, tap to write, change or reset it (Nov 22, 2026).
-                            let usual = m.type.greeting(name: name)
+                            let usual = m.type.greeting(name: DisplayName.plain(person.name))
                             let saved = DayMessages.message(for: m.id)
                             Button { messageFor = m } label: {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -706,7 +706,7 @@ struct PersonView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Message for \(name): \(saved ?? usual)")
+                            .accessibilityLabel("Message for \(DisplayName.plain(person.name)): \(saved ?? usual)")
                             .accessibilityHint("Opens it to write or change")
                         }
                     }
