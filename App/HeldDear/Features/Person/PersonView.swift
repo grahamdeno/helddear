@@ -670,9 +670,12 @@ struct PersonView: View {
         let stops = AlertPlanner.schedule(for: model.state(for: m))
         let now = Date()
         return VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "Coming up from Held Dear").padding(.bottom, Brand.space3)
+            Eyebrow(text: "Coming up from Held Dear").padding(.bottom, Brand.space2)
+            // Who gets these, in plain words (Graham, Nov 22, 2026): an older reader may think the message goes out alone.
+            Text("These reminders come to you. Nothing goes to \(DisplayName.plain(person.name)) unless you tap Send.")
+                .textStyle(.caption, color: Brand.inkMuted).padding(.bottom, Brand.space3)
             if stops.isEmpty {
-                Text(m.status.isSettled || m.status == .done ? "This year is taken care of." : "An alert with a message ready on the day.")
+                Text(m.status.isSettled || m.status == .done ? "This year is taken care of." : "On the day, you're reminded to send a message.")
                     .textStyle(.body)
             }
             ForEach(Array(stops.enumerated()), id: \.offset) { i, stop in
@@ -715,6 +718,10 @@ struct PersonView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Message for \(DisplayName.plain(person.name)): \(saved ?? usual)")
                             .accessibilityHint("Opens it to write or change")
+                            if model.phone(for: person) == nil {
+                                TextLink(title: "Add \(DisplayName.plain(person.name))'s number to text it") { editingPhone = true }
+                                    .padding(.leading, -8)
+                            }
                         }
                     }
                     .padding(.bottom, Brand.space3)

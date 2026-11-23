@@ -230,14 +230,14 @@ extension DomainTests {
 extension DomainTests {
     func testScheduleForInnerRing() {
         let stops = AlertPlanner.schedule(for: state(due: day(2026, 12, 9), status: .planning, plan: .card), calendar: cal)
-        XCTAssertTrue(stops.contains { $0.label == "The last day to mail the card" && $0.date == day(2026, 12, 4, 9) })
-        XCTAssertTrue(stops.contains { $0.label == "An alert with a message ready to send Mom" && $0.date == day(2026, 12, 9, 9) })
+        XCTAssertTrue(stops.contains { $0.label == "You're reminded it's the last day to mail the card" && $0.date == day(2026, 12, 4, 9) })
+        XCTAssertTrue(stops.contains { $0.label == "You're reminded to text Mom this message" && $0.date == day(2026, 12, 9, 9) })
         let upcoming = AlertPlanner.schedule(for: state(due: day(2026, 12, 9)), calendar: cal)
-        XCTAssertEqual(upcoming.map(\.label), ["A question about what Mom might like", "A heads-up to plan Mom's day",
-                                               "An alert with a message ready to send Mom"])
+        XCTAssertEqual(upcoming.map(\.label), ["You're asked what Mom might like", "You're reminded to plan Mom's day",
+                                               "You're reminded to text Mom this message"])
         XCTAssertTrue(upcoming.allSatisfy { !$0.alertID.isEmpty })
         let outer = AlertPlanner.schedule(for: state(ring: .outer, due: day(2026, 12, 9)), calendar: cal)
-        XCTAssertEqual(outer.map(\.label), ["An alert with a message ready to send Mom"])
+        XCTAssertEqual(outer.map(\.label), ["You're reminded to text Mom this message"])
     }
 }
 

@@ -300,18 +300,20 @@ extension AlertPlanner {
     static func schedule(for m: MomentState, calendar: Calendar = .current) -> [ScheduleStop] {
         let farPast = OccasionDates.adding(days: -400, to: m.dueDate, calendar: calendar)
         let alerts = plan(moments: [m], seasons: [], now: farPast, calendar: calendar).alerts
-        // Plain words naming the person, so each line says what will happen (Graham, Nov 22, 2026).
+        // Plain words naming the person, so each line says what will happen (Graham, Nov 22, 2026). Every alert goes
+        // to the user, never to the person; the lines say so for someone who might read "a message to Ivy" as sent.
         let name = m.personName
         return alerts.compactMap { a -> ScheduleStop? in
             let label: String, time: Bool
             switch a.kind {
-            case .wishPrompt: (label, time) = ("A question about what \(name) might like", false)
+            case .wishPrompt: (label, time) = ("You're asked what \(name) might like", false)
             case .headsUp, .grouped:
-                (label, time) = (m.ring == .inner ? "A heads-up to plan \(name)'s day" : "A heads-up about \(name)'s day", false)
-            case .cutoff: (label, time) = (m.planKind == .card ? "The last day to mail the card" : "The last day to order the gift", false)
+                (label, time) = (m.ring == .inner ? "You're reminded to plan \(name)'s day" : "You're reminded \(name)'s day is coming", false)
+            case .cutoff: (label, time) = (m.planKind == .card ? "You're reminded it's the last day to mail the card"
+                                                               : "You're reminded it's the last day to order the gift", false)
             case .dayOf:
-                (label, time) = (m.planKind == .call && !m.planDone ? "An alert to call \(name), one tap away"
-                                                                    : "An alert with a message ready to send \(name)", true)
+                (label, time) = (m.planKind == .call && !m.planDone ? "You're reminded to call \(name)"
+                                                                    : "You're reminded to text \(name) this message", true)
             default: return nil
             }
             return ScheduleStop(date: a.fireDate, label: label, showsTime: time, alertID: a.id)
