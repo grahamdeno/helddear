@@ -30,4 +30,18 @@ final class BirthdaySuggestionsTests: XCTestCase {
         XCTAssertEqual(name, "p_d20231217.jpg")
         XCTAssertEqual(ChosenPhotos.taken(name).map { cal.component(.day, from: $0) }, 17)
     }
+
+    // Asked per person, never assumed (Nov 22, 2026).
+    func testLookingIsAskedNotAssumed() {
+        let d = UserDefaults(suiteName: "BirthdayLookTests")!
+        d.removePersistentDomain(forName: "BirthdayLookTests")
+        let ada = UUID(), bo = UUID(), cy = UUID()
+        XCTAssertNil(BirthdaySuggestions.looks(for: ada, d), "not asked yet")
+        BirthdaySuggestions.setLooks(false, for: ada, d)
+        XCTAssertEqual(BirthdaySuggestions.looks(for: ada, d), false)
+        BirthdaySuggestions.markKept("x", for: bo, d)
+        XCTAssertEqual(BirthdaySuggestions.looks(for: bo, d), true, "someone already sorted counts as yes")
+        BirthdaySuggestions.setLooks(true, for: cy, d)
+        XCTAssertEqual(BirthdaySuggestions.looks(for: cy, d), true)
+    }
 }

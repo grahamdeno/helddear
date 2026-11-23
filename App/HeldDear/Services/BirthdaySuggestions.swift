@@ -7,6 +7,21 @@ import SwiftUI
 /// for good. Nothing is saved unless kept. Which photos were kept or skipped is remembered on this phone only.
 enum BirthdaySuggestions {
     private static let keptKey = "birthdaySuggestions.kept"
+    private static let lookKey = "birthdaySuggestions.look"
+
+    /// Whether to look in the library for this person (Graham, Nov 22, 2026): asked when the person is added, never
+    /// assumed, since many people have no photos around their birthday. Nil means not asked yet; someone already
+    /// sorted counts as yes.
+    static func looks(for personID: UUID, _ d: UserDefaults = .standard) -> Bool? {
+        if let v = ((d.dictionary(forKey: lookKey) as? [String: Bool]) ?? [:])[personID.uuidString] { return v }
+        return kept(for: personID, d).isEmpty && skipped(for: personID, d).isEmpty ? nil : true
+    }
+
+    static func setLooks(_ on: Bool, for personID: UUID, _ d: UserDefaults = .standard) {
+        var all = (d.dictionary(forKey: lookKey) as? [String: Bool]) ?? [:]
+        all[personID.uuidString] = on
+        d.set(all, forKey: lookKey)
+    }
     private static let skippedKey = "birthdaySuggestions.skipped"
 
     /// The photos still to offer: not kept, not skipped.
@@ -60,9 +75,26 @@ struct BirthdaySuggestionsView: View {
 
     private var name: String { DisplayName.plain(person.name) }
 
+    @State private var look: Bool?
+
     var body: some View {
         VStack(alignment: .leading, spacing: Brand.space3) {
-            if library.canRead {
+            if look != true {
+                // Not asked yet, or said no: one quiet offer, never a page full of other people's photos.
+                if look == nil {
+                    Text("Photos from \(name)'s past birthdays?").textStyle(.headline)
+                    Text("Held Dear can look in your library for photos taken around \(name)'s birthdays, for you to keep or skip.")
+                        .textStyle(.caption, color: Brand.inkMuted)
+                    HStack(spacing: Brand.space4) {
+                        TextLink(title: "Look in my library") { turnOn() }
+                        TextLink(title: "Not for \(name)") { BirthdaySuggestions.setLooks(false, for: person.id); look = false }
+                    }
+                    .padding(.leading, -8)
+                } else {
+                    TextLink(title: "Look for photos from \(name)'s past birthdays") { turnOn() }
+                        .padding(.leading, -8)
+                }
+            } else if library.canRead {
                 let shown = years.compactMap { y -> (Int, [PHAsset])? in
                     let ids = BirthdaySuggestions.offer(y.assets.map(\.localIdentifier), kept: kept, skipped: skipped)
                     let assets = y.assets.filter { ids.contains($0.localIdentifier) }
@@ -91,7 +123,7 @@ struct BirthdaySuggestionsView: View {
                     .padding(.leading, -8)
             }
         }
-        .task { load() }
+        .task { look = BirthdaySuggestions.looks(for: person.id); if look == true { load() } }
         .fullScreenCover(item: $viewing) { v in
             SuggestionViewer(asset: v.asset, caption: "\(name)'s birthday, \(v.year)", name: name,
                              onKeep: { keep(v.asset) }, onSkip: { skip(v.asset.localIdentifier) })
@@ -124,6 +156,15 @@ struct BirthdaySuggestionsView: View {
         }
         .frame(width: 120)
         .disabled(saving.contains(id))
+    }
+
+    private func turnOn() {
+        BirthdaySuggestions.setLooks(true, for: person.id)
+        look = true
+        Task {
+            if !library.canRead { await library.requestAccess() }
+            load()
+        }
     }
 
     private func load() {
@@ -225,5 +266,27 @@ struct SuggestionViewer: View {
             .padding(.bottom, Brand.space4)
         }
         .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.bestLocalImage(asset) }
+    }
+}
+
+/// Asked right after a person is added (Graham, Nov 22, 2026): look for their birthday photos, or not.
+struct BirthdayPhotosAsk: View {
+    let person: Person
+    var onDone: () -> Void
+
+    var body: some View {
+        let name = DisplayName.plain(person.name)
+        FlowScreen {
+            Question(title: "Look for photos from \(name)'s birthdays?",
+                     subtitle: "Held Dear can show photos from your library taken around \(name)'s past birthdays, for you to keep or skip. Say no if you won't have any.")
+            OptionRow(title: "Yes, look in my library", caption: "Shown on \(name)'s Photos page",
+                      action: {
+                          BirthdaySuggestions.setLooks(true, for: person.id)
+                          Task { if !PhotoMemories.shared.canRead { await PhotoMemories.shared.requestAccess() }; onDone() }
+                      }, leading: { EmptyView() }, trailing: { Image(systemName: "chevron.right").foregroundStyle(Brand.inkMuted) })
+            OptionRow(title: "No, not for \(name)", caption: "You can turn it on later on the Photos page",
+                      action: { BirthdaySuggestions.setLooks(false, for: person.id); onDone() },
+                      leading: { EmptyView() }, trailing: { Image(systemName: "chevron.right").foregroundStyle(Brand.inkMuted) })
+        }
     }
 }

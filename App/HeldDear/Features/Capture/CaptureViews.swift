@@ -24,6 +24,7 @@ struct AddBirthdayView: View {
     @State private var firstDate: (parsed: ParsedBirthday, contact: ContactInfo?)?
     /// The person just added, waiting on who they are to the user (one tap, or Skip for now).
     @State private var whoFor: Person?
+    @State private var askPhotosFor: Person?
     /// "Something else" chosen as the first date: its name, asked next.
     @State private var namingEvent = false
     @State private var eventName = ""
@@ -37,8 +38,14 @@ struct AddBirthdayView: View {
     var body: some View {
         if let offer = writeBack {
             writeBackView(offer.person, offer.contactID, offer.parsed)
+        } else if let person = askPhotosFor {
+            BirthdayPhotosAsk(person: person) { close() }
         } else if let person = whoFor {
-            RelationshipPicker(person: person, showsBack: false) { close() }
+            RelationshipPicker(person: person, showsBack: false) {
+                // Then: look for their birthday photos, or not (Nov 22, 2026).
+                if person.birthday != nil && BirthdaySuggestions.looks(for: person.id) == nil { askPhotosFor = person; whoFor = nil }
+                else { close() }
+            }
         } else if let change = pendingChange {
             confirmChange(change.person, change.parsed)
         } else if let first = firstDate, namingEvent {
@@ -215,7 +222,9 @@ struct AddBirthdayView: View {
 
     private func finish(_ person: Person) {
         writeBack = nil
-        if person.relationship == nil { whoFor = person } else { close() }
+        if person.relationship == nil { whoFor = person }
+        else if person.birthday != nil && BirthdaySuggestions.looks(for: person.id) == nil { askPhotosFor = person }
+        else { close() }
     }
 
     private func writeBackView(_ person: Person, _ contactID: String, _ p: ParsedBirthday) -> some View {
