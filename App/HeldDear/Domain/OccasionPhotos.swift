@@ -17,4 +17,9 @@ enum OccasionPhotos {
         all[occasionID.uuidString] = file
         d.set(all, forKey: key)
     }
+
+    /// True when any day uses this file, so it isn't deleted from under it (Nov 22, 2026).
+    static func uses(_ file: String, _ d: UserDefaults = .standard) -> Bool {
+        ((d.dictionary(forKey: key) as? [String: String]) ?? [:]).values.contains(file)
+    }
 }

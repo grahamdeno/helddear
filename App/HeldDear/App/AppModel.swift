@@ -789,6 +789,22 @@ final class AppModel: ObservableObject {
         commit()
     }
 
+    /// Takes a photo off one person, with Undo (Graham, Nov 22, 2026). The picture itself is deleted only when the
+    /// banner goes and no one else in Held Dear uses it; it always stays in the Photos app.
+    func removePhotoWithUndo(_ file: String, from person: Person) {
+        guard let index = person.photoFiles.firstIndex(of: file) else { return }
+        person.photoFiles.remove(at: index)
+        save()
+        offerUndo("Photo removed from \(DisplayName.plain(person.name))", finish: { [weak self] in
+            guard let self else { return }
+            let used = allPeople().contains { $0.photoFiles.contains(file) } || OccasionPhotos.uses(file)
+            if !used { PhotoStore.delete(file) }
+        }, undo: { [weak self] in
+            person.photoFiles.insert(file, at: min(index, person.photoFiles.count))
+            self?.save()
+        })
+    }
+
     /// Adds each holiday tradition to the chosen people's coming days, once per day (Nov 22, 2026). Each lands as its
     /// own gift item with the tradition's name and givers, after the holiday's usual starting items.
     func applyTraditions(now: Date = Date()) {
@@ -905,13 +921,16 @@ final class AppModel: ObservableObject {
     /// Items hidden while their removal can be undone; removed for good when the banner goes.
     @Published var removing: Set<UUID> = []
     private var undoTask: Task<Void, Never>?
-    /// For an Undo that isn't a removal (a skipped photo, Nov 22, 2026): what Undo puts back.
+    /// For an Undo that isn't a removal (a skipped photo, Nov 22, 2026): what Undo puts back, and what happens for
+    /// good once the banner goes without Undo.
     private var undoAction: (() -> Void)?
+    private var undoFinish: (() -> Void)?
 
-    /// Shows "[text] · Undo" for five seconds; Undo runs `undo`. Nothing happens when the banner goes.
-    func offerUndo(_ text: String, undo: @escaping () -> Void) {
+    /// Shows "[text] · Undo" for five seconds; Undo runs `undo`, otherwise `finish` runs when the banner goes.
+    func offerUndo(_ text: String, finish: (() -> Void)? = nil, undo: @escaping () -> Void) {
         finishPendingRemoval()
         undoAction = undo
+        undoFinish = finish
         let id = UUID()
         withAnimation(.snappy) { self.undo = UndoNote(id: id, text: text) }
         undoTask = Task { @MainActor [weak self] in
@@ -936,6 +955,7 @@ final class AppModel: ObservableObject {
 
     func undoRemoval() {
         undoTask?.cancel()
+        undoFinish = nil
         if let action = undoAction { undoAction = nil; action() }
         if let note = undo { removing.remove(note.id) }
         withAnimation(.snappy) { undo = nil }
@@ -945,6 +965,7 @@ final class AppModel: ObservableObject {
     func finishPendingRemoval() {
         undoTask?.cancel()
         undoAction = nil
+        if let finish = undoFinish { undoFinish = nil; finish() }
         guard let note = undo else { return }
         if let act = act(note.id) { removePart(act) }
         removing.remove(note.id)

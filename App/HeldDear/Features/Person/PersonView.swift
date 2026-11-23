@@ -140,11 +140,9 @@ struct PersonView: View {
                              photoToManage = nil
                          },
                          remove: {
-                             person.photoFiles.removeAll { $0 == p.file }
-                             PhotoStore.delete(p.file)
-                             model.save()
                              photoToManage = nil
-                         })
+                             model.removePhotoWithUndo(p.file, from: person)
+                         }, personName: DisplayName.plain(person.name))
                 .presentationDetents([.medium, .large])
         }
         .confirmationDialog(wishToEdit?.text ?? "", isPresented: Binding(get: { wishToEdit != nil }, set: { if !$0 { wishToEdit = nil } }),
@@ -1434,6 +1432,7 @@ struct PhotoActions: View {
     let isTop: Bool
     var useAtTop: () -> Void
     var remove: () -> Void
+    var personName: String = ""
 
     var body: some View {
         VStack(spacing: Brand.space4) {
@@ -1447,8 +1446,8 @@ struct PhotoActions: View {
             TextLink(title: PhotoFocus.box(for: file) == nil ? "Choose who it centers on" : "Change who it centers on") {
                 choosingFocus = true
             }
-            TextLink(title: "Remove from Held Dear") { remove() }
-            Text("Removing takes it out of Held Dear only. It stays in your Photos.")
+            TextLink(title: personName.isEmpty ? "Remove this photo" : "Remove from \(personName)'s photos") { remove() }
+            Text("It comes off this person only, with Undo. It stays in your Photos.")
                 .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.center)
         }
         .padding(Brand.space5)
