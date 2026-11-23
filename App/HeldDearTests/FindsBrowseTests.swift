@@ -17,7 +17,7 @@ final class FindsBrowseTests: XCTestCase {
 
     func testNewestFirstAndFiltersStack() {
         let all = Finds.browse()
-        XCTAssertEqual(all.count, Finds.catalog.count)
+        XCTAssertEqual(all.count, Finds.catalog.filter { !$0.dependable }.count)
         XCTAssertEqual(all.first?.added, "2026-11-21")
         let partnerUnder50 = Finds.browse(fits: [.partner], prices: [.under50])
         XCTAssertFalse(partnerUnder50.isEmpty)
