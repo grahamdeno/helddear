@@ -18,6 +18,12 @@ enum BirthdaySuggestions {
     static func skipped(for personID: UUID, _ d: UserDefaults = .standard) -> Set<String> { load(skippedKey, personID, d) }
     static func markKept(_ id: String, for personID: UUID, _ d: UserDefaults = .standard) { add(id, keptKey, personID, d) }
     static func markSkipped(_ id: String, for personID: UUID, _ d: UserDefaults = .standard) { add(id, skippedKey, personID, d) }
+    /// Undo for Skip (Nov 22, 2026).
+    static func unmarkSkipped(_ id: String, for personID: UUID, _ d: UserDefaults = .standard) {
+        var all = (d.dictionary(forKey: skippedKey) as? [String: [String]]) ?? [:]
+        all[personID.uuidString]?.removeAll { $0 == id }
+        d.set(all, forKey: skippedKey)
+    }
 
     private static func load(_ key: String, _ personID: UUID, _ d: UserDefaults) -> Set<String> {
         Set(((d.dictionary(forKey: key) as? [String: [String]]) ?? [:])[personID.uuidString] ?? [])
@@ -50,6 +56,7 @@ struct BirthdaySuggestionsView: View {
     @State private var kept: Set<String> = []
     @State private var skipped: Set<String> = []
     @State private var saving: Set<String> = []
+    @State private var viewing: SuggestedPhoto?
 
     private var name: String { DisplayName.plain(person.name) }
 
@@ -85,14 +92,22 @@ struct BirthdaySuggestionsView: View {
             }
         }
         .task { load() }
+        .fullScreenCover(item: $viewing) { v in
+            SuggestionViewer(asset: v.asset, caption: "\(name)'s birthday, \(v.year)", name: name,
+                             onKeep: { keep(v.asset) }, onSkip: { skip(v.asset.localIdentifier) })
+        }
     }
 
     private func tile(_ asset: PHAsset, year: Int) -> some View {
         let id = asset.localIdentifier
         return VStack(spacing: 6) {
-            AssetThumb(asset: asset, side: 120)
-                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
-                .accessibilityLabel("Photo from \(year)")
+            Button { viewing = SuggestedPhoto(asset: asset, year: year) } label: {
+                AssetThumb(asset: asset, side: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Photo from \(year)")
+            .accessibilityHint("Opens it full screen")
             HStack(spacing: 0) {
                 Button { keep(asset) } label: {
                     Text(saving.contains(id) ? "Keeping…" : "Keep").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
@@ -135,5 +150,80 @@ struct BirthdaySuggestionsView: View {
     private func skip(_ id: String) {
         BirthdaySuggestions.markSkipped(id, for: person.id)
         withAnimation(.snappy) { _ = skipped.insert(id) }
+        // "Photo skipped · Undo" for a few seconds (Graham, Nov 22, 2026).
+        let personID = person.id
+        model.offerUndo("Photo skipped") {
+            BirthdaySuggestions.unmarkSkipped(id, for: personID)
+            withAnimation(.snappy) { _ = skipped.remove(id) }
+        }
+    }
+}
+
+/// A suggested photo opened full screen.
+struct SuggestedPhoto: Identifiable {
+    let asset: PHAsset
+    let year: Int
+    var id: String { asset.localIdentifier }
+}
+
+/// A library photo from a past birthday, full screen (Graham, Nov 22, 2026): pinch or double-tap to zoom, then
+/// Keep it for the person or Skip it.
+struct SuggestionViewer: View {
+    @Environment(\.dismiss) private var dismiss
+    let asset: PHAsset
+    let caption: String
+    let name: String
+    var onKeep: () -> Void
+    var onSkip: () -> Void
+    @State private var image: UIImage?
+    @State private var zoom: CGFloat = 1
+    @State private var baseZoom: CGFloat = 1
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if let image {
+                Image(uiImage: image).resizable().scaledToFit()
+                    .scaleEffect(zoom)
+                    .gesture(MagnifyGesture()
+                        .onChanged { zoom = min(max(baseZoom * $0.magnification, 1), 5) }
+                        .onEnded { _ in baseZoom = zoom })
+                    .onTapGesture(count: 2) { withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 2.5; baseZoom = zoom } }
+                    .accessibilityLabel("Photo from \(caption)")
+            } else {
+                ProgressView().tint(.white)
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            Button { dismiss() } label: {
+                Image(systemName: "xmark").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.15), in: Circle())
+            }
+            .accessibilityLabel("Close")
+            .padding(.leading, Brand.space4).padding(.top, Brand.space2)
+        }
+        .overlay(alignment: .top) {
+            Text(caption).font(.callout.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
+                .padding(.top, Brand.space4)
+                .accessibilityHidden(true)
+        }
+        .overlay(alignment: .bottom) {
+            HStack(spacing: Brand.space3) {
+                Button { onSkip(); dismiss() } label: {
+                    Text("Skip").font(.body.weight(.semibold)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+                Button { onKeep(); dismiss() } label: {
+                    Text("Keep for \(name)").font(.body.weight(.semibold)).foregroundStyle(.black)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.bottom, Brand.space4)
+        }
+        .task(id: asset.localIdentifier) { image = await PhotoMemories.shared.bestLocalImage(asset) }
     }
 }
