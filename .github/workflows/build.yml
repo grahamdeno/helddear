@@ -72,3 +72,72 @@ jobs:
           path: ci-artifacts/
           retention-days: 7
           if-no-files-found: warn
+
+  # CloudKit schema probe (fix/cloudkit-schema). Runs the app itself in the simulator, signed locally with only the
+  # iCloud entitlements, asks Core Data for a dry run that prints the schema, and prints what Apple printed next to what
+  # the generator makes from the model. It uploads nothing to iCloud (dry run), builds and tests only.
+  schema-probe:
+    if: startsWith(github.head_ref, 'fix/cloudkit')
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
+          sudo xcode-select -s "$XC"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build the app for the simulator, signed locally with the iCloud entitlements only
+        run: |
+          mkdir -p probe
+          set -o pipefail
+          xcodebuild build \
+            -project HeldDear.xcodeproj -scheme HeldDear -configuration Debug \
+            -destination "generic/platform=iOS Simulator" -derivedDataPath build/dd \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" PROVISIONING_PROFILE_SPECIFIER="" \
+            CODE_SIGN_ENTITLEMENTS=Config/HeldDearProbe.entitlements \
+            > probe/build.log 2>&1 \
+            || { grep -E "error:" probe/build.log | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done; tail -40 probe/build.log; exit 1; }
+
+      - name: Run the app with -printCloudKitSchema and collect what Apple printed
+        run: |
+          UDID=$(xcrun simctl list devices available iPhone | grep -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+          xcrun simctl boot "$UDID"
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name HeldDear.app | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          codesign -d --entitlements - "$APP" > probe/entitlements.txt 2>&1 || true
+          xcrun simctl launch --terminate-running-process --stdout="$PWD/probe/stdout.txt" --stderr="$PWD/probe/stderr.txt" \
+            "$UDID" com.grahamdeno.helddear -printCloudKitSchema
+          DATA=$(xcrun simctl get_app_container "$UDID" com.grahamdeno.helddear data)
+          for i in $(seq 1 60); do [ -f "$DATA/tmp/schema-probe-done.txt" ] && break; sleep 3; done
+          cp "$DATA/tmp/schema-probe-done.txt" probe/done.txt 2>/dev/null || echo "no done file after 3 minutes" > probe/done.txt
+          cp "$DATA/tmp/generated.ckdb" probe/generated.ckdb 2>/dev/null || echo "no generated file" > probe/generated.ckdb
+          xcrun simctl spawn "$UDID" log show --style compact --info --debug --last 20m \
+            --predicate 'subsystem BEGINSWITH "com.apple.coredata"' > probe/log-coredata.txt 2>&1 || true
+          xcrun simctl spawn "$UDID" log show --style compact --info --debug --last 20m \
+            --predicate 'process == "HeldDear"' > probe/log-app.txt 2>&1 || true
+          echo "::group::done file"; cat probe/done.txt; echo; echo "::endgroup::"
+          echo "::group::entitlements the app was signed with"; cat probe/entitlements.txt; echo "::endgroup::"
+          echo "::group::stdout and stderr of the app"; cat probe/stdout.txt probe/stderr.txt 2>/dev/null | head -400; echo "::endgroup::"
+          echo "::group::schema lines Apple printed (core data log)"
+          grep -hE "DEFINE SCHEMA|RECORD TYPE|CD_|GRANT|QUERYABLE|ASSET|REFERENCE|ckAsset" probe/log-coredata.txt probe/log-app.txt probe/stdout.txt probe/stderr.txt 2>/dev/null | head -600
+          echo "::endgroup::"
+          echo "::group::the generator's file (from the model)"; cat probe/generated.ckdb; echo "::endgroup::"
+          wc -l probe/*.txt probe/*.ckdb
+
+      - name: Upload the probe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helddear-schema-probe-${{ github.run_id }}
+          path: probe/
+          retention-days: 14
+          if-no-files-found: warn

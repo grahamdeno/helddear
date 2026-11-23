@@ -8,6 +8,13 @@ struct HeldDearApp: App {
 
     static let refreshTaskID = "com.grahamdeno.helddear.refresh"
 
+    init() {
+        #if DEBUG
+        // CI only: print the CloudKit schema Core Data would create (a dry run), then quit. Never in a release build.
+        if SchemaProbe.requested { SchemaProbe.runAndQuit() }
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
