@@ -11,6 +11,8 @@ struct HolidayView: View {
     private enum Screen: Equatable { case list, add }
     @State private var screen: Screen = .list
     @State private var started = false
+    @State private var editingTradition: Tradition?
+    @State private var traditionsRevision = 0
 
     private var members: [Moment] {
         let _ = model.revision
@@ -82,6 +84,7 @@ struct HolidayView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, Brand.space2)
             }
+            traditionsSection
         } footer: {
             if let next {
                 PrimaryButton(title: "Plan \(rows[next].name) next") { open(rows[next]) }
@@ -90,6 +93,52 @@ struct HolidayView: View {
                     .disabled(true).opacity(0.45)
             }
         }
+    }
+
+    // MARK: Traditions (Graham, Nov 22, 2026)
+
+    /// Things given every year, set up once for the people chosen ("Ornament" for each kid at Christmas).
+    private var traditionsSection: some View {
+        let _ = traditionsRevision
+        let list = Traditions.forHoliday(ref.raw)
+        return VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "Traditions").padding(.top, Brand.space5).padding(.bottom, Brand.space2)
+            if list.isEmpty {
+                Text("Something you give the same people every \(ref.label), set up once.")
+                    .textStyle(.callout, color: Brand.inkMuted).padding(.bottom, Brand.space2)
+            }
+            ForEach(list) { t in
+                Button { editingTradition = t } label: {
+                    HStack(spacing: Brand.space3) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t.name).textStyle(.bodyStrong, color: t.on ? Brand.ink : Brand.inkMuted)
+                            Text(traditionLine(t)).textStyle(.caption, color: Brand.inkMuted).lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
+                    }
+                    .padding(.vertical, Brand.space3)
+                    .frame(minHeight: 56)
+                    .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle())
+                .accessibilityHint("Change who gets it, or stop it")
+            }
+            TextLink(title: "+ Add a tradition") {
+                editingTradition = Tradition(holiday: ref.raw, name: "")
+            }
+            .padding(.leading, -8)
+        }
+        .sheet(item: $editingTradition, onDismiss: { traditionsRevision += 1 }) { t in
+            TraditionEditor(tradition: t, ref: ref, people: members.compactMap(\.person)).environmentObject(model)
+        }
+    }
+
+    private func traditionLine(_ t: Tradition) -> String {
+        let names = t.recipientIDs.compactMap { model.person($0).map { DisplayName.plain($0.name) } }
+        let who = names.isEmpty ? "No one yet" : "For " + ListFormatter.localizedString(byJoining: names)
+        return t.on ? "\(who), every year" : "\(who) · Off"
     }
 
     private var eyebrow: String {
@@ -223,5 +272,94 @@ struct HolidayFeaturedView: View {
         } link: {
             EmptyView()
         }
+    }
+}
+
+/// Sets up or changes a holiday tradition (Graham, Nov 22, 2026): its name, who it's from, who gets it.
+struct TraditionEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State var tradition: Tradition
+    let ref: HolidayRef
+    /// The people in this holiday, to choose from.
+    let people: [Person]
+
+    private var isNew: Bool { !Traditions.all().contains { $0.id == tradition.id } }
+    /// Who can give it: you, and the household (partner and the like).
+    private var givers: [Person] {
+        model.allPeople().filter { Relationship.isHouseholdGiver(relationship: $0.relationship, isInner: $0.ring == .inner) }
+    }
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: isNew ? "A \(ref.label) tradition" : tradition.name,
+                     subtitle: "It goes into each chosen person's plan every year, starting this \(ref.label), each with its own steps.",
+                     style: .title)
+            LineField(label: "What is it?", text: $tradition.name, placeholder: "Ornament", showsDictation: false)
+            Eyebrow(text: "Who gets it").padding(.top, Brand.space3)
+            VStack(spacing: 0) {
+                if people.isEmpty {
+                    Text("Add people to \(ref.label) first.").textStyle(.callout, color: Brand.inkMuted)
+                }
+                ForEach(people, id: \.id) { p in
+                    checkRow(DisplayName.plain(p.name), on: tradition.recipientIDs.contains(p.id)) {
+                        toggle(p.id, in: \.recipientIDs)
+                    }
+                }
+            }
+            Eyebrow(text: "From").padding(.top, Brand.space3)
+            VStack(spacing: 0) {
+                checkRow("You", on: tradition.giverIDs.isEmpty) { tradition.giverIDs = [] }
+                ForEach(givers, id: \.id) { p in
+                    checkRow(DisplayName.plain(p.name), on: tradition.giverIDs.contains(p.id)) {
+                        toggle(p.id, in: \.giverIDs)
+                    }
+                }
+            }
+            if !isNew {
+                Toggle(isOn: $tradition.on) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Every year").textStyle(.body)
+                        Text("Off stops adding it. Items already in a plan stay.").textStyle(.caption, color: Brand.inkMuted)
+                    }
+                }
+                .tint(Brand.action)
+                .padding(.top, Brand.space3)
+                TextLink(title: "Remove this tradition") {
+                    Traditions.remove(tradition.id)
+                    dismiss()
+                }
+                .padding(.leading, -8)
+            }
+        } footer: {
+            PrimaryButton(title: isNew ? "Add the tradition" : "Save") {
+                tradition.name = tradition.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                Traditions.upsert(tradition)
+                model.applyTraditions()
+                dismiss()
+            }
+            .disabled(tradition.name.trimmingCharacters(in: .whitespaces).isEmpty || tradition.recipientIDs.isEmpty)
+        }
+    }
+
+    private func toggle(_ id: UUID, in path: WritableKeyPath<Tradition, [UUID]>) {
+        if let i = tradition[keyPath: path].firstIndex(of: id) { tradition[keyPath: path].remove(at: i) }
+        else { tradition[keyPath: path].append(id) }
+    }
+
+    private func checkRow(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title).textStyle(.body)
+                Spacer()
+                Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.system(size: 22))
+                    .foregroundStyle(on ? Brand.action : Brand.inkMuted)
+            }
+            .frame(minHeight: 52)
+            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
     }
 }
