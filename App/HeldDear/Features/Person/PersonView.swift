@@ -47,6 +47,7 @@ struct PersonView: View {
     @State private var familyAsk: FamilyAsk?
     @State private var editingFamily = false
     @State private var familyToggle = 0
+    @State private var alertToggle = 0
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -652,14 +653,15 @@ struct PersonView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// "What Held Dear will do": the coming heads-up, order-by and message-ready dates for this person.
+    /// "Coming up from Held Dear": the coming heads-up, order-by and message-ready alerts for this person. Each coming
+    /// one can be turned off, and back on (Graham, Nov 22, 2026).
     private func scheduleCard(_ m: Moment) -> some View {
         let stops = AlertPlanner.schedule(for: model.state(for: m))
         let now = Date()
         return VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "What Held Dear will do").padding(.bottom, Brand.space3)
+            Eyebrow(text: "Coming up from Held Dear").padding(.bottom, Brand.space3)
             if stops.isEmpty {
-                Text(m.status.isSettled || m.status == .done ? "This year is taken care of." : "A message ready on the day.")
+                Text(m.status.isSettled || m.status == .done ? "This year is taken care of." : "An alert with a message ready on the day.")
                     .textStyle(.body)
             }
             ForEach(Array(stops.enumerated()), id: \.offset) { i, stop in
@@ -676,16 +678,26 @@ struct PersonView: View {
                         if i < stops.count - 1 { Rectangle().fill(Brand.line).frame(width: 2).frame(maxHeight: .infinity) }
                     }
                     .frame(width: 12)
+                    let off = CancelledAlerts.isOff(stop.alertID)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(stop.showsTime ? stop.date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
-                                            : stop.date.formatted(.dateTime.month(.abbreviated).day()))
+                        Text((stop.showsTime ? stop.date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+                                             : stop.date.formatted(.dateTime.month(.abbreviated).day())) + (off ? " · Off" : ""))
                             .textStyle(.caption, color: Brand.inkMuted)
-                        Text(stop.label).textStyle(.body, color: past ? Brand.inkMuted : Brand.ink)
+                        Text(stop.label).textStyle(.body, color: past || off ? Brand.inkMuted : Brand.ink)
+                            .strikethrough(off, color: Brand.inkMuted)
                     }
                     .padding(.bottom, Brand.space3)
                     Spacer(minLength: 0)
+                    if !past {
+                        TextLink(title: off ? "Turn on" : "Turn off") {
+                            CancelledAlerts.set(stop.alertID, off: !off)
+                            alertToggle += 1
+                            Task { await model.scheduleAlerts() }
+                        }
+                        .accessibilityLabel(off ? "Turn on: \(stop.label)" : "Turn off: \(stop.label)")
+                    }
                 }
-                .accessibilityElement(children: .combine)
+                .id("\(stop.alertID)-\(alertToggle)")
             }
         }
         .padding(Brand.space4)

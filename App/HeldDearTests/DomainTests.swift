@@ -230,12 +230,14 @@ extension DomainTests {
 extension DomainTests {
     func testScheduleForInnerRing() {
         let stops = AlertPlanner.schedule(for: state(due: day(2026, 12, 9), status: .planning, plan: .card), calendar: cal)
-        XCTAssertTrue(stops.contains { $0.label == "Mail by, for the card" && $0.date == day(2026, 12, 4, 9) })
-        XCTAssertTrue(stops.contains { $0.label == "A message ready" && $0.date == day(2026, 12, 9, 9) })
+        XCTAssertTrue(stops.contains { $0.label == "The last day to mail the card" && $0.date == day(2026, 12, 4, 9) })
+        XCTAssertTrue(stops.contains { $0.label == "An alert with a message ready to send Mom" && $0.date == day(2026, 12, 9, 9) })
         let upcoming = AlertPlanner.schedule(for: state(due: day(2026, 12, 9)), calendar: cal)
-        XCTAssertEqual(upcoming.map(\.label), ["A question about wishes", "A heads-up and a plan", "A message ready"])
+        XCTAssertEqual(upcoming.map(\.label), ["A question about what Mom might like", "A heads-up to plan Mom's day",
+                                               "An alert with a message ready to send Mom"])
+        XCTAssertTrue(upcoming.allSatisfy { !$0.alertID.isEmpty })
         let outer = AlertPlanner.schedule(for: state(ring: .outer, due: day(2026, 12, 9)), calendar: cal)
-        XCTAssertEqual(outer.map(\.label), ["A message ready"])
+        XCTAssertEqual(outer.map(\.label), ["An alert with a message ready to send Mom"])
     }
 }
 
@@ -367,5 +369,20 @@ final class ByLineTests: XCTestCase {
         XCTAssertNil(NextAct.byLine(kindRaw: ActKind.cake.rawValue, step: "ordered", due: due))
         XCTAssertNil(NextAct.byLine(kindRaw: ActKind.call.rawValue, step: "open", due: due))
         XCTAssertNil(NextAct.byLine(kindRaw: nil, step: nil, due: due))
+    }
+}
+
+/// Turning off one coming alert (Graham, Nov 22, 2026).
+final class CancelledAlertsTests: XCTestCase {
+    func testOffAlertsAreLeftOutAndCanComeBack() {
+        let d = UserDefaults(suiteName: "CancelledAlertsTests")!
+        d.removePersistentDomain(forName: "CancelledAlertsTests")
+        XCTAssertFalse(CancelledAlerts.isOff("dayof-1", d))
+        CancelledAlerts.set("dayof-1", off: true, d)
+        XCTAssertTrue(CancelledAlerts.isOff("dayof-1", d))
+        let kept = CancelledAlerts.filter(["dayof-1", "headsup-1"], d)
+        XCTAssertEqual(kept, ["headsup-1"])
+        CancelledAlerts.set("dayof-1", off: false, d)
+        XCTAssertFalse(CancelledAlerts.isOff("dayof-1", d))
     }
 }

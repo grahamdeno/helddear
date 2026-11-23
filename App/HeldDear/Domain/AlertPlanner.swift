@@ -291,6 +291,8 @@ struct ScheduleStop: Equatable {
     var date: Date
     var label: String
     var showsTime: Bool
+    /// The alert's id, so one can be turned off (Graham, Nov 22, 2026).
+    var alertID: String = ""
 }
 
 extension AlertPlanner {
@@ -298,17 +300,21 @@ extension AlertPlanner {
     static func schedule(for m: MomentState, calendar: Calendar = .current) -> [ScheduleStop] {
         let farPast = OccasionDates.adding(days: -400, to: m.dueDate, calendar: calendar)
         let alerts = plan(moments: [m], seasons: [], now: farPast, calendar: calendar).alerts
+        // Plain words naming the person, so each line says what will happen (Graham, Nov 22, 2026).
+        let name = m.personName
         return alerts.compactMap { a -> ScheduleStop? in
+            let label: String, time: Bool
             switch a.kind {
-            case .wishPrompt: return ScheduleStop(date: a.fireDate, label: "A question about wishes", showsTime: false)
+            case .wishPrompt: (label, time) = ("A question about what \(name) might like", false)
             case .headsUp, .grouped:
-                return ScheduleStop(date: a.fireDate, label: m.ring == .inner ? "A heads-up and a plan" : "A heads-up", showsTime: false)
-            case .cutoff:
-                return ScheduleStop(date: a.fireDate, label: m.planKind == .card ? "Mail by, for the card" : "Order by, for the gift", showsTime: false)
+                (label, time) = (m.ring == .inner ? "A heads-up to plan \(name)'s day" : "A heads-up about \(name)'s day", false)
+            case .cutoff: (label, time) = (m.planKind == .card ? "The last day to mail the card" : "The last day to order the gift", false)
             case .dayOf:
-                return ScheduleStop(date: a.fireDate, label: m.planKind == .call && !m.planDone ? "A call, one tap away" : "A message ready", showsTime: true)
+                (label, time) = (m.planKind == .call && !m.planDone ? "An alert to call \(name), one tap away"
+                                                                    : "An alert with a message ready to send \(name)", true)
             default: return nil
             }
+            return ScheduleStop(date: a.fireDate, label: label, showsTime: time, alertID: a.id)
         }
     }
 }
