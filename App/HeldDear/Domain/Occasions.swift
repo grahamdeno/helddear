@@ -167,6 +167,16 @@ enum OccasionRules {
         }
     }
 
+    /// The next time a day falls, on or after today: a holiday by its own rule (Mother's Day moves, Christmas is
+    /// Dec 25), anything else by its saved month and day (Nov 22, 2026: the Days list showed the saved date for
+    /// holidays, the day they were added).
+    static func nextDate(type: OccasionType, month: Int, day: Int, from now: Date, calendar: Calendar = .current) -> Date? {
+        let today = calendar.startOfDay(for: now)
+        let year = calendar.component(.year, from: today)
+        return (year...year + 1).compactMap { date(type: type, month: month, day: day, year: $0, calendar: calendar) }
+            .first { $0 >= today }
+    }
+
     /// The count on an occurrence: age for birthdays, years together for anniversaries.
     static func count(type: OccasionType, startYear: Int?, occurrenceYear: Int) -> Int? {
         switch type {
