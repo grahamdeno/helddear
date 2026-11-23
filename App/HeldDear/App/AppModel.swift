@@ -138,8 +138,8 @@ final class AppModel: ObservableObject {
         container = opened.container
         storeOutcome = opened.outcome
         keptStoreURL = opened.keptStoreURL
-        onboarded = UserDefaults.standard.bool(forKey: "onboarded")
-        firstVisitCardDismissed = UserDefaults.standard.bool(forKey: "firstVisitCardDismissed")
+        onboarded = DemoMode.isOn ? DemoMode.onboarded : UserDefaults.standard.bool(forKey: "onboarded")
+        firstVisitCardDismissed = DemoMode.isOn ? true : UserDefaults.standard.bool(forKey: "firstVisitCardDismissed")
 
         NotificationService.shared.configure()
         NotificationService.shared.onOpen = { [weak self] kind, moment, month, action in
@@ -158,12 +158,23 @@ final class AppModel: ObservableObject {
                 self.revision += 1
             }
         }
+        #if DEBUG
+        // The UI walk (Story E): made-up people in this in-memory store, a fixed date, nothing real touched.
+        if DemoMode.isOn { DemoMode.seed(into: self) }
+        #endif
     }
 
     // MARK: Refresh
 
     /// Runs on launch and whenever the app becomes active.
     func refresh(now: Date = Date()) async {
+        // Demo mode (debug builds with -HeldDearDemo only): the fixed date, no Contacts, notifications or widgets.
+        if DemoMode.isOn {
+            MomentEngine.refresh(context, now: DemoMode.now)
+            applyTraditions(now: DemoMode.now)
+            revision += 1
+            return
+        }
         importInbox()
         if onboarded { syncContacts() }
         MomentEngine.refresh(context, now: now)
@@ -217,11 +228,13 @@ final class AppModel: ObservableObject {
     /// Save, then bring alerts, the widget and the share-sheet people list up to date.
     func commit() {
         save()
+        if DemoMode.isOn { return }
         writeSnapshots()
         Task { await scheduleAlerts() }
     }
 
     func scheduleAlerts(now: Date = Date()) async {
+        if DemoMode.isOn { return }
         let moments = allMoments().filter { $0.person != nil && $0.dueDate >= Calendar.current.startOfDay(for: now).addingTimeInterval(-5 * 86400) }
         let states = moments.map(state(for:))
         let seasons = AlertPlanner.seasons(from: states, now: now)
@@ -653,6 +666,7 @@ final class AppModel: ObservableObject {
     /// Runs on every open and whenever Contacts changes, so people shared later (limited access) arrive too.
     @discardableResult
     func syncContacts() -> Int {
+        if DemoMode.isOn { return 0 }
         guard ContactsService.shared.canRead else { return 0 }
         let removed = Set(defaults.stringArray(forKey: "removedContactIDs") ?? [])
         var byContact: [String: Person] = [:]
@@ -720,6 +734,7 @@ final class AppModel: ObservableObject {
 
     /// Files wishes saved from the share sheet.
     func importInbox() {
+        if DemoMode.isOn { return }
         let dir = AppGroup.inboxDir
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
         var changed = false
@@ -1268,6 +1283,7 @@ final class AppModel: ObservableObject {
     }
 
     func writeSnapshots(now: Date = Date()) {
+        if DemoMode.isOn { return }
         let people = allPeople().map { SharedPerson(id: $0.id, name: $0.name, isInner: $0.ring == .inner) }
         AppGroup.write(people, to: AppGroup.peopleURL)
         let today = Calendar.current.startOfDay(for: now)

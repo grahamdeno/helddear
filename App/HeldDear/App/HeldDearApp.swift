@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct HeldDearApp: App {
-    @StateObject private var model = AppModel()
+    @StateObject private var model = AppModel(inMemory: DemoMode.isOn)
     @Environment(\.scenePhase) private var scenePhase
 
     static let refreshTaskID = "com.grahamdeno.helddear.refresh"

@@ -72,3 +72,115 @@ jobs:
           path: ci-artifacts/
           retention-days: 7
           if-no-files-found: warn
+
+  # The UX walk (Story E, docs/audit/ux-audit.md). It costs 60 to 90 Mac minutes, so it runs only when started by
+  # hand or on a branch named test/ux-*. It builds and tests only; it uploads nothing but the CI artifact.
+  ux-walk:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'test/ux-')
+    runs-on: macos-26
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build for testing
+        run: |
+          mkdir -p walk
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project HeldDear.xcodeproj \
+            -scheme HeldDearWalk \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            > walk/build.log 2>&1 \
+            || { grep -E "error:" walk/build.log | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done; tail -40 walk/build.log; exit 1; }
+
+      - name: Walk the four configs
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes available | grep -Eo 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | sort -V | tail -1)
+          echo "Runtime: $RUNTIME"
+          device() { # name, device type id
+            UDID=$(xcrun simctl list devices available | grep -F "$1 (" | grep -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+            if [ -z "$UDID" ]; then UDID=$(xcrun simctl create "walk-$1" "$2" "$RUNTIME"); fi
+            echo "$UDID"
+          }
+          PRO=$(device "iPhone 17 Pro" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro)
+          SE=$(device "iPhone SE (3rd generation)" com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation)
+          echo "iPhone 17 Pro: $PRO"; echo "iPhone SE (3rd generation): $SE"
+          FAILED=0
+          for CFG in default-light default-dark big-text small-phone; do
+            if [ "$CFG" = "small-phone" ]; then UDID="$SE"; else UDID="$PRO"; fi
+            xcrun simctl boot "$UDID" 2>/dev/null || true
+            echo "== $CFG on $UDID"
+            TEST_RUNNER_WALK_CONFIG="$CFG" xcodebuild test-without-building \
+              -project HeldDear.xcodeproj \
+              -scheme HeldDearWalk \
+              -destination "id=$UDID" \
+              -derivedDataPath build/dd \
+              -resultBundlePath "walk/$CFG.xcresult" \
+              CODE_SIGNING_ALLOWED=NO \
+              > "walk/$CFG.log" 2>&1 || { echo "::error::The walk failed in config $CFG (the app stopped, or the test did not run)"; FAILED=1; }
+            tail -5 "walk/$CFG.log"
+            xcrun xcresulttool export attachments --path "walk/$CFG.xcresult" --output-path "walk/$CFG-attachments" || echo "::warning::No attachments exported for $CFG"
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+          done
+          exit $FAILED
+
+      - name: Write the results list
+        if: always()
+        run: |
+          python3 -I - <<'PY'
+          import json, os, glob
+          out = ["# UX walk results", ""]
+          for cfg in ["default-light", "default-dark", "big-text", "small-phone"]:
+              d = f"walk/{cfg}-attachments"
+              out += [f"## {cfg}", ""]
+              if not os.path.isdir(d):
+                  out += ["No attachments exported.", ""]
+                  continue
+              shots, texts = 0, []
+              try:
+                  manifest = json.load(open(os.path.join(d, "manifest.json")))
+                  for test in manifest:
+                      for a in test.get("attachments", []):
+                          name = a.get("suggestedHumanReadableName", "")
+                          path = os.path.join(d, a.get("exportedFileName", ""))
+                          if name.startswith("walk-") and os.path.isfile(path):
+                              texts.append((name, open(path, errors="replace").read()))
+                          else:
+                              shots += 1
+              except Exception as e:
+                  out += [f"(manifest not read: {e}; listing the text files instead)"]
+                  for p in sorted(glob.glob(os.path.join(d, "*.txt"))):
+                      texts.append((os.path.basename(p), open(p, errors="replace").read()))
+              out += [f"Screenshots and other attachments: {shots}", ""]
+              for name, text in sorted(texts):
+                  out += [f"### {name}", "", "```", text.rstrip(), "```", ""]
+          open("walk/results.md", "w").write("\n".join(out))
+          print("\n".join(out)[:6000])
+          PY
+
+      - name: Upload the walk
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helddear-ux-walk-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            walk/results.md
+            walk/*.log
+            walk/*-attachments/
+          retention-days: 14
+          if-no-files-found: warn
