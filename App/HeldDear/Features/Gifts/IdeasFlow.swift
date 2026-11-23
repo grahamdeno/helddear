@@ -61,73 +61,31 @@ struct IdeasList: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("\(name) · \(OccasionDates.shortDate(moment.dueDate)) · \(OccasionDates.countdown(to: moment.dueDate, from: Date()))")
-                    .textStyle(.eyebrow)
+                // One calm page (Graham, Nov 22, 2026): one line for the date, saved ideas first, one card with one
+                // oxblood button when nothing's here yet, and the kids only for someone they'd give to.
                 Text("Ideas for \(name)").font(Brand.display(42)).tracking(-0.8).foregroundStyle(Brand.ink)
-                    .padding(.top, Brand.space2)
                     .accessibilityAddTraits(.isHeader)
                 Text(subline).font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
                     .padding(.top, 2)
 
-                // Saved ideas first; suggestions only when asked for (Graham, Nov 22, 2026).
-                section("Saved for \(name)")
-                if shelf.isEmpty {
-                    Text("Ideas and links you save for \(name) show here.").textStyle(.callout, color: Brand.inkMuted)
-                        .padding(.vertical, Brand.space2)
-                } else {
+                if !shelf.isEmpty {
+                    section("Saved for \(name)")
                     ForEach(shelf) { row($0) }
                 }
-                TextLink(title: "+ Save an idea") { model.route = .addWish(moment.person?.id ?? UUID()) }
-                    .padding(.leading, -8).padding(.top, Brand.space2)
-
-                section("Suggestions")
-                if OnDeviceIdeas.isAvailable {
-                    if found.isEmpty {
-                        if loading {
-                            thinking("Thinking about \(name)…")
-                        } else {
-                            if moment.person?.loves.isEmpty ?? true {
-                                Button { openLoves() } label: {
-                                    Text("Add what \(name) loves first, for ideas that fit \(name).")
-                                        .font(.callout.weight(.medium)).foregroundStyle(Brand.action).multilineTextAlignment(.leading)
-                                        .frame(minHeight: 44, alignment: .leading)
-                                }
-                            }
-                            SecondaryButton(title: "Suggest ideas for \(name)") { Task { await loadFound() } }
-                                .padding(.top, Brand.space2)
-                            Text("Written on this iPhone from what you saved. Nothing leaves your phone.")
-                                .textStyle(.caption, color: Brand.inkMuted).padding(.top, Brand.space2)
-                        }
-                    } else {
-                        ForEach(found) { row($0) }
-                        TextLink(title: loading ? "Thinking…" : "Different ideas") { Task { await loadFound() } }
-                            .disabled(loading).padding(.leading, -8).padding(.top, Brand.space2)
-                        if moment.person?.loves.isEmpty ?? true {
-                            Button { openLoves() } label: {
-                                Text("Add what \(name) loves and the ideas get much better.")
-                                    .font(.callout.weight(.medium)).foregroundStyle(Brand.action).multilineTextAlignment(.leading)
-                            }
-                            .padding(.top, Brand.space3)
-                        }
-                    }
-                } else {
-                    Text(OnDeviceIdeas.unavailableReason ?? "").textStyle(.callout, color: Brand.inkMuted)
-                        .padding(.vertical, Brand.space3)
+                if !found.isEmpty {
+                    section("Ideas for \(name)")
+                    ForEach(found) { row($0) }
                 }
-
-                if OnDeviceIdeas.isAvailable {
-                    section("Something the kids could give")
-                    if kids.isEmpty {
-                        if loadingKids { thinking("Thinking…") } else {
-                            TextLink(title: "Show ideas for the kids") { Task { await loadKids() } }.padding(.leading, -8)
-                        }
-                    }
+                if !kids.isEmpty {
+                    section("From the kids")
                     ForEach(kids) { row($0) }
                 }
 
-                Text("Saw something somewhere? Share it to Held Dear from Safari or any app, and it lands on \(name)'s shelf.")
+                startCard.padding(.top, Brand.space6)
+
+                Text("Or share a link to Held Dear from Safari or any app.")
                     .textStyle(.caption, color: Brand.inkMuted)
-                    .padding(.top, Brand.space6)
+                    .padding(.top, Brand.space4)
                 if let note { Text(note).textStyle(.caption, color: Brand.inkMuted).padding(.top, Brand.space2) }
             }
             .padding(.horizontal, Brand.space5)
@@ -135,8 +93,8 @@ struct IdeasList: View {
         }
         .background(Brand.page.ignoresSafeArea())
         .sheet(isPresented: $editingLoves, onDismiss: {
-            // Fresh suggestions with what was just added, only if something was.
-            if !(moment.person?.loves.isEmpty ?? true) { Task { await loadFound() } }
+            // Suggestions right after, with whatever was added (or without, if nothing was).
+            Task { await loadFound() }
         }) {
             if let person = moment.person { PortraitEditor(person: person).presentationDetents([.large]).environmentObject(model) }
         }
@@ -146,10 +104,52 @@ struct IdeasList: View {
     /// guidance). Once saved, suggestions come straight back, now using what was added.
     private func openLoves() { editingLoves = true }
 
+    /// "Turns 10 on Feb 18 · have it by Feb 13": the day and the order-by in one line.
     private var subline: String {
-        let what = moment.countLine.map { "For " + $0.prefix(1).lowercased() + $0.dropFirst() } ?? "For \(moment.label.lowercased())"
+        let day = OccasionDates.shortDate(moment.dueDate)
+        let what = moment.countLine.map { "\($0) on \(day)" } ?? "\(moment.label) on \(day)"
         let order = OccasionDates.shortDate(GiftTiming.suggestedArrival(due: moment.dueDate, now: Date()))
-        return "\(what) · aim to have it by \(order)"
+        return "\(what) · have it by \(order)"
+    }
+
+    private var lovesEmpty: Bool { moment.person?.loves.isEmpty ?? true }
+
+    private var kidsOffered: Bool {
+        guard let p = moment.person else { return false }
+        return Relationship.kidsCouldGive(relationship: p.relationship, isInner: p.ring == .inner)
+    }
+
+    /// The one place to start: suggest (asking what they love first, in place, when nothing's saved), or save one.
+    @ViewBuilder private var startCard: some View {
+        VStack(alignment: .leading, spacing: Brand.space3) {
+            if shelf.isEmpty && found.isEmpty {
+                Text("Nothing saved yet.").textStyle(.headline)
+            }
+            if OnDeviceIdeas.isAvailable {
+                if loading {
+                    thinking("Thinking about \(name)…")
+                } else {
+                    PrimaryButton(title: found.isEmpty ? "Suggest ideas" : "Different ideas") {
+                        if lovesEmpty && found.isEmpty { openLoves() } else { Task { await loadFound() } }
+                    }
+                    Text(lovesEmpty && found.isEmpty ? "First, what does \(name) love? Ideas are written on this iPhone; nothing leaves it."
+                                                     : "Written on this iPhone from what you saved. Nothing leaves it.")
+                        .textStyle(.caption, color: Brand.inkMuted)
+                }
+            } else {
+                Text(OnDeviceIdeas.unavailableReason ?? "").textStyle(.callout, color: Brand.inkMuted)
+            }
+            TextLink(title: "Save an idea") { model.route = .addWish(moment.person?.id ?? UUID()) }
+                .padding(.leading, -8)
+            if OnDeviceIdeas.isAvailable && kidsOffered && kids.isEmpty {
+                if loadingKids { thinking("Thinking…") } else {
+                    TextLink(title: "Ideas the kids could give") { Task { await loadKids() } }.padding(.leading, -8)
+                }
+            }
+        }
+        .padding(Brand.space5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
     }
 
     private func section(_ title: String) -> some View {

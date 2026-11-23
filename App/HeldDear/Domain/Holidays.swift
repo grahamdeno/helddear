@@ -112,6 +112,17 @@ enum Relationship {
         }
     }
 
+    /// Whether the Ideas page offers "something the kids could give" (Graham, Nov 22, 2026): for a partner or a
+    /// parent or grandparent, or an inner-ring person whose relationship isn't set yet. Never for a child, a niece,
+    /// a friend.
+    static func kidsCouldGive(relationship: String?, isInner: Bool) -> Bool {
+        switch group(relationship) {
+        case .partner, .parent: return true
+        case .unknown: return isInner
+        default: return false
+        }
+    }
+
     static func group(_ relationship: String?) -> Group {
         guard let r = relationship?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !r.isEmpty else {
             return .unknown
