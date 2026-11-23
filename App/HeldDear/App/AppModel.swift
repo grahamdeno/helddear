@@ -167,6 +167,7 @@ final class AppModel: ObservableObject {
         importInbox()
         if onboarded { syncContacts() }
         MomentEngine.refresh(context, now: now)
+        syncPartnerNames()
         applyTraditions(now: now)
         checkReturnFromCall()
         writeSnapshots(now: now)
@@ -334,6 +335,7 @@ final class AppModel: ObservableObject {
     /// The other half of an anniversary, for the two-photo circles (nil when there's nothing to pair).
     func pairPartner(for moment: Moment) -> PairSide? {
         guard let occasion = moment.occasion, let owner = moment.person else { return nil }
+        if occasion.type == .anniversary, let linked = linkedPartner(of: occasion), linked.id != owner.id { return .person(linked.id) }
         return AnniversaryPair.partner(type: occasion.type, partnerName: occasion.partnerName,
                                        extraRecipientIDs: occasion.extraRecipientIDs, ownerID: owner.id,
                                        people: allPeople().map { .init(id: $0.id, name: $0.name, fullName: $0.fullName) },
@@ -496,12 +498,14 @@ final class AppModel: ObservableObject {
     }
 
     /// Adds a non-birthday occasion: an anniversary, a holiday, or a one-time life moment.
-    func addOccasion(_ person: Person, type: OccasionType, month: Int, day: Int, year: Int?, partnerName: String? = nil) {
+    func addOccasion(_ person: Person, type: OccasionType, month: Int, day: Int, year: Int?, partnerName: String? = nil,
+                     partnerID: UUID? = nil) {
         if type.kind == .holiday, person.occasions.contains(where: { $0.type == type }) { return }
         let occasion = Occasion(type: type, month: month, day: day, birthYear: year)
         occasion.partnerName = partnerName
         context.insert(occasion)
         occasion.person = person
+        if type == .anniversary, let partnerID, partnerID != person.id { AnniversaryLinks.set(partnerID, for: occasion.id) }
         MomentEngine.refresh(context)
         commit()
     }
@@ -533,8 +537,114 @@ final class AppModel: ObservableObject {
             defaults.set(Array(removed), forKey: "removedContactIDs")
         }
         for file in person.photoFiles { PhotoStore.delete(file) }
+        keepLinkedAnniversaries(leaving: person)
         context.delete(person)
         commit()
+    }
+
+    // MARK: Linked anniversaries (Nov 22, 2026)
+
+    private func linkDays() -> [AnniversaryLinks.Day] {
+        allPeople().flatMap { p in
+            p.occasions.filter { $0.type == .anniversary }.map { o in
+                AnniversaryLinks.Day(id: o.id, ownerID: p.id, month: o.month, day: o.day, year: o.birthYear,
+                                     partnerName: o.partnerName, planned: o.moments.reduce(0) { $0 + $1.acts.count })
+            }
+        }
+    }
+
+    private func linkPeople() -> [AnniversaryLinks.Someone] {
+        allPeople().map { .init(id: $0.id, name: $0.name, fullName: $0.fullName) }
+    }
+
+    private func occasion(_ id: UUID) -> Occasion? {
+        for p in allPeople() { if let o = p.occasions.first(where: { $0.id == id }) { return o } }
+        return nil
+    }
+
+    /// The person an anniversary is linked to, when that person is still in the app.
+    func linkedPartner(of occasion: Occasion) -> Person? {
+        AnniversaryLinks.partner(of: occasion.id).flatMap { person($0) }
+    }
+
+    /// Anniversaries kept on someone else's page and linked to this person, shown on this page too.
+    func sharedAnniversaries(for person: Person) -> [Occasion] {
+        AnniversaryLinks.shared(with: person.id, days: linkDays(), links: AnniversaryLinks.all()).compactMap { occasion($0.id) }
+    }
+
+    /// Picks (or clears) the other half of an anniversary: a person in the app, or a typed name.
+    func setPartner(_ occasion: Occasion, person partner: Person?, typed: String?) {
+        if let partner, partner.id != occasion.person?.id {
+            AnniversaryLinks.set(partner.id, for: occasion.id)
+            occasion.partnerName = partner.name
+        } else {
+            AnniversaryLinks.set(nil, for: occasion.id)
+            occasion.partnerName = typed?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+        }
+        commit()
+    }
+
+    /// Two anniversaries that look like one couple's day, offered once to combine (never without a tap).
+    func combineOffer(for person: Person) -> (keep: Occasion, drop: Occasion)? {
+        let offers = AnniversaryLinks.combineOffers(days: linkDays(), links: AnniversaryLinks.all(), people: linkPeople(),
+                                                    skipped: { AnniversaryLinks.isSkipped($0, $1) })
+        for o in offers where o.keep.ownerID == person.id || o.drop.ownerID == person.id {
+            if let keep = occasion(o.keep.id), let drop = occasion(o.drop.id) { return (keep, drop) }
+        }
+        return nil
+    }
+
+    /// Makes two anniversaries one: plans move to the one kept, which is linked to the other person.
+    func combine(keep: Occasion, drop: Occasion) {
+        guard let other = drop.person, keep.id != drop.id else { return }
+        for m in drop.moments {
+            if let target = keep.moments.first(where: { $0.year == m.year }) {
+                for act in m.acts { act.moment = target }
+            } else {
+                m.occasion = keep
+            }
+        }
+        if keep.birthYear == nil { keep.birthYear = drop.birthYear }
+        if OccasionPhotos.file(for: keep.id) == nil, let file = OccasionPhotos.file(for: drop.id) {
+            OccasionPhotos.set(file, for: keep.id)
+        }
+        OccasionPhotos.set(nil, for: drop.id)
+        AnniversaryLinks.set(nil, for: drop.id)
+        AnniversaryLinks.set(other.id, for: keep.id)
+        keep.partnerName = other.name
+        context.delete(drop)
+        MomentEngine.refresh(context)
+        commit()
+    }
+
+    func skipCombine(_ a: Occasion, _ b: Occasion) {
+        AnniversaryLinks.skip(a.id, b.id)
+        revision += 1
+    }
+
+    /// A linked anniversary follows the partner's current name.
+    func syncPartnerNames() {
+        var changed = false
+        for (oid, pid) in AnniversaryLinks.all() {
+            guard let o = occasion(oid), let p = person(pid),
+                  let name = AnniversaryLinks.partnerName(typed: o.partnerName, linked: .init(id: p.id, name: p.name, fullName: p.fullName)),
+                  o.partnerName != name else { continue }
+            o.partnerName = name
+            changed = true
+        }
+        if changed { commit() }
+    }
+
+    /// Before a person is removed: an anniversary kept on their page and linked to someone still here moves to that
+    /// person's page, with the removed person's name typed in. Links to the removed person end; the typed name stays.
+    private func keepLinkedAnniversaries(leaving person: Person) {
+        for o in person.occasions where o.type == .anniversary {
+            guard let partner = linkedPartner(of: o), partner.id != person.id else { continue }
+            o.person = partner
+            o.partnerName = person.name
+            AnniversaryLinks.set(nil, for: o.id)
+        }
+        for (oid, pid) in AnniversaryLinks.all() where pid == person.id { AnniversaryLinks.set(nil, for: oid) }
     }
 
     // MARK: Contacts sync
