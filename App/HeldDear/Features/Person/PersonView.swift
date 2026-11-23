@@ -1483,7 +1483,7 @@ struct FocusPicker: View {
     var body: some View {
         FlowScreen(onClose: close) {
             Question(title: "Who should it center on?",
-                     subtitle: faces.count > 1 ? "Tap a face below. Or pinch the photo to zoom and tap any spot." : "Pinch to zoom, then tap any spot.",
+                     subtitle: faces.count > 1 ? "Tap a face, or a spot on the photo." : "Tap a spot on the photo.",
                      style: .title)
             if let image {
                 if faces.count > 1 {
@@ -1510,11 +1510,22 @@ struct FocusPicker: View {
                         Image(uiImage: image).resizable().scaledToFit()
                             .frame(width: fit.width, height: fit.height)
                         if let focus {
+                            // Drag the circle itself to move it (Nov 22, 2026); the rest of the page scrolls freely.
+                            let side = max(max(focus.width * fit.width, focus.height * fit.height) * 1.3, 44)
                             Circle().strokeBorder(Brand.action, lineWidth: 3 / zoom)
-                                .frame(width: max(focus.width * fit.width, focus.height * fit.height) * 1.3,
-                                       height: max(focus.width * fit.width, focus.height * fit.height) * 1.3)
+                                .frame(width: side, height: side)
+                                .contentShape(Circle())
                                 .position(x: focus.midX * fit.width, y: focus.midY * fit.height)
-                                .allowsHitTesting(false)
+                                .highPriorityGesture(DragGesture(minimumDistance: 1)
+                                    .onChanged { g in
+                                        let start = dragStart ?? focus
+                                        if dragStart == nil { dragStart = focus }
+                                        self.focus = PhotoFocus.inside(start.offsetBy(dx: g.translation.width / (fit.width * zoom),
+                                                                                       dy: g.translation.height / (fit.height * zoom)))
+                                    }
+                                    .onEnded { _ in dragStart = nil })
+                                .accessibilityLabel("Focus circle")
+                                .accessibilityHint("Drag to move it")
                         }
                     }
                     .frame(width: fit.width, height: fit.height)
@@ -1542,37 +1553,29 @@ struct FocusPicker: View {
                         withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 3; zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } }
                     }
                 }
-                .frame(height: 340)
+                .frame(height: 270)
                 .background(Brand.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 if let focus {
-                    // How it looks on Home, and fine-tuning right on it: drag to move, slide to zoom.
-                    VStack(spacing: Brand.space3) {
+                    // How it looks on Home beside the zoom: small and still, so nothing here catches a scroll.
+                    HStack(spacing: Brand.space4) {
                         crop(image, focus, share: 0.5)
-                            .frame(width: 180, height: 180).clipShape(Circle())
+                            .frame(width: 96, height: 96).clipShape(Circle())
                             .overlay { Circle().strokeBorder(Brand.raisedLine, lineWidth: 1) }
-                            .contentShape(Circle())
-                            .gesture(DragGesture(minimumDistance: 1)
-                                .onChanged { g in nudge(by: g.translation, previewSide: 180, imageSize: image.size) }
-                                .onEnded { _ in dragStart = nil })
                             .accessibilityLabel("How it looks on Home")
-                            .accessibilityHint("Drag to move the photo in the circle")
-                            .accessibilityAdjustableAction { dir in
-                                zoomBy(dir == .increment ? 0.9 : 1.1)
+                        VStack(alignment: .leading, spacing: Brand.space2) {
+                            Text("How it looks on Home").textStyle(.caption, color: Brand.inkMuted)
+                            HStack(spacing: Brand.space2) {
+                                Text("Closer").textStyle(.caption, color: Brand.inkMuted)
+                                Slider(value: Binding(get: { sizeFactor }, set: { setSize($0) }), in: 0.5...2.5)
+                                    .tint(Brand.action)
+                                    .accessibilityLabel("Zoom")
+                                Text("Wider").textStyle(.caption, color: Brand.inkMuted)
                             }
-                        HStack(spacing: Brand.space3) {
-                            Text("Closer").textStyle(.caption, color: Brand.inkMuted)
-                            Slider(value: Binding(get: { sizeFactor }, set: { setSize($0) }), in: 0.5...2.5)
-                                .tint(Brand.action)
-                                .accessibilityLabel("Zoom")
-                            Text("Wider").textStyle(.caption, color: Brand.inkMuted)
+                            Text("Drag the circle on the photo to move it.").textStyle(.caption, color: Brand.inkMuted)
                         }
-                        Text("Drag the circle to move the photo. Slide to zoom.").textStyle(.caption, color: Brand.inkMuted)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Brand.space2)
                 }
-            }
             if PhotoFocus.box(for: file) != nil {
                 TextLink(title: "Go back to the largest face") { PhotoFocus.set(nil, for: file); close() }.padding(.leading, -8)
             }
