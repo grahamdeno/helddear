@@ -104,7 +104,25 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/HeldDear.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HeldDear"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  HeldDearUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - App/HeldDearUITests
+    dependencies:
+      - target: HeldDear
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.grahamdeno.helddear.uitests
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
+  HeldDearWalk:
+    build:
+      targets:
+        HeldDear: all
+    test:
+      targets:
+        - HeldDearUITests
   HeldDear:
     build:
       targets:
