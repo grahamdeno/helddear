@@ -879,6 +879,21 @@ final class AppModel: ObservableObject {
     /// Items hidden while their removal can be undone; removed for good when the banner goes.
     @Published var removing: Set<UUID> = []
     private var undoTask: Task<Void, Never>?
+    /// For an Undo that isn't a removal (a skipped photo, Nov 22, 2026): what Undo puts back.
+    private var undoAction: (() -> Void)?
+
+    /// Shows "[text] · Undo" for five seconds; Undo runs `undo`. Nothing happens when the banner goes.
+    func offerUndo(_ text: String, undo: @escaping () -> Void) {
+        finishPendingRemoval()
+        undoAction = undo
+        let id = UUID()
+        withAnimation(.snappy) { self.undo = UndoNote(id: id, text: text) }
+        undoTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            self?.finishPendingRemoval()
+        }
+    }
 
     /// Hides an item at once, shows Undo for five seconds, then removes it.
     func removePartWithUndo(_ act: Act, name: String) {
@@ -895,6 +910,7 @@ final class AppModel: ObservableObject {
 
     func undoRemoval() {
         undoTask?.cancel()
+        if let action = undoAction { undoAction = nil; action() }
         if let note = undo { removing.remove(note.id) }
         withAnimation(.snappy) { undo = nil }
     }
@@ -902,6 +918,7 @@ final class AppModel: ObservableObject {
     /// Removes the hidden item for good (also when another removal starts).
     func finishPendingRemoval() {
         undoTask?.cancel()
+        undoAction = nil
         guard let note = undo else { return }
         if let act = act(note.id) { removePart(act) }
         removing.remove(note.id)

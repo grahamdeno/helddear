@@ -18,6 +18,9 @@ final class BirthdaySuggestionsTests: XCTestCase {
         XCTAssertEqual(BirthdaySuggestions.kept(for: ada, d), ["x"])
         XCTAssertEqual(BirthdaySuggestions.skipped(for: ada, d), ["y"])
         XCTAssertTrue(BirthdaySuggestions.kept(for: bo, d).isEmpty)
+        // Undo for Skip puts it back.
+        BirthdaySuggestions.unmarkSkipped("y", for: ada, d)
+        XCTAssertTrue(BirthdaySuggestions.skipped(for: ada, d).isEmpty)
     }
 
     func testAPhotosDayTakenStaysInItsFileName() {
