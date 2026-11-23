@@ -376,6 +376,11 @@ struct PersonView: View {
     }
 
     private func dayValue(_ o: Occasion) -> String {
+        // A holiday shows its next real date, worked out by its own rule.
+        if o.type.kind == .holiday, o.type != .custom,
+           let next = OccasionRules.nextDate(type: o.type, month: o.month, day: o.day, from: Date()) {
+            return next.formatted(.dateTime.month(.abbreviated).day())
+        }
         let date = OccasionDates.date(month: o.month, day: o.day, year: 2028)
         if let y = o.birthYear { return date.formatted(.dateTime.month(.abbreviated).day()) + ", \(y)" }
         return date.formatted(.dateTime.month(.abbreviated).day())
