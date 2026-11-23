@@ -5,6 +5,9 @@ import CoreData
 /// `-seedCloudKitOneOfEach` (debug only): one made-up object of every record type, every field filled, long enough
 /// to force the asset fields. These tests fill an in-memory store; nothing goes to iCloud.
 final class CloudKitSeedTests: XCTestCase {
+    /// Kept alive for the whole test: objects turn into empty faults when their container is released.
+    private var container: NSPersistentContainer?
+
     private func context() throws -> NSManagedObjectContext {
         let container = NSPersistentContainer(name: "HeldDear", managedObjectModel: CoreStore.model)
         let d = NSPersistentStoreDescription()
@@ -13,6 +16,7 @@ final class CloudKitSeedTests: XCTestCase {
         var failure: Error?
         container.loadPersistentStores { _, e in failure = e }
         XCTAssertNil(failure)
+        self.container = container
         return container.viewContext
     }
 
