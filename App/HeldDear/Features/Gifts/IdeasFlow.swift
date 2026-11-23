@@ -48,6 +48,7 @@ struct IdeasList: View {
     @State private var loading = false
     @State private var loadingKids = false
     @State private var note: String?
+    @State private var editingLoves = false
 
     private var name: String { moment.person?.name ?? "" }
 
@@ -68,29 +69,50 @@ struct IdeasList: View {
                 Text(subline).font(Brand.serif(18, relativeTo: .callout, italic: true)).foregroundStyle(Brand.inkSoft)
                     .padding(.top, 2)
 
-                if !shelf.isEmpty {
-                    section("From your shelf")
+                // Saved ideas first; suggestions only when asked for (Graham, Nov 22, 2026).
+                section("Saved for \(name)")
+                if shelf.isEmpty {
+                    Text("Ideas and links you save for \(name) show here.").textStyle(.callout, color: Brand.inkMuted)
+                        .padding(.vertical, Brand.space2)
+                } else {
                     ForEach(shelf) { row($0) }
                 }
+                TextLink(title: "+ Save an idea") { model.route = .addWish(moment.person?.id ?? UUID()) }
+                    .padding(.leading, -8).padding(.top, Brand.space2)
 
-                section("Ideas for \(name)")
+                section("Suggestions")
                 if OnDeviceIdeas.isAvailable {
-                    if loading && found.isEmpty { thinking("Thinking about \(name)…") }
-                    ForEach(found) { row($0) }
-                    if !found.isEmpty {
+                    if found.isEmpty {
+                        if loading {
+                            thinking("Thinking about \(name)…")
+                        } else {
+                            if moment.person?.loves.isEmpty ?? true {
+                                Button { openLoves() } label: {
+                                    Text("Add what \(name) loves first, for ideas that fit \(name).")
+                                        .font(.callout.weight(.medium)).foregroundStyle(Brand.action).multilineTextAlignment(.leading)
+                                        .frame(minHeight: 44, alignment: .leading)
+                                }
+                            }
+                            SecondaryButton(title: "Suggest ideas for \(name)") { Task { await loadFound() } }
+                                .padding(.top, Brand.space2)
+                            Text("Written on this iPhone from what you saved. Nothing leaves your phone.")
+                                .textStyle(.caption, color: Brand.inkMuted).padding(.top, Brand.space2)
+                        }
+                    } else {
+                        ForEach(found) { row($0) }
                         TextLink(title: loading ? "Thinking…" : "Different ideas") { Task { await loadFound() } }
                             .disabled(loading).padding(.leading, -8).padding(.top, Brand.space2)
+                        if moment.person?.loves.isEmpty ?? true {
+                            Button { openLoves() } label: {
+                                Text("Add what \(name) loves and the ideas get much better.")
+                                    .font(.callout.weight(.medium)).foregroundStyle(Brand.action).multilineTextAlignment(.leading)
+                            }
+                            .padding(.top, Brand.space3)
+                        }
                     }
                 } else {
                     Text(OnDeviceIdeas.unavailableReason ?? "").textStyle(.callout, color: Brand.inkMuted)
                         .padding(.vertical, Brand.space3)
-                }
-                if moment.person?.loves.isEmpty ?? true {
-                    Button { model.route = .person(moment.person?.id ?? UUID()) } label: {
-                        Text("Tell Held Dear what \(name) loves and the ideas get much better.")
-                            .font(.callout.weight(.medium)).foregroundStyle(Brand.action).multilineTextAlignment(.leading)
-                    }
-                    .padding(.top, Brand.space3)
                 }
 
                 if OnDeviceIdeas.isAvailable {
@@ -112,8 +134,17 @@ struct IdeasList: View {
             .padding(.bottom, Brand.space6)
         }
         .background(Brand.page.ignoresSafeArea())
-        .task { if found.isEmpty && OnDeviceIdeas.isAvailable { await loadFound() } }
+        .sheet(isPresented: $editingLoves, onDismiss: {
+            // Fresh suggestions with what was just added, only if something was.
+            if !(moment.person?.loves.isEmpty ?? true) { Task { await loadFound() } }
+        }) {
+            if let person = moment.person { PortraitEditor(person: person).presentationDetents([.large]).environmentObject(model) }
+        }
     }
+
+    /// What they love, edited right here (Graham, Nov 22, 2026: the link used to drop him on the person's page with no
+    /// guidance). Once saved, suggestions come straight back, now using what was added.
+    private func openLoves() { editingLoves = true }
 
     private var subline: String {
         let what = moment.countLine.map { "For " + $0.prefix(1).lowercased() + $0.dropFirst() } ?? "For \(moment.label.lowercased())"
