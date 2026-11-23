@@ -429,12 +429,17 @@ enum CoreStore {
         return r
     }
 
-    /// Free text a person typed is encrypted in iCloud (Fable C8): only the user's own devices can read it.
+    /// Free text a person typed is encrypted in iCloud (Fable C8): only the user's own devices can read it. Model 3.3
+    /// (Nov 23, 2026, Fable's schema review) adds the family page fields, the birth year, month and day of an occasion,
+    /// the family page id and the contact id: a field can be encrypted only before its schema is deployed. 3.3 changes
+    /// only the iCloud encryption flags, not any stored field, so the version number of the model stays 32 and a store
+    /// from 3.2 opens unchanged.
     static let encryptedFields: Set<String> = ["fullName", "manualPhone", "sizes", "goodToKnow", "relationship",
                                                "mailingAddress", "loves", "partnerName", "fromNote", "note", "line",
                                                "text", "url", "title", "label", "what", "personName", "name",
                                                "orderNumber", "trackingURL",
-                                               "familyOwnerKey", "familyInviteURL", "familyGiftURL"]
+                                               "familyOwnerKey", "familyInviteURL", "familyGiftURL",
+                                               "birthYear", "month", "day", "familyPageID", "contactID"]
 
     /// 30: build 1030. 31 (item 3.1): adds Photo (each photo's bytes, for iCloud) and encrypts free text in iCloud.
     /// 32 (Nov 22, 2026): adds Act.orderNumber and Act.trackingURL, both optional.

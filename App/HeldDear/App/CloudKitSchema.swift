@@ -13,15 +13,16 @@ enum CloudKitSchema {
     /// The mapping, one line per attribute and per to-one link:
     /// - a record type `CD_<Entity>` with `CD_entityName`;
     /// - a field `CD_<attribute>`: strings, UUIDs and URLs are STRING; integers and booleans INT64; doubles DOUBLE;
-    ///   dates TIMESTAMP; binary BYTES; an attribute kept outside the database as a large file also has `CD_<attribute>_ckAsset` ASSET;
+    ///   dates TIMESTAMP; binary BYTES. Every String and every binary attribute also has `CD_<attribute>_ckAsset` ASSET;
     ///   an attribute that iCloud encrypts is ENCRYPTED STRING (or ENCRYPTED type);
     /// - a to-one link is `CD_<link>`, a STRING holding the other record's name. A to-many link has no field of its
     ///   own: its to-one inverse holds it.
     /// - every record type has the indexes recordName QUERYABLE and CD_entityName QUERYABLE.
     static func fields(for attribute: NSAttributeDescription) -> [(name: String, line: String)] {
         let own = field(for: attribute)
-        if attribute.attributeType == .binaryDataAttributeType, attribute.allowsExternalBinaryDataStorage {
-            // A large binary keeps its bytes (small values stay in the record) and its asset (large ones).
+        if attribute.attributeType == .stringAttributeType || attribute.attributeType == .binaryDataAttributeType {
+            // Core Data pairs every String and every binary attribute with an asset field, for a value too large for the
+            // record. A missing field makes the server reject the record's upload in Production.
             let asset = "CD_\(attribute.name)_ckAsset"
             return [own, (asset, "\"\(asset)\" ASSET")]
         }

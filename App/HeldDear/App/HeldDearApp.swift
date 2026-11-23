@@ -12,6 +12,7 @@ struct HeldDearApp: App {
         #if DEBUG
         // CI only: print the CloudKit schema Core Data would create (a dry run), then quit. Never in a release build.
         if SchemaProbe.requested { SchemaProbe.runAndQuit() }
+        if CloudKitSeed.requested { CloudKitSeed.runAndQuit() }
         #endif
     }
 

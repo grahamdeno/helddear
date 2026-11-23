@@ -49,7 +49,9 @@ final class CloudKitSchemaTests: XCTestCase {
         XCTAssertTrue(person.contains("\"CD_name\" ENCRYPTED STRING,"), "free text is encrypted in iCloud")
         XCTAssertTrue(person.contains("\"CD_ringRaw\" STRING,"))
         let occasion = lines(of: model.entitiesByName["Occasion"]!, in: text)
-        XCTAssertTrue(occasion.contains("\"CD_month\" INT64,"))
+        XCTAssertTrue(occasion.contains("\"CD_month\" ENCRYPTED INT64,"), "an encrypted integer")
+        XCTAssertTrue(occasion.contains("\"CD_typeRaw\" STRING,"))
+        XCTAssertTrue(occasion.contains("\"CD_typeRaw_ckAsset\" ASSET,"), "every String has its asset companion")
         XCTAssertTrue(occasion.contains("\"CD_person\" STRING,"), "a to-one link is a STRING record name")
         let photo = lines(of: model.entitiesByName["Photo"]!, in: text)
         XCTAssertTrue(photo.contains("\"CD_data\" BYTES,"), "a large binary keeps its bytes field")
@@ -82,7 +84,37 @@ final class CloudKitSchemaTests: XCTestCase {
             XCTAssertTrue(model.entitiesByName["Moment"]?.attributesByName[name]?.allowsCloudEncryption == true, name)
             XCTAssertTrue(moment.contains("\"CD_\(name)\" ENCRYPTED STRING,"), name)
         }
-        XCTAssertFalse(moment.contains("\"CD_familyPageID\" ENCRYPTED STRING,"), "the page id is not a secret and stays plain")
+    }
+
+    /// Fable's schema review (P4, P5): a field can be encrypted only before its schema is deployed.
+    func testTheBirthDateParts_FamilyPageIDAndContactIDAreEncryptedInICloud() {
+        let text = CloudKitSchema.ckdb(for: model)
+        let occasion = lines(of: model.entitiesByName["Occasion"]!, in: text)
+        for field in ["CD_birthYear", "CD_month", "CD_day"] {
+            XCTAssertTrue(occasion.contains("\"\(field)\" ENCRYPTED INT64,"), field)
+        }
+        XCTAssertTrue(lines(of: model.entitiesByName["Moment"]!, in: text).contains("\"CD_familyPageID\" ENCRYPTED STRING,"))
+        XCTAssertTrue(lines(of: model.entitiesByName["Person"]!, in: text).contains("\"CD_contactID\" ENCRYPTED STRING,"))
+    }
+
+    /// Fable's schema review (P2): Core Data pairs every String attribute and every binary attribute with an asset field;
+    /// no other type gets one. A missing field makes the server reject the record in Production.
+    func testEveryStringAndBinaryAttributeHasOneAssetCompanionAndNothingElseDoes() {
+        let text = CloudKitSchema.ckdb(for: model)
+        for entity in model.entities {
+            let body = lines(of: entity, in: text)
+            for (name, a) in entity.attributesByName {
+                let asset = body.filter { $0.hasPrefix("\"CD_\(name)_ckAsset\" ") }
+                let expected = a.attributeType == .stringAttributeType || a.attributeType == .binaryDataAttributeType
+                XCTAssertEqual(asset.count, expected ? 1 : 0, "\(entity.name!).\(name)")
+                if expected { XCTAssertEqual(asset.first, "\"CD_\(name)_ckAsset\" ASSET,") }
+            }
+            let assetLines = body.filter { $0.contains("_ckAsset") }.count
+            let expectedCount = entity.attributesByName.values.filter {
+                $0.attributeType == .stringAttributeType || $0.attributeType == .binaryDataAttributeType
+            }.count
+            XCTAssertEqual(assetLines, expectedCount, "\(entity.name!): no asset line without an attribute")
+        }
     }
 
     /// A store written by the 3.2 model as it was before the family-page fields were encrypted (the same model with
@@ -94,8 +126,10 @@ final class CloudKitSchemaTests: XCTestCase {
         let url = dir.appendingPathComponent("HeldDear.sqlite")
 
         let before = model.copy() as! NSManagedObjectModel
-        for name in ["familyOwnerKey", "familyInviteURL", "familyGiftURL"] {
-            before.entitiesByName["Moment"]!.attributesByName[name]!.allowsCloudEncryption = false
+        for (entity, name) in [("Moment", "familyOwnerKey"), ("Moment", "familyInviteURL"), ("Moment", "familyGiftURL"),
+                               ("Moment", "familyPageID"), ("Occasion", "birthYear"), ("Occasion", "month"),
+                               ("Occasion", "day"), ("Person", "contactID")] {
+            before.entitiesByName[entity]!.attributesByName[name]!.allowsCloudEncryption = false
         }
         XCTAssertEqual(before.entityVersionHashesByName, model.entityVersionHashesByName,
                        "the encryption flag does not change the model's version, so no upgrade step is needed")
@@ -108,6 +142,15 @@ final class CloudKitSchemaTests: XCTestCase {
             var failure: Error?
             old.loadPersistentStores { _, e in failure = e }
             XCTAssertNil(failure)
+            let person = NSEntityDescription.insertNewObject(forEntityName: "Person", into: old.viewContext)
+            person.setValue(UUID(), forKey: "id")
+            person.setValue("contact-1", forKey: "contactID")
+            let occasion = NSEntityDescription.insertNewObject(forEntityName: "Occasion", into: old.viewContext)
+            occasion.setValue(UUID(), forKey: "id")
+            occasion.setValue(3, forKey: "month")
+            occasion.setValue(9, forKey: "day")
+            occasion.setValue(1990, forKey: "birthYear")
+            occasion.setValue(person, forKey: "person")
             let m = NSEntityDescription.insertNewObject(forEntityName: "Moment", into: old.viewContext)
             m.setValue(UUID(), forKey: "id")
             m.setValue("page-1", forKey: "familyPageID")
@@ -124,6 +167,14 @@ final class CloudKitSchemaTests: XCTestCase {
         XCTAssertEqual(moments.count, 1)
         XCTAssertEqual(moments.first?.familyOwnerKey, "owner-key-1")
         XCTAssertEqual(moments.first?.familyInviteURL, "https://example.invalid/invite")
+        XCTAssertEqual(moments.first?.familyPageID, "page-1")
+        let occasions = try HeldDear.ModelContext(opened.container).fetch(HeldDear.FetchDescriptor<Occasion>())
+        XCTAssertEqual(occasions.count, 1)
+        XCTAssertEqual(occasions.first?.month, 3)
+        XCTAssertEqual(occasions.first?.day, 9)
+        XCTAssertEqual(occasions.first?.birthYear, 1990)
+        let people = try HeldDear.ModelContext(opened.container).fetch(HeldDear.FetchDescriptor<Person>())
+        XCTAssertEqual(people.first?.contactID, "contact-1")
     }
 
     func testTheOutputIsTheSameEveryTime() {
