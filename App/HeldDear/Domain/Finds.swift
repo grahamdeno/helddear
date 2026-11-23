@@ -27,7 +27,8 @@ struct Find: Equatable, Identifiable {
     var fits: Set<FindFit> = []
     /// How long it takes to arrive, in the shop's words.
     var arrives: String = ""
-    /// A dependable pick from a national brand (a cake or flowers to order without searching), not a discovery.
+    /// A dependable pick from a national brand (a cake or flowers to order without searching), not a discovery. Shown
+    /// only under "Where it comes from" in a plan, never in Finds or as a find on an item.
     var dependable: Bool = false
     /// When it was added to the catalog, newest first in Finds.
     var added: String = "2026-11-20"
@@ -187,7 +188,7 @@ enum Finds {
                         catalog: [Find] = Finds.catalog, limit: Int = 2) -> [Find] {
         let words = Set(loves.flatMap { $0.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init) })
         let candidates = catalog.enumerated().filter { _, f in
-            f.kinds.contains(kind) && (f.fromKids == nil || f.fromKids == fromKids) && !dismissed.contains(f.id)
+            !f.dependable && f.kinds.contains(kind) && (f.fromKids == nil || f.fromKids == fromKids) && !dismissed.contains(f.id)
         }
         return candidates.sorted { a, b in
             let sa = score(a.element, words), sb = score(b.element, words)
@@ -222,9 +223,12 @@ enum Finds {
 }
 
 extension Finds {
-    /// Every find for the Finds page, newest first, narrowed by who it's for and price. Filters stack.
+    /// Every find for the Finds page, newest first, narrowed by who it's for and price. Filters stack. National-brand
+    /// picks never show here: Finds is small makers only (Graham, Nov 22, 2026). They stay as quick picks in a plan's
+    /// cake and flowers parts.
     static func browse(fits: Set<FindFit> = [], prices: Set<FindPrice> = [], catalog: [Find] = Finds.catalog) -> [Find] {
         catalog.enumerated()
+            .filter { _, f in !f.dependable }
             .filter { _, f in fits.isEmpty || !f.fits.isDisjoint(with: fits) }
             .filter { _, f in prices.isEmpty || prices.contains { $0.contains(f.fromDollars) } }
             .sorted { a, b in a.element.added == b.element.added ? a.offset > b.offset : a.element.added > b.element.added }

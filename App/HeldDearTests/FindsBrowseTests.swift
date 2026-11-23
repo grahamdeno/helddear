@@ -32,6 +32,14 @@ final class FindsBrowseTests: XCTestCase {
         XCTAssertFalse(FindPrice.under50.contains(nil), "Unknown prices only show without a price filter")
     }
 
+    func testNationalBrandsNeverShowAsFinds() {
+        XCTAssertFalse(Finds.browse().contains { $0.dependable }, "Finds is small makers only")
+        for kind in [ActKind.cake, .flowers] {
+            XCTAssertFalse(Finds.matches(kind: kind, fromKids: false, loves: [], dismissed: [], limit: 20).contains { $0.dependable })
+        }
+        XCTAssertTrue(Finds.catalog.contains { $0.dependable }, "they stay as quick picks in a plan")
+    }
+
     func testDependablePicksAreForCakeAndFlowers() {
         for f in Finds.catalog where f.dependable {
             XCTAssertTrue(f.kinds.isSubset(of: [.cake, .flowers]), f.id)
