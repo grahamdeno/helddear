@@ -465,7 +465,11 @@ struct PersonView: View {
                      empty: person.loves.isEmpty) { model.push(.personPart(person.id, .loves)) }
             PartTile(icon: "lightbulb", title: "Ideas",
                      detail: ideas == 0 ? "Save an idea" : (ideas == 1 ? "1 saved" : "\(ideas) saved"),
-                     empty: ideas == 0) { model.push(.personPart(person.id, .ideas)) }
+                     empty: ideas == 0) {
+                // The same Ideas page as the Ideas button: saved first, suggestions when asked (Nov 22, 2026).
+                if let next = model.nextMoment(for: person) { model.route = .ideas(next.id) }
+                else { model.push(.personPart(person.id, .ideas)) }
+            }
             PartTile(icon: "photo.on.rectangle", title: "Photos",
                      detail: photos == 0 ? "Add photos" : (photos == 1 ? "1 photo" : "\(photos) photos"),
                      empty: photos == 0, image: PhotoStore.load(person.photoFiles.last)) { model.push(.personPart(person.id, .photos)) }
