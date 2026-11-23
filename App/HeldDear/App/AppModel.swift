@@ -167,6 +167,7 @@ final class AppModel: ObservableObject {
         importInbox()
         if onboarded { syncContacts() }
         MomentEngine.refresh(context, now: now)
+        applyTraditions(now: now)
         checkReturnFromCall()
         writeSnapshots(now: now)
         syncLiveDays(now: now)
@@ -786,6 +787,31 @@ final class AppModel: ObservableObject {
             PlanStore.addPart(to: m, kind: s.kind, label: s.label, in: context)
         }
         commit()
+    }
+
+    /// Adds each holiday tradition to the chosen people's coming days, once per day (Nov 22, 2026). Each lands as its
+    /// own gift item with the tradition's name and givers, after the holiday's usual starting items.
+    func applyTraditions(now: Date = Date()) {
+        let all = Traditions.all()
+        guard !all.isEmpty else { return }
+        let today = Calendar.current.startOfDay(for: now)
+        let moments = allMoments().filter { $0.dueDate >= today && $0.person != nil && $0.type.kind == .holiday }
+        var changed = false
+        for var t in all {
+            guard let ref = HolidayRef(raw: t.holiday) else { continue }
+            let days = moments.filter { ref.matches(type: $0.type, partner: $0.occasion?.partnerName) }
+            let ids = Traditions.toAdd(t, days: days.compactMap { m in m.person.map { (m.id, $0.id) } })
+            guard !ids.isEmpty else { continue }
+            for m in days where ids.contains(m.id) {
+                startHolidayPlan(m)
+                let act = PlanStore.addPart(to: m, kind: .gift, label: t.name, in: context)
+                PlanStore.setOwners(act, to: t.giverIDs)
+                t.applied.append(m.id)
+            }
+            Traditions.upsert(t)
+            changed = true
+        }
+        if changed { commit() }
     }
 
     /// Adds a person to a shared holiday and starts their plan.
