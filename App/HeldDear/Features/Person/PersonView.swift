@@ -1576,6 +1576,7 @@ struct FocusPicker: View {
                         }
                     }
                 }
+            }
             if PhotoFocus.box(for: file) != nil {
                 TextLink(title: "Go back to the largest face") { PhotoFocus.set(nil, for: file); close() }.padding(.leading, -8)
             }
