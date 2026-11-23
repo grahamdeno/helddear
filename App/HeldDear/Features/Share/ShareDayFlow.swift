@@ -96,7 +96,11 @@ struct ShareDayFlow: View {
                     .tint(Brand.action)
                     .frame(minHeight: 56)
             } else {
-                PrimaryButton(title: moving ? "Make and share" : "Share") { share() }
+                // "Share" read as if tapping would post it (Graham, Nov 22, 2026): say what happens next.
+                VStack(spacing: Brand.space2) {
+                    PrimaryButton(title: "Choose where it goes") { share() }
+                    Text("Nothing is sent until you pick.").textStyle(.caption, color: Brand.inkMuted)
+                }
             }
         }
         .task {
