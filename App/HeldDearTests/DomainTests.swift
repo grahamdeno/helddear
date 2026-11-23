@@ -386,3 +386,22 @@ final class CancelledAlertsTests: XCTestCase {
         XCTAssertFalse(CancelledAlerts.isOff("dayof-1", d))
     }
 }
+
+/// The message for a person's day, written ahead (Graham, Nov 22, 2026).
+final class DayMessagesTests: XCTestCase {
+    func testWriteChangeAndGoBackToTheUsual() {
+        let d = UserDefaults(suiteName: "DayMessagesTests")!
+        d.removePersistentDomain(forName: "DayMessagesTests")
+        let id = UUID(), usual = "Happy birthday, Ada!"
+        XCTAssertEqual(DayMessages.text(for: id, usual: usual, d), usual)
+        DayMessages.set("Forty looks good on you.", for: id, usual: usual, d)
+        XCTAssertEqual(DayMessages.text(for: id, usual: usual, d), "Forty looks good on you.")
+        DayMessages.set("  Still the best.  ", for: id, usual: usual, d)
+        XCTAssertEqual(DayMessages.message(for: id, d), "Still the best.")
+        DayMessages.set(usual, for: id, usual: usual, d)
+        XCTAssertNil(DayMessages.message(for: id, d), "the usual greeting isn't kept as a custom message")
+        DayMessages.set("Hi", for: id, usual: usual, d)
+        DayMessages.set(nil, for: id, usual: usual, d)
+        XCTAssertNil(DayMessages.message(for: id, d))
+    }
+}

@@ -48,6 +48,7 @@ struct PersonView: View {
     @State private var editingFamily = false
     @State private var familyToggle = 0
     @State private var alertToggle = 0
+    @State private var messageFor: Moment?
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -69,6 +70,9 @@ struct PersonView: View {
                 .environmentObject(model)
         }
         .sheet(isPresented: $editingFamily, onDismiss: { familyToggle += 1 }) { FamilyRecipientsSheet(person: person) }
+        .sheet(item: $messageFor, onDismiss: { alertToggle += 1 }) { m in
+            DayMessageEditor(person: person, moment: m).environmentObject(model)
+        }
         .fullScreenCover(isPresented: $sendingCard) {
             ReasonCardFlow(person: person) { sendingCard = false }.environmentObject(model)
         }
@@ -685,6 +689,26 @@ struct PersonView: View {
                             .textStyle(.caption, color: Brand.inkMuted)
                         Text(stop.label).textStyle(.body, color: past || off ? Brand.inkMuted : Brand.ink)
                             .strikethrough(off, color: Brand.inkMuted)
+                        if stop.alertID.hasPrefix("dayof-"), !past {
+                            // The message itself: read it here, tap to write, change or reset it (Nov 22, 2026).
+                            let usual = m.type.greeting(name: name)
+                            let saved = DayMessages.message(for: m.id)
+                            Button { messageFor = m } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\u{201C}\(saved ?? usual)\u{201D}")
+                                        .font(Brand.serif(16, relativeTo: .body, italic: true)).foregroundStyle(Brand.inkSoft)
+                                        .multilineTextAlignment(.leading).lineLimit(3)
+                                    Text(saved == nil ? "Write your own message" : "Change the message")
+                                        .textStyle(.caption, color: Brand.action)
+                                }
+                                .padding(.top, 4)
+                                .frame(minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Message for \(name): \(saved ?? usual)")
+                            .accessibilityHint("Opens it to write or change")
+                        }
                     }
                     .padding(.bottom, Brand.space3)
                     Spacer(minLength: 0)
@@ -1594,5 +1618,48 @@ struct PartTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(title). \(detail)")
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// The message for a person's day (Graham, Nov 22, 2026): write it ahead, change it, or go back to the usual.
+struct DayMessageEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    let moment: Moment
+    @State private var text = ""
+
+    private var name: String { DisplayName.plain(person.name) }
+    private var usual: String { moment.type.greeting(name: name) }
+    private var saved: String? { DayMessages.message(for: moment.id) }
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "The message for \(name)",
+                     subtitle: "Ready on \(OccasionDates.shortDate(moment.dueDate)) when you tap the alert. You can still change it then.",
+                     style: .title)
+            TextField("Write the message", text: $text, axis: .vertical)
+                .lineLimit(3...8)
+                .font(Brand.serif(19, relativeTo: .body, italic: true))
+                .foregroundStyle(Brand.ink)
+                .padding(Brand.space4)
+                .frame(minHeight: 120, alignment: .topLeading)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            WriteForMe(kind: .message, facts: { PersonFacts(person: person, moment: moment) }, text: $text)
+            if saved != nil {
+                TextLink(title: "Go back to the usual: \u{201C}\(usual)\u{201D}") {
+                    DayMessages.set(nil, for: moment.id, usual: usual)
+                    dismiss()
+                }
+                .padding(.leading, -8)
+            }
+        } footer: {
+            PrimaryButton(title: "Save the message") {
+                DayMessages.set(text, for: moment.id, usual: usual)
+                dismiss()
+            }
+            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .onAppear { text = saved ?? usual }
     }
 }
