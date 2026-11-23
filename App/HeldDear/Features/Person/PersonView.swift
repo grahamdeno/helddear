@@ -1750,7 +1750,7 @@ struct NameEditor: View {
                 let s = short.trimmingCharacters(in: .whitespacesAndNewlines)
                 let f = full.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !s.isEmpty { person.name = s }
-                person.fullName = f.isEmpty ? nil : f
+                person.fullName = f.isEmpty ? person.name : f
                 model.commit()
                 dismiss()
             }
