@@ -17,7 +17,7 @@ final class FindsBrowseTests: XCTestCase {
 
     func testNewestFirstAndFiltersStack() {
         let all = Finds.browse()
-        XCTAssertEqual(all.count, Finds.catalog.count)
+        XCTAssertEqual(all.count, Finds.catalog.filter { !$0.dependable }.count)
         XCTAssertEqual(all.first?.added, "2026-11-21")
         let partnerUnder50 = Finds.browse(fits: [.partner], prices: [.under50])
         XCTAssertFalse(partnerUnder50.isEmpty)
@@ -30,6 +30,14 @@ final class FindsBrowseTests: XCTestCase {
         XCTAssertTrue(FindPrice.from50to100.contains(100))
         XCTAssertTrue(FindPrice.over100.contains(101))
         XCTAssertFalse(FindPrice.under50.contains(nil), "Unknown prices only show without a price filter")
+    }
+
+    func testNationalBrandsNeverShowAsFinds() {
+        XCTAssertFalse(Finds.browse().contains { $0.dependable }, "Finds is small makers only")
+        for kind in [ActKind.cake, .flowers] {
+            XCTAssertFalse(Finds.matches(kind: kind, fromKids: false, loves: [], dismissed: [], limit: 20).contains { $0.dependable })
+        }
+        XCTAssertTrue(Finds.catalog.contains { $0.dependable }, "they stay as quick picks in a plan")
     }
 
     func testDependablePicksAreForCakeAndFlowers() {
