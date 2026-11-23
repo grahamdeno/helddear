@@ -49,6 +49,7 @@ struct PersonView: View {
     @State private var familyToggle = 0
     @State private var alertToggle = 0
     @State private var messageFor: Moment?
+    @State private var editingName = false
     @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
@@ -70,6 +71,7 @@ struct PersonView: View {
                 .environmentObject(model)
         }
         .sheet(isPresented: $editingFamily, onDismiss: { familyToggle += 1 }) { FamilyRecipientsSheet(person: person) }
+        .sheet(isPresented: $editingName) { NameEditor(person: person).environmentObject(model) }
         .sheet(item: $messageFor, onDismiss: { alertToggle += 1 }) { m in
             DayMessageEditor(person: person, moment: m).environmentObject(model)
         }
@@ -84,7 +86,8 @@ struct PersonView: View {
                 person.contactID = contact.identifier
                 if contact.isKeyAvailable(CNContactGivenNameKey) && contact.isKeyAvailable(CNContactFamilyNameKey) {
                     let full = [contact.givenName, contact.familyName].filter { !$0.isEmpty }.joined(separator: " ")
-                    if !full.isEmpty { person.fullName = full }
+                    // A name typed in Held Dear wins: linking only fills a missing full name (Nov 22, 2026).
+                    if !full.isEmpty && (person.fullName ?? "").isEmpty { person.fullName = full }
                 }
                 model.keepContactDetails(ContactImport.Pick(contact), on: person)
                 model.commit()
@@ -280,6 +283,9 @@ struct PersonView: View {
             VStack(alignment: .leading, spacing: Brand.space5) {
                 Text("\(name)'s details").textStyle(.title).accessibilityAddTraits(.isHeader)
                 group("About") {
+                    // The name Held Dear uses, editable without touching the contact (Graham, Nov 22, 2026).
+                    YouRow(icon: "textformat", title: "Name", detail: person.fullName ?? person.name, caption: nil) { editingName = true }
+                    YouDivider()
                     YouRow(icon: "heart", title: "Relationship", detail: person.relationship ?? "Add", caption: nil) {
                         model.push(.relationship(person.id))
                     }
@@ -1717,5 +1723,38 @@ struct DayMessageEditor: View {
             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .onAppear { text = saved ?? usual }
+    }
+}
+
+/// A person's names in Held Dear (Graham, Nov 22, 2026): what the app calls them and their full name, changed here
+/// only. The contact card is never touched.
+struct NameEditor: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let person: Person
+    @State private var short = ""
+    @State private var full = ""
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "\(DisplayName.plain(person.name))'s name",
+                     subtitle: person.contactID == nil ? "How Held Dear shows it." : "How Held Dear shows it. Changing it here leaves the contact as it is.",
+                     style: .title)
+            LineField(label: "What you call them", text: $short, placeholder: "Meredith", showsDictation: false)
+            LineField(label: "Full name (optional)", text: $full, placeholder: "Meredith Smith", showsDictation: false)
+            Text("The first name is used in reminders and messages; the full name shows on their page and cards.")
+                .textStyle(.caption, color: Brand.inkMuted)
+        } footer: {
+            PrimaryButton(title: "Save") {
+                let s = short.trimmingCharacters(in: .whitespacesAndNewlines)
+                let f = full.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !s.isEmpty { person.name = s }
+                person.fullName = f.isEmpty ? person.name : f
+                model.commit()
+                dismiss()
+            }
+            .disabled(short.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .onAppear { short = person.name; full = person.fullName ?? "" }
     }
 }
