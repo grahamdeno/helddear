@@ -26,6 +26,25 @@ enum PhotoFocus {
         return CGRect(x: min(max(0, point.x - w / 2), 1 - w), y: min(max(0, point.y - h / 2), 1 - h), width: w, height: h)
     }
 
+    /// Fine-tuning (Nov 22, 2026): a drag on the round preview moves the photo with the finger, so the box moves the
+    /// other way. The preview shows a square about twice the box's longer side. Kept inside the photo.
+    static func nudged(_ box: CGRect, by t: CGSize, previewSide: CGFloat, imageSize: CGSize) -> CGRect {
+        let sidePx = max(box.width * imageSize.width, box.height * imageSize.height) / 0.5
+        let dx = -t.width / max(previewSide, 1) * sidePx / max(imageSize.width, 1)
+        let dy = -t.height / max(previewSide, 1) * sidePx / max(imageSize.height, 1)
+        return inside(box.offsetBy(dx: dx, dy: dy))
+    }
+
+    /// The box made `factor` times the size of `base`, around the box's own center: above 1 is wider, below is closer.
+    static func resized(_ box: CGRect, base: CGRect, factor: CGFloat) -> CGRect {
+        let w = min(1, base.width * factor), h = min(1, base.height * factor)
+        return inside(CGRect(x: box.midX - w / 2, y: box.midY - h / 2, width: w, height: h))
+    }
+
+    static func inside(_ r: CGRect) -> CGRect {
+        CGRect(x: min(max(0, r.minX), 1 - r.width), y: min(max(0, r.minY), 1 - r.height), width: r.width, height: r.height)
+    }
+
     /// The box in pixels, for framing.
     static func pixels(_ box: CGRect, imageSize: CGSize) -> CGRect {
         CGRect(x: box.minX * imageSize.width, y: box.minY * imageSize.height,

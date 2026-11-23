@@ -1471,6 +1471,9 @@ struct FocusPicker: View {
     @State private var zoomStart: CGFloat = 1
     @State private var pan: CGSize = .zero
     @State private var panStart: CGSize = .zero
+    /// Fine-tuning (Graham, Nov 22, 2026): the box as first chosen, for the zoom slider, and where a drag began.
+    @State private var base: CGRect?
+    @State private var dragStart: CGRect?
 
     private func same(_ a: CGRect?, _ b: CGRect) -> Bool {
         guard let a else { return false }
@@ -1488,7 +1491,7 @@ struct FocusPicker: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Brand.space3) {
                             ForEach(Array(faces.enumerated()), id: \.offset) { i, f in
-                                Button { focus = f } label: {
+                                Button { choose(f) } label: {
                                     crop(image, f, share: 0.7)
                                         .frame(width: 64, height: 64).clipShape(Circle())
                                         .overlay { Circle().strokeBorder(same(focus, f) ? Brand.action : Brand.raisedLine, lineWidth: same(focus, f) ? 3 : 1) }
@@ -1519,8 +1522,8 @@ struct FocusPicker: View {
                     // The tap is read before zooming, so it lands on the photo's own spot at any zoom.
                     .onTapGesture { p in
                         let spot = CGPoint(x: p.x / fit.width, y: p.y / fit.height)
-                        focus = faces.first { $0.insetBy(dx: -$0.width * 0.3, dy: -$0.height * 0.3).contains(spot) }
-                            ?? PhotoFocus.box(around: spot, imageSize: image.size, share: 0.12)
+                        choose(faces.first { $0.insetBy(dx: -$0.width * 0.3, dy: -$0.height * 0.3).contains(spot) }
+                            ?? PhotoFocus.box(around: spot, imageSize: image.size, share: 0.12))
                     }
                     .scaleEffect(zoom)
                     .offset(pan)
@@ -1543,10 +1546,31 @@ struct FocusPicker: View {
                 .background(Brand.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 if let focus {
-                    HStack(spacing: Brand.space3) {
-                        crop(image, focus, share: 0.5).frame(width: 72, height: 72).clipShape(Circle())
-                        Text("How it looks on Home").textStyle(.caption, color: Brand.inkMuted)
+                    // How it looks on Home, and fine-tuning right on it: drag to move, slide to zoom.
+                    VStack(spacing: Brand.space3) {
+                        crop(image, focus, share: 0.5)
+                            .frame(width: 180, height: 180).clipShape(Circle())
+                            .overlay { Circle().strokeBorder(Brand.raisedLine, lineWidth: 1) }
+                            .contentShape(Circle())
+                            .gesture(DragGesture(minimumDistance: 1)
+                                .onChanged { g in nudge(by: g.translation, previewSide: 180, imageSize: image.size) }
+                                .onEnded { _ in dragStart = nil })
+                            .accessibilityLabel("How it looks on Home")
+                            .accessibilityHint("Drag to move the photo in the circle")
+                            .accessibilityAdjustableAction { dir in
+                                zoomBy(dir == .increment ? 0.9 : 1.1)
+                            }
+                        HStack(spacing: Brand.space3) {
+                            Text("Closer").textStyle(.caption, color: Brand.inkMuted)
+                            Slider(value: Binding(get: { sizeFactor }, set: { setSize($0) }), in: 0.5...2.5)
+                                .tint(Brand.action)
+                                .accessibilityLabel("Zoom")
+                            Text("Wider").textStyle(.caption, color: Brand.inkMuted)
+                        }
+                        Text("Drag the circle to move the photo. Slide to zoom.").textStyle(.caption, color: Brand.inkMuted)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Brand.space2)
                 }
             }
             if PhotoFocus.box(for: file) != nil {
@@ -1563,7 +1587,31 @@ struct FocusPicker: View {
             focus = PhotoFocus.box(for: file)
             if let image { faces = await FaceFinder.shared.faces(in: image) }
             if focus == nil { focus = faces.first }
+            base = focus
         }
+    }
+
+    private func choose(_ r: CGRect) { focus = r; base = r }
+
+    /// How much wider (above 1) or closer (below 1) than first chosen.
+    private var sizeFactor: Double {
+        guard let focus, let base, base.width > 0 else { return 1 }
+        return Double(focus.width / base.width)
+    }
+
+    private func setSize(_ factor: Double) {
+        guard let focus, let base else { return }
+        self.focus = PhotoFocus.resized(focus, base: base, factor: CGFloat(factor))
+    }
+
+    private func zoomBy(_ k: CGFloat) { setSize(sizeFactor * Double(k)) }
+
+    /// A drag on the circle moves the photo with the finger: the focus moves the other way.
+    private func nudge(by t: CGSize, previewSide: CGFloat, imageSize: CGSize) {
+        guard let focus else { return }
+        let start = dragStart ?? focus
+        if dragStart == nil { dragStart = focus }
+        self.focus = PhotoFocus.nudged(start, by: t, previewSide: previewSide, imageSize: imageSize)
     }
 
     /// A square crop around a box, the way Home frames a face.
