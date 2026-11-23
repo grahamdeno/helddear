@@ -2,8 +2,8 @@
 import CoreData
 import Foundation
 
-/// Debug builds only (never in a release build). The launch argument `-seedCloudKitOneOfEach` saves one made-up record
-/// of every record type, with every field filled, into a store of its own (never the user's store), then waits for
+/// Debug builds only (never in a release build). The launch argument `-seedCloudKitOneOfEach` saves two made-up records
+/// (one short, one long) of every record type, with every field filled, into a store of its own (never the user's store), then waits for
 /// Core Data to send it to the CloudKit Development environment, writes "done" or the error to a file in the app's temp
 /// folder, and quits. It is for a Mac or iPhone signed in to iCloud (routes A and B of the schema review): the long
 /// strings and the 1 MB photo force the asset fields, so the schema Core Data creates can be exported and compared.
@@ -15,13 +15,23 @@ enum CloudKitSeed {
     /// A photo over 1 MB.
     static let photoBytes = 1_200_000
 
-    /// Saves nothing: makes one object of every entity in `context`, every attribute filled and every to-one link set.
+    /// A short set uses values under 100 characters and a photo under 100 KB; a long set uses strings over 1 MB and a photo over 1 MB.
+    static let shortPhotoBytes = 50_000
+
+    typealias Made = (short: [String: NSManagedObject], long: [String: NSManagedObject])
+
+    /// Saves nothing: makes two objects of every entity in `context` (one short, one long), every attribute filled
+    /// (encrypted ones too) and every to-one link set within its own set.
     @discardableResult
-    static func fill(_ context: NSManagedObjectContext, model: NSManagedObjectModel = CoreStore.model) -> [String: NSManagedObject] {
+    static func fill(_ context: NSManagedObjectContext, model: NSManagedObjectModel = CoreStore.model) -> Made {
+        (short: fillOne(context, model: model, long: false), long: fillOne(context, model: model, long: true))
+    }
+
+    private static func fillOne(_ context: NSManagedObjectContext, model: NSManagedObjectModel, long: Bool) -> [String: NSManagedObject] {
         var made: [String: NSManagedObject] = [:]
         for entity in model.entities {
             let object = NSEntityDescription.insertNewObject(forEntityName: entity.name!, into: context)
-            for (name, a) in entity.attributesByName { object.setValue(value(for: a, name: name), forKey: name) }
+            for (name, a) in entity.attributesByName { object.setValue(value(for: a, name: name, long: long), forKey: name) }
             made[entity.name!] = object
         }
         for entity in model.entities {
@@ -32,9 +42,10 @@ enum CloudKitSeed {
         return made
     }
 
-    private static func value(for a: NSAttributeDescription, name: String) -> Any {
+    private static func value(for a: NSAttributeDescription, name: String, long: Bool) -> Any {
         switch a.attributeType {
         case .stringAttributeType:
+            if !long { return "Made-up text." }
             return String(String(repeating: "Made-up text for the schema. ", count: longStringLength / 29 + 1).prefix(longStringLength))
         case .UUIDAttributeType: return UUID()
         case .dateAttributeType: return Date(timeIntervalSince1970: 1_800_000_000)
@@ -42,7 +53,8 @@ enum CloudKitSeed {
         case .integer16AttributeType, .integer32AttributeType, .integer64AttributeType:
             switch name { case "month": return 7; case "day": return 15; case "birthYear", "year": return 1990; default: return 3 }
         case .doubleAttributeType, .floatAttributeType: return 1.5
-        case .binaryDataAttributeType: return Data(repeating: 7, count: a.allowsExternalBinaryDataStorage ? photoBytes : 16)
+        case .binaryDataAttributeType:
+            return Data(repeating: 7, count: a.allowsExternalBinaryDataStorage ? (long ? photoBytes : shortPhotoBytes) : 16)
         default: return Data(repeating: 7, count: 16)
         }
     }
