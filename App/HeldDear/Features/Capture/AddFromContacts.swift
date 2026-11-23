@@ -73,12 +73,22 @@ extension View {
 struct RelationshipQueueView: View {
     @EnvironmentObject var model: AppModel
     @State private var summary: String?
+    /// After "Who is Ana to you?", whether to look for Ana's birthday photos (Nov 22, 2026).
+    @State private var askingPhotos: UUID?
 
     var body: some View {
         if let id = model.relationshipQueue.first, let person = model.person(id) {
             VStack(spacing: 0) {
-                RelationshipPicker(person: person, showsBack: false) { next() }
-                    .id(person.id)
+                Group {
+                    if askingPhotos == id, person.birthday != nil {
+                        BirthdayPhotosAsk(person: person) { askingPhotos = nil; next() }
+                    } else {
+                        RelationshipPicker(person: person, showsBack: false) {
+                            if person.birthday != nil { askingPhotos = id } else { next() }
+                        }
+                    }
+                }
+                .id("\(person.id)-\(askingPhotos == id)")
                 HStack {
                     if let summary { Text(summary).textStyle(.caption, color: Brand.inkMuted) }
                     Spacer()
