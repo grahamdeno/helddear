@@ -26,6 +26,8 @@ struct MailCardFlow: View {
     @State private var step: Step = UserDefaults.standard.bool(forKey: "mailedCardIntroSeen") ? .loading : .intro
     @State private var catalog: MailedCards.Catalog?
     @State private var card: MailCard?
+    @State private var section: String?
+    @State private var searchText = ""
     @State private var message = ""
     @State private var wishes = ""
     @State private var recipient = MailAddress()
@@ -112,24 +114,99 @@ struct MailCardFlow: View {
     }
 
     private var pick: some View {
-        let cards = catalog?.cards ?? []
-        let more = catalog?.more ?? []
+        let sections = catalog?.sections ?? []
+        let shown = shownCards
         return FlowScreen(onClose: close) {
             Question(tag: "Mailed for you · \(price)", title: "Which card for \(name)?",
                      subtitle: "Written in pen, stamped and mailed with your return address.", style: .title)
             TextLink(title: "How it works") { step = .intro }
                 .padding(.leading, -8)
-            cardGrid(cards)
-            if !more.isEmpty {
+            // One category menu and one search, the way Handwrytten sorts its cards (Graham, Nov 22, 2026).
+            HStack(spacing: Brand.space2) {
+                if !sections.isEmpty {
+                    Menu {
+                        ForEach(sections, id: \.name) { s in
+                            Button { section = s.name; searchText = "" } label: {
+                                Text("\(s.name) (\(s.cards.count))")
+                                if s.name == currentSection { Image(systemName: "checkmark") }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(currentSection ?? "Cards").textStyle(.bodyStrong).lineLimit(1)
+                            Image(systemName: "chevron.down").font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundStyle(Brand.ink)
+                        .padding(.horizontal, Brand.space3)
+                        .frame(minHeight: 44)
+                        .overlay { RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous).strokeBorder(Brand.line) }
+                    }
+                    .accessibilityLabel("Category: \(currentSection ?? "Cards")")
+                }
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Brand.inkMuted)
+                    TextField("Search cards", text: $searchText)
+                        .textStyle(.body)
+                        .submitLabel(.search)
+                        .autocorrectionDisabled()
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Brand.inkMuted) }
+                            .accessibilityLabel("Clear search")
+                    }
+                }
+                .padding(.horizontal, Brand.space3)
+                .frame(minHeight: 44)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            }
+            Text(shownCaption(shown.count)).textStyle(.caption, color: Brand.inkMuted)
+            if shown.isEmpty {
+                Text("Try another word, or pick a category.").textStyle(.callout, color: Brand.inkMuted)
+            } else {
+                cardGrid(shown)
+            }
+            if sections.isEmpty, searchText.isEmpty, let more = catalog?.more, !more.isEmpty {
                 Eyebrow(text: "More cards, for any occasion").padding(.top, Brand.space3)
                 cardGrid(more)
             }
         } footer: {
             PrimaryButton(title: card.map { "Use \($0.name)" } ?? "Use this card") {
-                if card == nil { card = cards.first }
+                if card == nil { card = shown.first ?? catalog?.cards.first }
                 step = .message
             }
+            .disabled(card == nil && shown.isEmpty)
         }
+    }
+
+    /// The menu's category, opening on the occasion's own.
+    private var currentSection: String? {
+        section ?? CardSearch.startingSection(own: catalog?.own, names: (catalog?.sections ?? []).map(\.name))
+    }
+
+    /// The cards to show: a search looks across every category; otherwise the chosen category's cards.
+    private var shownCards: [MailCard] {
+        let sections = catalog?.sections ?? []
+        if sections.isEmpty {
+            let all = (catalog?.cards ?? []) + (searchText.isEmpty ? [] : (catalog?.more ?? []))
+            return all.filter { CardSearch.matches(searchText, name: $0.name, description: $0.description, category: nil) }
+        }
+        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+            return sections.first { $0.name == currentSection }?.cards ?? catalog?.cards ?? []
+        }
+        var seen = Set<Int>(), out: [MailCard] = []
+        for s in sections {
+            for c in s.cards where !seen.contains(c.id)
+                && CardSearch.matches(searchText, name: c.name, description: c.description, category: s.name) {
+                seen.insert(c.id)
+                out.append(c)
+            }
+        }
+        return out
+    }
+
+    private func shownCaption(_ n: Int) -> String {
+        let count = n == 1 ? "1 card" : "\(n) cards"
+        if !searchText.trimmingCharacters(in: .whitespaces).isEmpty { return "\(count) for \u{201C}\(searchText)\u{201D}" }
+        return currentSection.map { "\(count) · \($0)" } ?? count
     }
 
     private func cardGrid(_ list: [MailCard]) -> some View {

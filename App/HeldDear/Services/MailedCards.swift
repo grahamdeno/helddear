@@ -13,6 +13,8 @@ struct MailCard: Codable, Identifiable, Hashable {
     var cover: URL
     var inside: URL?
     var characters: Int
+    /// Handwrytten's short description, for search (servers before Nov 22, 2026 don't send it).
+    var description: String? = nil
 }
 
 struct MailAddress: Codable, Equatable {
@@ -56,6 +58,15 @@ enum MailedCards {
         var more: [MailCard]?
         var priceCents: Int
         var testMode: Bool?
+        /// Every personal category with its cards, and the occasion's own category name, for the menu and search
+        /// (Nov 22, 2026). Servers before then don't send them; the picker then shows the list as before.
+        var sections: [Section]?
+        var own: String?
+    }
+
+    struct Section: Decodable, Hashable {
+        var name: String
+        var cards: [MailCard]
     }
 
     struct OrderResult: Decodable {

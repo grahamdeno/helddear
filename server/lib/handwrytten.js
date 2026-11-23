@@ -63,6 +63,16 @@ export function pickCategory(cats, occasion) {
   return null;
 }
 
+/** The occasion's own category, with its name, so the app's menu opens on it. */
+export async function ownSection(occasion = "birthday") {
+  try {
+    const cats = pickList(await hw("/categories/list"), "categories", "data", "items");
+    const id = pickCategory(cats, occasion);
+    const c = cats.find((x) => x.id === id);
+    return c ? sectionName(c.name) : null;
+  } catch { return null; }
+}
+
 export async function categoryId(occasion = "birthday") {
   try {
     const cats = pickList(await hw("/categories/list"), "categories", "data", "items");
@@ -107,18 +117,55 @@ export async function listMoreCards(occasion = "birthday", shownIds = []) {
   return more.slice(0, 40);
 }
 
+/** One Handwrytten card as the app shows it. The description helps search (Nov 22, 2026). */
+export function toAppCard(c) {
+  return {
+    id: Number(c.id),
+    name: String(c.name ?? "Card"),
+    description: c.description ? String(c.description).slice(0, 200) : null,
+    cover: c.cover,
+    inside: c.inside_image ?? null,
+    characters: Number(c.characters) || 300,
+    orientation: c.orientation ?? null,
+  };
+}
+
 async function cardsIn(id) {
   const json = await hw(`/cards/list?category_id=${id}&with_images=1`);
   return pickList(json, "cards", "data", "items")
     .filter((c) => c.cover && c.id && isPersonal(c.name))
-    .map((c) => ({
-      id: Number(c.id),
-      name: String(c.name ?? "Card"),
-      cover: c.cover,
-      inside: c.inside_image ?? null,
-      characters: Number(c.characters) || 300,
-      orientation: c.orientation ?? null,
-    }));
+    .map(toAppCard);
+}
+
+/** "Birthday (Personal)" reads "Birthday"; other names stay as Handwrytten writes them. */
+export function sectionName(name) {
+  return String(name ?? "").replace(/\s*\((personal|cards?)\)\s*$/i, "").trim();
+}
+
+/** The personal categories, in Handwrytten's order, for the app's category menu (Nov 22, 2026). */
+export function personalCategories(cats) {
+  return cats.filter((c) => c.id > 0 && c.name && !NOT_PERSONAL_CATEGORY.test(c.name));
+}
+
+/**
+ * Every personal category with its cards, for the category menu and search in the app (Nov 22, 2026):
+ * [{ name: "Birthday", cards: [...] }]. Empty categories are left out; up to 30 categories, 60 cards each.
+ */
+export async function listSections() {
+  let cats = [];
+  try { cats = pickList(await hw("/categories/list"), "categories", "data", "items"); } catch { return []; }
+  const usable = personalCategories(cats).slice(0, 30);
+  const lists = await Promise.all(usable.map((c) => cardsIn(c.id).catch(() => [])));
+  const merged = new Map();
+  usable.forEach((c, i) => {
+    const name = sectionName(c.name);
+    const cards = lists[i].slice(0, 60);
+    if (!cards.length || !name) return;
+    const have = merged.get(name) ?? [];
+    for (const card of cards) if (!have.some((h) => h.id === card.id)) have.push(card);
+    merged.set(name, have);
+  });
+  return [...merged].map(([name, cards]) => ({ name, cards }));
 }
 
 /** Cards for an occasion with a cover image, as the app shows them. */
@@ -127,14 +174,7 @@ export async function listCards(occasion = "birthday") {
   const json = await hw(`/cards/list?category_id=${id}&with_images=1`);
   return pickList(json, "cards", "data", "items")
     .filter((c) => c.cover && c.id && isPersonal(c.name))
-    .map((c) => ({
-      id: Number(c.id),
-      name: String(c.name ?? "Card"),
-      cover: c.cover,
-      inside: c.inside_image ?? null,
-      characters: Number(c.characters) || 300,
-      orientation: c.orientation ?? null,
-    }))
+    .map(toAppCard)
     .slice(0, 60);
 }
 

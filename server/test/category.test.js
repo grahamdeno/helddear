@@ -73,3 +73,25 @@ test("real Handwrytten names: personal categories win, photo templates and busin
   assert.equal(pickCategory(real, "justBecause"), 15);
   assert.deepEqual(anyOccasionCategories(real, 1891), [15, 5]);
 });
+
+// Category menu and search (Nov 22, 2026).
+import { sectionName, personalCategories, toAppCard } from "../lib/handwrytten.js";
+
+test("section names drop (Personal) and keep the rest", () => {
+  assert.equal(sectionName("Birthday (Personal)"), "Birthday");
+  assert.equal(sectionName("Mother's Day"), "Mother's Day");
+  assert.equal(sectionName("Thank You (Cards)"), "Thank You");
+});
+
+test("only personal categories go to the menu", () => {
+  const cats = [{ id: 1, name: "Birthday (Personal)" }, { id: 2, name: "Birthday (Photo Templates)" },
+    { id: 3, name: "Employee Appreciation" }, { id: 0, name: "All Categories" }, { id: 4, name: "Sympathy" }];
+  assert.deepEqual(personalCategories(cats).map((c) => c.id), [1, 4]);
+});
+
+test("a card carries its description for search, capped", () => {
+  const c = toAppCard({ id: "9", name: "Bloom", description: "x".repeat(300), cover: "u" });
+  assert.equal(c.id, 9);
+  assert.equal(c.description.length, 200);
+  assert.equal(toAppCard({ id: 1, name: "A", cover: "u" }).description, null);
+});
