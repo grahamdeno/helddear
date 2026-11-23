@@ -405,3 +405,29 @@ final class DayMessagesTests: XCTestCase {
         XCTAssertNil(DayMessages.message(for: id, d))
     }
 }
+
+/// Fine-tuning who the top photo centers on (Graham, Nov 22, 2026).
+final class PhotoFocusTuneTests: XCTestCase {
+    func testDragMovesThePhotoWithTheFinger() {
+        let box = CGRect(x: 0.4, y: 0.4, width: 0.1, height: 0.1)
+        let size = CGSize(width: 1000, height: 1000)
+        // Dragging right by the whole preview moves the box left by the shown square (twice the box).
+        let moved = PhotoFocus.nudged(box, by: CGSize(width: 180, height: 0), previewSide: 180, imageSize: size)
+        XCTAssertEqual(moved.minX, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(moved.minY, 0.4, accuracy: 0.0001)
+        // Never past the photo's edge.
+        let far = PhotoFocus.nudged(box, by: CGSize(width: -5000, height: 5000), previewSide: 180, imageSize: size)
+        XCTAssertEqual(far.maxX, 1, accuracy: 0.0001)
+        XCTAssertEqual(far.minY, 0, accuracy: 0.0001)
+    }
+
+    func testZoomKeepsTheCenter() {
+        let base = CGRect(x: 0.4, y: 0.4, width: 0.1, height: 0.1)
+        let wider = PhotoFocus.resized(base, base: base, factor: 2)
+        XCTAssertEqual(wider.width, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(wider.midX, base.midX, accuracy: 0.0001)
+        let closer = PhotoFocus.resized(wider, base: base, factor: 0.5)
+        XCTAssertEqual(closer.width, 0.05, accuracy: 0.0001)
+        XCTAssertEqual(closer.midY, base.midY, accuracy: 0.0001)
+    }
+}
