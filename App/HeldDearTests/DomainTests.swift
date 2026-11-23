@@ -431,3 +431,15 @@ final class PhotoFocusTuneTests: XCTestCase {
         XCTAssertEqual(closer.midY, base.midY, accuracy: 0.0001)
     }
 }
+
+/// A couple's photo keeps its file when the same picture comes off a person (Nov 22, 2026).
+final class OccasionPhotosUseTests: XCTestCase {
+    func testUsesFindsTheFile() {
+        let d = UserDefaults(suiteName: "OccasionPhotosUseTests")!
+        d.removePersistentDomain(forName: "OccasionPhotosUseTests")
+        XCTAssertFalse(OccasionPhotos.uses("a.jpg", d))
+        OccasionPhotos.set("a.jpg", for: UUID(), d)
+        XCTAssertTrue(OccasionPhotos.uses("a.jpg", d))
+        XCTAssertFalse(OccasionPhotos.uses("b.jpg", d))
+    }
+}
