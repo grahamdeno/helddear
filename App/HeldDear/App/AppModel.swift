@@ -228,7 +228,9 @@ final class AppModel: ObservableObject {
             moments.first { $0.id == id }?.headsUpAt = date
         }
         try? context.save()
-        await NotificationService.shared.replace(with: result.alerts)
+        // Alerts the user turned off one at a time stay off (Nov 22, 2026).
+        let off = CancelledAlerts.all()
+        await NotificationService.shared.replace(with: result.alerts.filter { !off.contains($0.id) })
     }
 
     func state(for m: Moment) -> MomentState {

@@ -86,12 +86,13 @@ enum IdeaPrompts {
 
     /// Where a written line goes. A share card is public, so it gets no private details.
     enum LineKind: Equatable {
-        case cardLine, shareLine
+        case cardLine, shareLine, message
 
         var limit: Int {
             switch self {
             case .cardLine: 90
             case .shareLine: 60
+            case .message: 240
             }
         }
     }
@@ -106,6 +107,15 @@ enum IdeaPrompts {
             Write 3 different lines for the inside of a digital card to \(name) for \(p.occasion.subject(name: name)). \
             Each is at most \(LineKind.cardLine.limit) characters, warm and plain, written by the sender directly to \(name) \
             ("you"). Use one fact where it fits naturally. No he, she or they for \(name). No emoji, no hashtags, no dashes.
+            """
+        case .message:
+            return """
+            \(facts(p))
+
+            Write 3 different text messages to send \(name) on \(p.occasion.subject(name: name)). Each is at most \
+            \(LineKind.message.limit) characters, warm and plain, written by the sender directly to \(name) ("you"), \
+            like a real text from someone close. Use one fact where it fits naturally. No he, she or they for \(name). \
+            No emoji, no hashtags, no dashes.
             """
         case .shareLine:
             // Public: only the name and the occasion, never loves, sizes, notes or past years.

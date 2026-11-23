@@ -416,7 +416,8 @@ struct PhotoStep: View {
         }
     }
 
-    private var greetingText: String { moment.type.greeting(name: name) }
+    /// The usual greeting, or the message written ahead of time on the person's page (Nov 22, 2026).
+    private var greetingText: String { DayMessages.text(for: moment.id, usual: moment.type.greeting(name: name)) }
 
     private var shareItems: [Any] {
         var items: [Any] = []
@@ -425,7 +426,7 @@ struct PhotoStep: View {
     }
 
     @ViewBuilder private var composer: some View {
-        MessageComposer(recipients: [model.phone(for: moment.person)].compactMap { $0 }, body: cardImage == nil ? greetingText : "",
+        MessageComposer(recipients: [model.phone(for: moment.person)].compactMap { $0 }, body: DayMessages.message(for: moment.id) ?? (cardImage == nil ? greetingText : ""),
                         image: cardImage ?? selectedChoice?.image) { result in
             composing = false
             switch result {
