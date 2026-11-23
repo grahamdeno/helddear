@@ -44,6 +44,6 @@
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
 	<key>HeldDearCloudKitEnvironment</key>
-	<string>Development</string>
+	<string>$(HELDDEAR_CLOUDKIT_ENVIRONMENT)</string>
 </dict>
 </plist>

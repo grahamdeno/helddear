@@ -433,7 +433,8 @@ enum CoreStore {
     static let encryptedFields: Set<String> = ["fullName", "manualPhone", "sizes", "goodToKnow", "relationship",
                                                "mailingAddress", "loves", "partnerName", "fromNote", "note", "line",
                                                "text", "url", "title", "label", "what", "personName", "name",
-                                               "orderNumber", "trackingURL"]
+                                               "orderNumber", "trackingURL",
+                                               "familyOwnerKey", "familyInviteURL", "familyGiftURL"]
 
     /// 30: build 1030. 31 (item 3.1): adds Photo (each photo's bytes, for iCloud) and encrypts free text in iCloud.
     /// 32 (Nov 22, 2026): adds Act.orderNumber and Act.trackingURL, both optional.
