@@ -36,6 +36,29 @@ enum ShareCardLayout {
     /// holds. The still image is the last frame.
     static let duration: Double = 6.0
 
+    // MARK: Several photos (Graham, Nov 22, 2026: the same slideshow and ending as the digital card)
+
+    /// Up to five photos, so the moving version stays under 13 seconds (a Story's length).
+    static let maxPhotos = 5
+
+    /// How long the slideshow runs before the line starts drawing: each photo but the last holds for the digital
+    /// card's beat. One photo: no slideshow.
+    static func lead(photos: Int) -> Double { photos <= 1 ? 0 : Double(photos - 1) * GreetingCard.perPhoto }
+
+    /// The whole moving version: the slideshow, then the line, the dot and the words.
+    static func duration(photos: Int) -> Double { lead(photos: photos) + duration }
+
+    /// Tapping a photo in the row: adds it at the end (until the limit), or takes it out. The order is the order of
+    /// the slideshow, and the first is the still card's photo.
+    static func toggled(_ picked: [Int], _ index: Int, max: Int = maxPhotos) -> [Int] {
+        if let at = picked.firstIndex(of: index) {
+            var out = picked
+            out.remove(at: at)
+            return out
+        }
+        return picked.count >= max ? picked : picked + [index]
+    }
+
     static func ramp(_ t: Double, from a: Double, to b: Double) -> Double {
         guard b > a else { return t >= b ? 1 : 0 }
         let x = min(1, max(0, (t - a) / (b - a)))

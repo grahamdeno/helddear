@@ -17,7 +17,8 @@ enum ShareRender {
     /// Writes the moving version to a temporary .mp4 and returns its address. `progress` reports 0 to 1.
     static func video(_ content: ShareCardContent, shape: ShareCardView.Shape, fps: Int = 30,
                       progress: @escaping (Double) -> Void) async throws -> URL {
-        try await video(height: shape.height, duration: ShareCardLayout.duration, fps: fps, progress: progress) { t in
+        try await video(height: shape.height, duration: ShareCardLayout.duration(photos: content.photos.count), fps: fps,
+                        progress: progress) { t in
             ShareCardView(content: content, shape: shape, time: t)
         }
     }

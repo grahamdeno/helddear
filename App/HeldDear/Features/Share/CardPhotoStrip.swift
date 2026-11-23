@@ -10,6 +10,8 @@ struct CardPhotoStrip: View {
     var onSelect: (Int) -> Void
     /// Set to offer "Library" at the end of the row.
     var library: Binding<PhotosPickerItem?>? = nil
+    /// Several chosen, in order (the share card's slideshow, Nov 22, 2026): each is outlined and numbered.
+    var order: [Int]? = nil
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -27,13 +29,21 @@ struct CardPhotoStrip: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .strokeBorder(i == selected ? Brand.action : Color.clear, lineWidth: 2)
+                                .strokeBorder(isOn(i) ? Brand.action : Color.clear, lineWidth: i == selected ? 3 : 2)
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            if let n = order?.firstIndex(of: i) {
+                                Text("\(n + 1)").font(.caption2.weight(.bold)).foregroundStyle(Brand.onAction)
+                                    .frame(width: 18, height: 18)
+                                    .background(Brand.action, in: Circle())
+                                    .offset(x: 2, y: -2)
+                            }
                         }
                         .frame(width: 56, height: 56)
                     }
                     .buttonStyle(PressStyle())
-                    .accessibilityLabel("Photo \(i + 1)")
-                    .accessibilityAddTraits(i == selected ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityLabel(label(i))
+                    .accessibilityAddTraits(isOn(i) ? [.isButton, .isSelected] : .isButton)
                 }
                 if let library {
                     PhotosPicker(selection: library, matching: .images) {
@@ -50,6 +60,15 @@ struct CardPhotoStrip: View {
                 }
             }
         }
+    }
+}
+
+extension CardPhotoStrip {
+    fileprivate func isOn(_ i: Int) -> Bool { order?.contains(i) ?? (i == selected) }
+
+    fileprivate func label(_ i: Int) -> String {
+        if let n = order?.firstIndex(of: i) { return "Photo \(i + 1), number \(n + 1) in the slideshow" }
+        return "Photo \(i + 1)"
     }
 }
 
