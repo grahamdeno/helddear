@@ -21,7 +21,7 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
   6833744147) exists. TestFlight builds 1001 to 1009 uploaded for internal testing. Latest: build 1009, from `main`
   at 34fdc3d (PR #10, Home name follows the timeline), uploaded Nov 14.
 - **Branches:** `main` and `testflight` are at the same commit (34fdc3d). PRs #1 to #10 are closed; every one but #4
-  was merged (#4's contact picker fix went in with #5). The repo's default branch is `build/v1`, not `main`.
+  was merged (#4's contact picker fix went in with #5). The repo's default branch was `build/v1` until Nov 23, 2026; it is now `main`.
 - **Server:** Vercel project helddear-mail is live in production (helddear-mail.vercel.app), last deployed Nov 13.
   Mailed cards run in Handwrytten and Stripe test mode. Family pages store on Vercel Blob and are deleted 30 days
   after the day.

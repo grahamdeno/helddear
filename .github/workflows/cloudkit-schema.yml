@@ -53,6 +53,18 @@ jobs:
             --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear \
             --environment development --output-file exported.ckdb
 
+      - name: Show the export and compare it with cloudkit/schema.ckdb
+        # The schema is record and field names only, nothing secret. Printed so reviewers can read Apple's copy
+        # without downloading the artifact. Differences are listed, not failed on (Apple may order or format lines
+        # differently); Fable reviews them.
+        run: |
+          echo "===== Apple's Development schema (exported.ckdb) ====="
+          cat exported.ckdb
+          echo "===== Differences, ignoring blank lines and indentation (ours < > Apple's) ====="
+          diff <(grep -v '^[[:space:]]*$' cloudkit/schema.ckdb | sed 's/^[[:space:]]*//') \
+               <(grep -v '^[[:space:]]*$' exported.ckdb | sed 's/^[[:space:]]*//') || true
+          echo "===== End ====="
+
       - name: Upload the export, to diff against cloudkit/schema.ckdb
         uses: actions/upload-artifact@v4
         with:
