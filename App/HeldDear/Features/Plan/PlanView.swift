@@ -27,7 +27,8 @@ struct PlanView: View {
 
     private var person: Person? { moment.person }
     private var personName: String { person?.name ?? "Someone" }
-    private var parts: [Act] { moment.planParts }
+    /// The plan's parts, without any being removed while Undo still shows (Nov 22, 2026).
+    private var parts: [Act] { moment.planParts.filter { !model.removing.contains($0.id) } }
 
     /// The household an owner can be picked from: inner-ring people, other than the person the plan is for.
     private var household: [Person] {
@@ -208,38 +209,62 @@ struct PlanView: View {
         let existing = parts.map { (kindRaw: $0.kindRaw, label: $0.label) }
         let added = PartSuggestions.isAdded(s, parts: existing) && !PartSuggestions.canAddAgain(s)
         let already = PartSuggestions.canAddAgain(s) ? PartSuggestions.count(s, parts: existing) : 0
+        let matching = parts.filter { $0.kindRaw == s.kind.rawValue && (s.label == nil || $0.label?.caseInsensitiveCompare(s.label!) == .orderedSame) }
         if added {
-            suggestionLabel(s.title, trailing: "Added", color: Brand.inkMuted)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(s.title), added")
+            // Already in the plan: say so, and let it come out right here (Graham, Nov 22, 2026), with Undo.
+            HStack(spacing: Brand.space3) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
+                    Text("In the plan").textStyle(.caption, color: Brand.inkMuted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let act = matching.last { removeLink(act, title: s.title) }
+            }
+            .padding(.vertical, Brand.space4)
+            .frame(minHeight: 64)
+            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
         } else {
             let on = picked.contains(s.title)
-            Button {
-                if on { picked.remove(s.title) } else { picked.insert(s.title) }
-            } label: {
-                HStack(spacing: Brand.space3) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
-                        if already > 0 {
-                            Text("\(already) in the plan. Add another").textStyle(.caption, color: Brand.inkMuted)
+            HStack(spacing: Brand.space3) {
+                Button {
+                    if on { picked.remove(s.title) } else { picked.insert(s.title) }
+                } label: {
+                    HStack(spacing: Brand.space3) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(s.title).textStyle(.bodyStrong).multilineTextAlignment(.leading)
+                            if already > 0 {
+                                Text("\(already) in the plan. Add another").textStyle(.caption, color: Brand.inkMuted)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 24))
+                            .foregroundStyle(on ? Brand.action : Brand.inkMuted)
+                            .accessibilityHidden(true)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 24))
-                        .foregroundStyle(on ? Brand.action : Brand.inkMuted)
-                        .accessibilityHidden(true)
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, Brand.space4)
-                .frame(minHeight: 64)
-                .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
-                .contentShape(Rectangle())
+                .buttonStyle(PressStyle())
+                .accessibilityLabel(s.title)
+                .accessibilityValue(on ? "Selected" : "Not selected")
+                .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+                // One already in the plan can come out from here too: the most recently added one.
+                if already > 0, let act = matching.last { removeLink(act, title: s.title) }
             }
-            .buttonStyle(PressStyle())
-            .accessibilityLabel(s.title)
-            .accessibilityValue(on ? "Selected" : "Not selected")
-            .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+            .padding(.vertical, Brand.space4)
+            .frame(minHeight: 64)
+            .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
         }
+    }
+
+    private func removeLink(_ act: Act, title: String) -> some View {
+        Button {
+            model.removePartWithUndo(act, name: PartSteps.displayName(kindRaw: act.kindRaw, label: act.label, title: act.title))
+        } label: {
+            Text("Remove").font(.callout.weight(.semibold)).foregroundStyle(Brand.action).frame(minHeight: 44)
+        }
+        .buttonStyle(PressStyle())
+        .accessibilityLabel("Remove \(title) from the plan")
     }
 
     private func suggestionLabel(_ title: String, trailing: String, color: Color) -> some View {
