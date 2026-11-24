@@ -1,9 +1,12 @@
+import { pagesOffReply } from "../lib/switches.js";
 import { blobStore, baseURL } from "../lib/blobstore.js";
 import { createPage, deletePage, ownerView } from "../lib/pages.js";
 
 // POST /api/pages: create a family page. GET ?id&key: the owner's view with notes. DELETE ?id&key: remove it all.
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  const off = pagesOffReply(req.method);
+  if (off) return res.status(off.status).json(off.body);
   try {
     let r;
     if (req.method === "POST") r = await createPage(blobStore, req.body ?? {}, baseURL());

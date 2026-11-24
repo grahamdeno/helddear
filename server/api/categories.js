@@ -1,9 +1,12 @@
 import { hw, pickList, isPersonal } from "../lib/handwrytten.js";
+import { pausedReply } from "../lib/switches.js";
 
 // GET /api/categories: Handwrytten's public card categories and how many personal cards each has, to tune which
 // categories the app shows. No user data.
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  const paused = pausedReply();
+  if (paused) return res.status(paused.status).json(paused.body);
   try {
     const cats = pickList(await hw("/categories/list"), "categories", "data", "items");
     const out = [];

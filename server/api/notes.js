@@ -1,9 +1,12 @@
+import { pagesOffReply } from "../lib/switches.js";
 import { blobStore } from "../lib/blobstore.js";
 import { addNote, removeNote } from "../lib/pages.js";
 
 // POST /api/notes: family adds a note (HTML form or JSON). DELETE ?id&key&note: the owner removes one.
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  const off = pagesOffReply(req.method);
+  if (off) return res.status(off.status).json(off.body);
   try {
     if (req.method === "DELETE") {
       const r = await removeNote(blobStore, req.query.id, req.query.key, req.query.note);

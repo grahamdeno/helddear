@@ -1,3 +1,4 @@
+import { familyPagesOn } from "../lib/switches.js";
 import { blobStore } from "../lib/blobstore.js";
 import { CSP, giftPage, gonePage, invitePage } from "../lib/html.js";
 import { visitorView } from "../lib/pages.js";
@@ -8,6 +9,7 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (!familyPagesOn()) return res.status(404).send(gonePage());
   const mode = req.query.mode === "gift" ? "gift" : "invite";
   try {
     const v = await visitorView(blobStore, mode, req.query.id, req.query.k);
