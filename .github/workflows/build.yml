@@ -226,6 +226,23 @@ jobs:
             done
           done
 
+      - name: Entitlements as built, Release (ad hoc signed for the simulator, not a store signing)
+        continue-on-error: true
+        run: |
+          for SCHEME in HeldDear HeldDearSchemaTest; do
+            echo "::group::$SCHEME Release entitlements"
+            xcodebuild build -project HeldDear.xcodeproj -scheme "$SCHEME" -configuration Release \
+              -destination "generic/platform=iOS Simulator" -derivedDataPath "build/signed-$SCHEME" \
+              CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM="" > "build-logs/signed-$SCHEME.log" 2>&1 \
+              || { echo "(signed build failed; last lines:)"; tail -15 "build-logs/signed-$SCHEME.log"; }
+            APP=$(find "build/signed-$SCHEME/Build/Products" -maxdepth 3 -name "$SCHEME.app" | head -1)
+            [ -n "$APP" ] && codesign -d --entitlements - "$APP" 2>&1 | sed 's/^/  /' || echo "(no app to read)"
+            echo "--- entitlements file with this target's build settings filled in"
+            xcodebuild -showBuildSettings -project HeldDear.xcodeproj -scheme "$SCHEME" -configuration Release 2>/dev/null \
+              | grep -E "^\s+(PRODUCT_BUNDLE_IDENTIFIER|CODE_SIGN_ENTITLEMENTS|HELDDEAR_[A-Z_]+) =" | sed 's/^ */  /'
+            echo "::endgroup::"
+          done
+
       - name: The Schema Test app has its own identifiers and no extensions
         run: |
           APP=$(find build/dd-HeldDearSchemaTest-Release/Build/Products -maxdepth 3 -name HeldDearSchemaTest.app | head -1)
