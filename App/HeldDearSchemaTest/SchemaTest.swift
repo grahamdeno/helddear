@@ -5,6 +5,43 @@ import Darwin
 import os
 import SwiftUI
 
+/// What the CloudKit events said, copied in the handler (which runs on Core Data's own queue and never waits for the
+/// main thread) and read later from anywhere.
+final class SchemaTestWatcher {
+    private let lock = NSLock()
+    private var setupEnded = false
+    private var setupFailure: String?
+    private var failed = false
+    private var errors: [NSError] = []
+    private let log: (String) -> Void
+
+    init(log: @escaping (String) -> Void) { self.log = log }
+
+    /// Registers on the posting thread's queue, never the main queue. Register before the stores load, so the setup event is seen.
+    func attach(to container: NSPersistentCloudKitContainer) -> NSObjectProtocol {
+        SeedObserver.add(name: NSPersistentCloudKitContainer.eventChangedNotification, object: container) { [weak self] note in
+            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event, event.endDate != nil else { return }
+            let succeeded = event.succeeded
+            let error = event.error as NSError?
+            let isSetup = event.type == .setup, isExport = event.type == .export
+            self?.record(setup: isSetup, export: isExport, succeeded: succeeded, error: error)
+        }
+    }
+
+    private func record(setup: Bool, export: Bool, succeeded: Bool, error: NSError?) {
+        lock.lock()
+        if setup { setupEnded = true; if !succeeded { setupFailure = error.map { ICloudSync.reason($0) } ?? "the setup failed" } }
+        if export, !succeeded { failed = true; if let error { errors.append(error) } }
+        lock.unlock()
+        log("\(setup ? "setup" : export ? "export" : "other") event ended, succeeded: \(succeeded)\(error.map { ", " + ICloudSync.reason($0) } ?? "")")
+    }
+
+    var setupDone: (ended: Bool, failure: String?) { lock.lock(); defer { lock.unlock() }; return (setupEnded, setupFailure) }
+    var exportFailure: (failed: Bool, errors: [NSError]) { lock.lock(); defer { lock.unlock() }; return (failed, errors) }
+    func startNewStep() { lock.lock(); failed = false; errors = []; lock.unlock() }
+}
+
 /// The Schema Test app (target HeldDearSchemaTest, compile flag SCHEMA_TEST; never part of the real app). It opens an
 /// empty store of its own and sends made-up records to the test container's iCloud in steps, so the work never holds
 /// much memory: first one short record of every record type (all at once), then the long records one record type at a
@@ -29,8 +66,8 @@ final class SchemaTestRunner: NSObject, ObservableObject {
 
     private var container: NSPersistentCloudKitContainer?
     private var observer: NSObjectProtocol?
-    private var exportErrors: [NSError] = []
-    private var sawFailedExport = false
+    private lazy var watcher = SchemaTestWatcher { [weak self] in self?.write($0) }
+    private let fileLock = NSLock()
     private var started = false
     private var step = "starting"
     private var stepStartedAt = Date()
@@ -56,6 +93,7 @@ final class SchemaTestRunner: NSObject, ObservableObject {
 
     /// Appends a line to Documents/schema-test.txt.
     private func write(_ line: String) {
+        fileLock.lock(); defer { fileLock.unlock() }   // called from Core Data's queue too
         let stamp = ISO8601DateFormatter().string(from: Date())
         let data = Data("\(stamp) [\(Self.footprintMB()) MB] \(line)\n".utf8)
         if let handle = try? FileHandle(forWritingTo: Self.fileURL) {
@@ -206,21 +244,30 @@ final class SchemaTestRunner: NSObject, ObservableObject {
         let url = dir.appendingPathComponent("SchemaTest-\(UUID().uuidString).sqlite")
         let persistent = Store.makeContainer(url: url, cloud: true)
         container = persistent
+        // Registered before the stores load so the setup event is not missed; never on the main queue.
+        observer = watcher.attach(to: persistent)
         var loadError: Error?
         persistent.loadPersistentStores { _, error in loadError = error }
         if let loadError {
             stop("the store", rows: "The store did not open: \(ICloudSync.reason(loadError as NSError))")
             return
         }
-        observer = NotificationCenter.default.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                                                          object: persistent, queue: .main) { [weak self] note in
-            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                    as? NSPersistentCloudKitContainer.Event, event.type == .export, event.endDate != nil else { return }
-            self?.write("export event ended, succeeded: \(event.succeeded)")
-            if !event.succeeded {
-                self?.sawFailedExport = true
-                if let error = event.error { self?.exportErrors.append(error as NSError) }
-            }
+
+        // Nothing touches the container until Core Data's CloudKit setup has ended (at most 60 seconds).
+        begin("waiting for the CloudKit setup")
+        var waited = 0.0
+        while !watcher.setupDone.ended, waited < 60 {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            waited += 0.5
+        }
+        let setup = watcher.setupDone
+        if !setup.ended {
+            stop("the CloudKit setup", rows: "Core Data's CloudKit setup did not finish within 60 seconds.")
+            return
+        }
+        if let failure = setup.failure {
+            stop("the CloudKit setup", rows: "Core Data's CloudKit setup failed: \(failure)")
+            return
         }
 
         let context = persistent.viewContext
@@ -279,8 +326,7 @@ final class SchemaTestRunner: NSObject, ObservableObject {
         let ids = objects.map(\.objectID)
         var entityOf: [NSManagedObjectID: String] = [:]
         for o in objects { entityOf[o.objectID] = o.entity.name ?? "?" }
-        exportErrors = []
-        sawFailedExport = false
+        watcher.startNewStep()
         let database = CKContainer(identifier: ICloudSync.containerID).privateCloudDatabase
         var foundHere: [NSManagedObjectID: Bool] = [:]
         var outcome = SeedStepWait.Outcome.waiting
@@ -288,7 +334,7 @@ final class SchemaTestRunner: NSObject, ObservableObject {
         while outcome == .waiting {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             // Asked again every time: a record ID exists only after Core Data has started the export.
-            let recordIDs = persistent.recordIDs(for: ids)
+            let recordIDs = await SeedThread.offMain { persistent.recordIDs(for: ids) }
             var foundCount = 0
             if !recordIDs.isEmpty {
                 let fetched = (try? await database.records(for: Array(recordIDs.values), desiredKeys: [])) ?? [:]
@@ -299,17 +345,19 @@ final class SchemaTestRunner: NSObject, ObservableObject {
                 }
                 foundCount = foundHere.count
             }
-            let failure = sawFailedExport ? (Self.recordErrors(exportErrors).general ?? "The export failed with no reason given.") : nil
+            let export = watcher.exportFailure
+            let failure = export.failed ? (Self.recordErrors(export.errors).general ?? "The export failed with no reason given.") : nil
             outcome = SeedStepWait.evaluate(expected: ids.count, recordIDsKnown: recordIDs.count, found: foundCount, failure: failure,
                                             elapsed: Date().timeIntervalSince(stepStartedAt))
             write("\(name): \(recordIDs.count) of \(ids.count) record IDs, \(foundCount) in iCloud, \(String(describing: outcome))")
         }
-        let reasons = Self.recordErrors(exportErrors)
+        let reasons = Self.recordErrors(watcher.exportFailure.errors)
+        let finalIDs = await SeedThread.offMain { persistent.recordIDs(for: ids) }
         for id in ids {
             let key = "\(entityOf[id] ?? "?")/\(set)"
             if foundHere[id] == true { found.insert(key); continue }
             if case .rejected(let general) = outcome {
-                let specific = persistent.recordIDs(for: [id])[id].flatMap { reasons.byRecord[$0] }
+                let specific = finalIDs[id].flatMap { reasons.byRecord[$0] }
                 stepOutcomes[key] = .rejected(specific ?? general)
             } else {
                 stepOutcomes[key] = outcome

@@ -118,6 +118,37 @@ final class CloudKitSeedTests: XCTestCase {
     }
 }
 
+/// The deadlock of Schema Test build 2 (0x8BADF00D): Core Data posts its event notification from its CloudKit queue and
+/// waits for each observer; an observer on the main queue made that queue wait for the main thread, which was itself
+/// waiting for the CloudKit queue inside `recordIDs(for:)`.
+final class SeedDeadlockTests: XCTestCase {
+    func testTheObserverIsNeverOnTheMainQueue() {
+        XCTAssertNil(SeedObserver.queue, "nil runs the handler on the posting thread")
+        XCTAssertNotEqual(SeedObserver.queue, OperationQueue.main)
+    }
+
+    func testAPostFromAnotherThreadFinishesWhileTheMainThreadIsBlocked() {
+        let center = NotificationCenter()
+        let name = Notification.Name("SeedDeadlockTests.event")
+        let handled = NSLock()
+        var thread: Thread?
+        let token = SeedObserver.add(to: center, name: name, object: nil) { _ in handled.lock(); thread = Thread.current; handled.unlock() }
+        let done = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async { center.post(name: name, object: nil); done.signal() }
+        // The main thread waits here and runs nothing; the post must finish anyway.
+        XCTAssertEqual(done.wait(timeout: .now() + 5), .success, "the post did not wait for the main thread")
+        handled.lock(); defer { handled.unlock() }
+        XCTAssertNotNil(thread)
+        XCTAssertFalse(thread?.isMainThread ?? true, "the handler ran on the posting thread")
+        center.removeObserver(token)
+    }
+
+    func testRecordIDWorkRunsOffTheMainThread() async {
+        let onMain = await SeedThread.offMain { Thread.isMainThread }
+        XCTAssertFalse(onMain)
+    }
+}
+
 /// The step logic of the Schema Test app, with a fake clock and a fake iCloud.
 final class SeedStepWaitTests: XCTestCase {
     func testAFourteenRecordRunWithNothingInICloudNeverReportsUploadedAndDoesNotStopEarly() {

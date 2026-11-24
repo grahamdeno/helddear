@@ -165,4 +165,32 @@ enum SeedStepWait {
         return .waiting
     }
 }
+
+/// Where the Schema Test app's CloudKit notifications are observed. Core Data posts `eventChangedNotification` from
+/// its own CloudKit queue and waits for every observer to return; an observer on the main queue made that queue wait
+/// for the main thread while the main thread waited for it (the 0x8BADF00D crash of build 2). So the queue is nil:
+/// the handler runs on the posting thread and never waits for the main thread.
+enum SeedObserver {
+    /// Never `.main`. nil runs the block on the thread that posts.
+    static let queue: OperationQueue? = nil
+
+    static func add(to center: NotificationCenter = .default, name: Notification.Name, object: Any?,
+                    using block: @escaping (Notification) -> Void) -> NSObjectProtocol {
+        center.addObserver(forName: name, object: object, queue: queue, using: block)
+    }
+}
+
+/// Work that must never run on the main thread (reading iCloud record IDs from Core Data waits on the CloudKit queue).
+enum SeedThread {
+    /// Runs `work` on a background queue and hands the result back. Stops the app in a debug build, and in the Schema
+    /// Test app, if it ever ran on the main thread.
+    static func offMain<T>(_ work: @escaping () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                assert(!Thread.isMainThread, "this work must never run on the main thread")
+                continuation.resume(returning: work())
+            }
+        }
+    }
+}
 #endif
