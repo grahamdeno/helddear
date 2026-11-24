@@ -454,9 +454,9 @@ struct HorizonBand: View {
         }
     }
 
-    /// + Add and Everyone.
+    /// + Add and Everyone. Laid out by the caller's stack (side by side, or one per line at the largest sizes).
     @ViewBuilder private var headerLinks: some View {
-        HStack(spacing: 0) {
+        Group {
             // A menu opens right at the button, on the system's readable material (the centered dialog
             // floated far above it and read poorly over the page, Nov 21).
             Menu {
@@ -495,12 +495,19 @@ struct HorizonBand: View {
                     headerTitle
                     HStack { headerLinks; Spacer() }
                 }
+                // The largest text sizes: one link per line, never cut short (walk run 2, Nov 24, 2026).
+                VStack(alignment: .leading, spacing: 0) {
+                    headerTitle
+                    VStack(alignment: .leading, spacing: 0) { headerLinks }
+                }
             }
             .padding(.horizontal, Brand.space5)
             .padding(.top, Brand.space2)
 
             GeometryReader { geo in
                 let half = geo.size.width / 2
+                // The names on the line are placed by date, so past xxLarge they would run into each other (walk run 2).
+                // Each name is still read in full by VoiceOver, and the featured name above grows without limit.
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
                         Color.clear.frame(width: half)
@@ -554,6 +561,7 @@ struct HorizonBand: View {
                 }
             }
             .frame(height: Self.axisY + 34)
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .sensoryFeedback(.selection, trigger: selectedID)
         }
         .padding(.bottom, Brand.space2)
@@ -821,6 +829,7 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// The light through the name (Nov 22, 2026): where the band is (0 to 1 across), and whether to show it at all.
     @State private var sweep: CGFloat = 0
     @State private var hinting = false
@@ -866,10 +875,14 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
             .accessibilityHint(openHint)
             Text(subline)
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
-                .lineLimit(1).minimumScaleFactor(0.8)
+                // At the largest text sizes the line wraps instead of being cut short (walk run 2, Nov 24, 2026).
+                .lineLimit(typeSize.isAccessibilitySize ? 3 : 1).minimumScaleFactor(0.8)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
                 .frame(minHeight: sublineHeight)
                 .overlay(alignment: .bottom) {
-                    if hinting {
+                    // The first-launch "See name" hint sits under the line; at the largest sizes it would cover it.
+                    if hinting && !typeSize.isAccessibilitySize {
                         Text("See \(title) ›").textStyle(.caption, color: Brand.action)
                             .opacity(seeLine ? 1 : 0)
                             .offset(y: 18)

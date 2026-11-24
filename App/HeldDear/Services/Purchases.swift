@@ -21,6 +21,8 @@ final class Purchases: ObservableObject {
 
     private init() {
         hasLifetime = UserDefaults.standard.bool(forKey: "hasLifetime")
+        // The accessibility walk never talks to the App Store: in a simulator that opens a sign-in sheet over the screen.
+        guard !DemoMode.on else { return }
         updates = Task { [weak self] in
             for await result in Transaction.updates {
                 await self?.handle(result)

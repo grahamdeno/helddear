@@ -36,3 +36,19 @@ and saves the screenshots for review.
 | W-3 | 2 | Home, Details | Dynamic Type partially unsupported on eyebrows, tabs and "+ Add" | Review after W-1 |
 | W-4 | Pass | Setup, every permission denied | Setup offers "Add people one at a time instead" with an Add someone button; 0 audit issues | Run 2 walks on into the add form |
 
+
+### Run 45495068831, Nov 24, 2026 (screenshots on walk-shots/45495068831-*)
+
+The screenshots explain run 1's Home results: in the simulator, Apple's "Sign in to Apple Account" sheet covered Home
+(the App Store check at launch), so most of W-1 was the audit reading the sheet. Demo mode now skips the App Store.
+The small-phone setup fell back to the iPhone 17 Pro (no iPhone SE simulator on the runner).
+
+| ID | Rating | Screen | Seen in the screenshot | Fix |
+|---|---|---|---|---|
+| W-1 | Closed | Home | Sign-in sheet over Home in the simulator, not the app | Demo mode skips the App Store check |
+| W-5 | 3 | Home, largest text | The line under the name is cut short ("turns 59, in 12 d...") and the first-launch "See Ben" hint sits on top of it | The line wraps at the largest sizes; the hint stays off there |
+| W-6 | 3 | Home, largest text | "+ Add Everyo..." cut short under Coming up | A third layout: one link per line |
+| W-7 | 3 | Home, largest text | Names on the year line run into each other | The line's names stop growing past xxLarge; VoiceOver still reads each one, and the big name grows without limit |
+| W-8 | 2 | You, largest text | The profile card grows very tall and hyphenates "anniversary" | Left as is for 1.0 |
+| W-4 | Pass | Setup, every permission denied | "Add people one at a time instead", Add someone, then the alerts step; "Not now" explains the widget and Home | None |
+| W-2, W-3 | Re-check in run 3 | Person, Details | The walk opened Home again instead of the person (a name on the line only features that person) | The walk now taps the big name |
