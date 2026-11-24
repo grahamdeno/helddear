@@ -88,7 +88,7 @@ jobs:
           [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "com.grahamdeno.helddear.schematest" ] || { echo "::error::wrong bundle ID"; exit 1; }
           [ ! -d "$APP/PlugIns" ] || { echo "::error::the test app must have no extensions"; exit 1; }
 
-      - name: Export and upload
+      - name: Export the app (an IPA, kept on the runner)
         env:
           KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ISSUER: ${{ secrets.ASC_ISSUER_ID }}
@@ -100,12 +100,10 @@ jobs:
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
             <key>teamID</key><string>7MHDTK68M2</string>
-            <key>destination</key><string>__DEST__</string>
+            <key>destination</key><string>export</string>
             <key>signingStyle</key><string>automatic</string>
           </dict></plist>
           P
-          DEST=upload; [ "${{ inputs.dry_run }}" = "true" ] && DEST=export
-          sed -i '' "s/__DEST__/$DEST/" "$RUNNER_TEMP/export.plist"
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/HeldDearSchemaTest.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
@@ -115,11 +113,71 @@ jobs:
             -authenticationKeyID "$KEY_ID" \
             -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee "$RUNNER_TEMP/export.log" | tail -n 40 \
             || { grep -E -i "error:|failed|certificate|provisioning|capabilit|entitlement" "$RUNNER_TEMP/export.log" | sort -u | head -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
-          if [ "$DEST" = "export" ]; then
-            echo "::notice::Dry run: exported and signed. Nothing uploaded."
-          else
-            echo "::notice::Uploaded Schema Test build ${{ github.run_number }} to App Store Connect"
-          fi
+          ls -l "$RUNNER_TEMP/export"
+
+      - name: Read the exported app's entitlements and Info.plist, fail if the container does not match
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          [ -n "$IPA" ] || { echo "::error::no exported IPA"; exit 1; }
+          rm -rf "$RUNNER_TEMP/ipa" && mkdir "$RUNNER_TEMP/ipa" && unzip -q "$IPA" -d "$RUNNER_TEMP/ipa"
+          APP=$(ls -d "$RUNNER_TEMP"/ipa/Payload/*.app | head -1)
+          echo "App inside the IPA: $APP"
+          codesign -d --entitlements :- "$APP" 2>/dev/null > "$RUNNER_TEMP/exported-entitlements.plist"
+          echo "===== Entitlements of the exported app ====="
+          plutil -p "$RUNNER_TEMP/exported-entitlements.plist"
+          INFO="$APP/Info.plist"
+          plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$2" 2>/dev/null || echo "(missing)"; }
+          echo "===== Info.plist of the exported app ====="
+          BUNDLE=$(plist CFBundleIdentifier "$INFO");           echo "CFBundleIdentifier: $BUNDLE"
+          BUILD=$(plist CFBundleVersion "$INFO");               echo "CFBundleVersion: $BUILD"
+          PCONTAINER=$(plist HeldDearCloudKitContainer "$INFO"); echo "HeldDearCloudKitContainer: $PCONTAINER"
+          PGROUP=$(plist HeldDearAppGroup "$INFO");              echo "HeldDearAppGroup: $PGROUP"
+          PENV=$(plist HeldDearCloudKitEnvironment "$INFO");     echo "HeldDearCloudKitEnvironment: $PENV"
+          echo "===== The entitlements' own values ====="
+          ECONTAINERS=$(/usr/libexec/PlistBuddy -c "Print :com.apple.developer.icloud-container-identifiers" "$RUNNER_TEMP/exported-entitlements.plist" 2>/dev/null | grep -v -e '^Array' -e '^}' | sed 's/^ *//')
+          EGROUPS=$(/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups" "$RUNNER_TEMP/exported-entitlements.plist" 2>/dev/null | grep -v -e '^Array' -e '^}' | sed 's/^ *//')
+          EENV=$(plist com.apple.developer.icloud-container-environment "$RUNNER_TEMP/exported-entitlements.plist")
+          echo "icloud-container-identifiers: $ECONTAINERS"
+          echo "application-groups: $EGROUPS"
+          echo "icloud-container-environment: $EENV"
+          [ "$BUNDLE" = "com.grahamdeno.helddear.schematest" ] || { echo "::error::wrong bundle ID: $BUNDLE"; exit 1; }
+          [ "$ECONTAINERS" = "$PCONTAINER" ] || { echo "::error::the entitlement container ($ECONTAINERS) is not HeldDearCloudKitContainer ($PCONTAINER)"; exit 1; }
+          [ "$EGROUPS" = "$PGROUP" ] || { echo "::error::the entitlement app group ($EGROUPS) is not HeldDearAppGroup ($PGROUP)"; exit 1; }
+          [ "$PCONTAINER" = "iCloud.com.grahamdeno.helddear.schematest" ] || { echo "::error::wrong container: $PCONTAINER"; exit 1; }
+          echo "The exported app's container and group match its Info.plist."
+
+      - name: Upload to TestFlight
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/upload.plist" <<'P'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>7MHDTK68M2</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          P
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HeldDearSchemaTest.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/upload.plist" \
+            -exportPath "$RUNNER_TEMP/upload" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee "$RUNNER_TEMP/upload.log" | tail -n 40 \
+            || { grep -E -i "error:|failed|certificate|provisioning|capabilit|entitlement" "$RUNNER_TEMP/upload.log" | sort -u | head -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
+          echo "::notice::Uploaded Schema Test build ${{ github.run_number }} to App Store Connect"
+
+      - name: Dry run notice
+        if: ${{ inputs.dry_run == true }}
+        run: |
+          echo "::notice::Dry run: exported and checked. Nothing uploaded."
 
       - name: Remove key
         if: always()

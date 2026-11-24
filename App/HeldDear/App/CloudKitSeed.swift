@@ -10,8 +10,10 @@ import Foundation
 enum CloudKitSeed {
     static var requested: Bool { ProcessInfo.processInfo.arguments.contains("-seedCloudKitOneOfEach") }
 
-    /// A string longer than this goes to an asset field (CloudKit keeps larger values outside the record).
-    static let longStringLength = 1_100_000
+    /// Each string of a long record. A record with several of them is over 1 MB in total, which forces the asset fields,
+    /// while one record stays small enough for an iPhone (the first Schema Test build used 1,100,000 and was closed by
+    /// iOS for memory).
+    static let longStringLength = 300_000
     /// A photo over 1 MB.
     static let photoBytes = 1_200_000
 
@@ -20,26 +22,62 @@ enum CloudKitSeed {
 
     typealias Made = (short: [String: NSManagedObject], long: [String: NSManagedObject])
 
+    /// The record types in an order where every to-one link points at a type that comes earlier (Person first).
+    static func order(of model: NSManagedObjectModel = CoreStore.model) -> [NSEntityDescription] {
+        var left = model.entities.sorted { ($0.name ?? "") < ($1.name ?? "") }
+        var out: [NSEntityDescription] = []
+        while !left.isEmpty {
+            let placed = Set(out.compactMap(\.name))
+            let next = left.firstIndex { e in
+                e.relationshipsByName.values.allSatisfy { r in
+                    r.isToMany || r.destinationEntity?.name == e.name || placed.contains(r.destinationEntity?.name ?? "")
+                }
+            } ?? 0   // a cycle would be placed as it comes; the model has none
+            out.append(left.remove(at: next))
+        }
+        return out
+    }
+
     /// Saves nothing: makes two objects of every entity in `context` (one short, one long), every attribute filled
     /// (encrypted ones too) and every to-one link set within its own set.
     @discardableResult
     static func fill(_ context: NSManagedObjectContext, model: NSManagedObjectModel = CoreStore.model) -> Made {
-        (short: fillOne(context, model: model, long: false), long: fillOne(context, model: model, long: true))
+        (short: fillSet(context, model: model, long: false), long: fillSet(context, model: model, long: true))
     }
 
-    private static func fillOne(_ context: NSManagedObjectContext, model: NSManagedObjectModel, long: Bool) -> [String: NSManagedObject] {
+    /// One object of every entity, short or long, linked to each other.
+    static func fillSet(_ context: NSManagedObjectContext, model: NSManagedObjectModel = CoreStore.model, long: Bool) -> [String: NSManagedObject] {
         var made: [String: NSManagedObject] = [:]
-        for entity in model.entities {
-            let object = NSEntityDescription.insertNewObject(forEntityName: entity.name!, into: context)
-            for (name, a) in entity.attributesByName { object.setValue(value(for: a, name: name, long: long), forKey: name) }
-            made[entity.name!] = object
+        for entity in order(of: model) { made[entity.name!] = fillOne(context, entity: entity, long: long, linking: made) }
+        return made
+    }
+
+    /// Makes a single record of one type with every attribute filled. Each to-one link points at the record of the
+    /// destination type in `existing` (records already saved; pass faults to keep memory low).
+    @discardableResult
+    static func fillOne(_ context: NSManagedObjectContext, entity: NSEntityDescription, long: Bool,
+                        linking existing: [String: NSManagedObject] = [:]) -> NSManagedObject {
+        let object = NSEntityDescription.insertNewObject(forEntityName: entity.name!, into: context)
+        for (name, a) in entity.attributesByName { object.setValue(value(for: a, name: name, long: long), forKey: name) }
+        for (name, r) in entity.relationshipsByName where !r.isToMany {
+            if let target = existing[r.destinationEntity!.name!] { object.setValue(target, forKey: name) }
         }
-        for entity in model.entities {
-            for (name, r) in entity.relationshipsByName where !r.isToMany {
-                made[entity.name!]?.setValue(made[r.destinationEntity!.name!], forKey: name)
+        return object
+    }
+
+    /// An estimate of the memory one record's field values take while it is made and saved (Swift strings held as
+    /// UTF-16 by Core Data, two bytes a character, plus binary data). Saving and exporting can briefly hold two or
+    /// three copies of it.
+    static func estimatedValueBytes(of entity: NSEntityDescription, long: Bool) -> Int {
+        var total = 0
+        for (_, a) in entity.attributesByName {
+            switch a.attributeType {
+            case .stringAttributeType: total += (long ? longStringLength : 13) * 2
+            case .binaryDataAttributeType: total += a.allowsExternalBinaryDataStorage ? (long ? photoBytes : shortPhotoBytes) : 16
+            default: total += 16
             }
         }
-        return made
+        return total
     }
 
     private static func value(for a: NSAttributeDescription, name: String, long: Bool) -> Any {
@@ -98,6 +136,33 @@ enum CloudKitSeed {
         NotificationCenter.default.removeObserver(observer)
         try? result.write(to: done, atomically: true, encoding: .utf8)
         exit(0)
+    }
+}
+
+/// Decides when one upload step of the Schema Test app is finished. Pure, so tests can run it with a fake clock and a
+/// fake iCloud. Never reports "uploaded" while a record is missing or while there is nothing to compare, and never
+/// stops before the failure or the limit.
+enum SeedStepWait {
+    enum Outcome: Equatable {
+        case waiting
+        case uploaded
+        case rejected(String)
+        case notInTime
+    }
+
+    /// The limit for one step.
+    static let limit: TimeInterval = 180
+
+    /// - expected: the records the step saved.
+    /// - recordIDsKnown: how many of them Core Data has an iCloud record ID for yet (none until the export starts).
+    /// - found: how many of those iCloud returned.
+    /// - failure: the reason of an export that ended in failure after this step began, if any.
+    static func evaluate(expected: Int, recordIDsKnown: Int, found: Int, failure: String?, elapsed: TimeInterval,
+                         limit: TimeInterval = SeedStepWait.limit) -> Outcome {
+        if expected > 0, recordIDsKnown == expected, found == expected { return .uploaded }
+        if let failure { return .rejected(failure) }
+        if elapsed >= limit { return .notInTime }
+        return .waiting
     }
 }
 #endif
