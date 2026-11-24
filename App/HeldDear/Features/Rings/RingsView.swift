@@ -70,9 +70,9 @@ struct RingsView: View {
                     .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
                     .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(ref.label).textStyle(.bodyStrong).lineLimit(1)
+                    Text(ref.label).textStyle(.bodyStrong).lineLimit(2)
                     Text("\(date.formatted(.dateTime.month(.abbreviated).day())) · \(people) \(people == 1 ? "person" : "people")")
-                        .textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                        .textStyle(.caption, color: Brand.inkMuted).lineLimit(2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
@@ -101,8 +101,8 @@ struct RingsView: View {
                         .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
                         .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(p.name).textStyle(.bodyStrong).lineLimit(1)
-                        Text(caption(next)).textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                        Text(p.name).textStyle(.bodyStrong).lineLimit(2)
+                        Text(caption(next)).textStyle(.caption, color: Brand.inkMuted).lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -234,7 +234,7 @@ struct SeasonView: View {
                 PrimaryButton(title: "Plan them together") {
                     queue = toPlan.map(\.id)
                     index = 0
-                    withAnimation(.easeOut(duration: 0.22)) { planning = true }
+                    withMotion(.easeOut(duration: 0.22)) { planning = true }
                 }
                 TextLink(title: "One at a time is fine") { model.route = nil }
             }
@@ -250,7 +250,7 @@ struct SeasonView: View {
     }
 
     private func advance() {
-        withAnimation(.easeOut(duration: 0.22)) {
+        withMotion(.easeOut(duration: 0.22)) {
             if index + 1 < queue.count { index += 1 } else { planning = false; model.route = nil }
         }
     }

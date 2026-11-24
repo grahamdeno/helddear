@@ -32,7 +32,7 @@ struct OwnHolidayFlow: View {
             case .pick: pickStep(people)
             }
         }
-        .animation(.easeOut(duration: 0.2), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.2)), value: step)
         .onAppear(perform: load)
         .confirmationDialog("Remove \(editing?.name ?? "")?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {

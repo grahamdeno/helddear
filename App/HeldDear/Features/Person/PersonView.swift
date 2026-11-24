@@ -226,7 +226,7 @@ struct PersonView: View {
         .onScrollGeometryChange(for: Bool.self) { g in
             g.contentOffset.y + g.contentInsets.top > PersonHero.height - 150
         } action: { _, past in
-            withAnimation(.easeOut(duration: 0.2)) { pastHero = past }
+            withMotion(.easeOut(duration: 0.2)) { pastHero = past }
         }
         .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .top) { topBar }
@@ -1573,7 +1573,14 @@ struct FocusPicker: View {
                                     }
                                     .onEnded { _ in dragStart = nil })
                                 .accessibilityLabel("Focus circle")
-                                .accessibilityHint("Drag to move it")
+                                .accessibilityHint("Drag to move it, or use the actions to move it a step")
+                                // Every move without a drag (Fable's audit UX-5): a tenth of the photo per step.
+                                .accessibilityAction(named: "Move left") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: -0.1, dy: 0)) }
+                                .accessibilityAction(named: "Move right") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: 0.1, dy: 0)) }
+                                .accessibilityAction(named: "Move up") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: 0, dy: -0.1)) }
+                                .accessibilityAction(named: "Move down") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: 0, dy: 0.1)) }
+                                .accessibilityAction(named: "Closer") { setSize(max(0.5, sizeFactor - 0.25)) }
+                                .accessibilityAction(named: "Wider") { setSize(min(2.5, sizeFactor + 0.25)) }
                         }
                     }
                     .frame(width: fit.width, height: fit.height)
@@ -1598,7 +1605,7 @@ struct FocusPicker: View {
                         }
                         .onEnded { _ in panStart = pan })
                     .onTapGesture(count: 2) {
-                        withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 3; zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } }
+                        withMotion(.snappy) { zoom = zoom > 1 ? 1 : 3; zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } }
                     }
                 }
                 .frame(height: 270)

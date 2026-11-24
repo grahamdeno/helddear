@@ -20,7 +20,8 @@ struct HomeView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { model.route = .settings } label: { YouCircle() }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("You and settings")
+                            .accessibilityLabel("Settings")
+                            .accessibilityHint("Your name, iCloud, reminders and your data")
                     }
                     .sharedBackgroundVisibility(.hidden)
                     // A way back to whoever needs you, when you've moved to someone else (Nov 21, 2026).
@@ -176,7 +177,7 @@ struct HomeView: View {
         guard let i = line.firstIndex(where: { $0.id == featured.id }) else { return }
         let j = i + by
         guard line.indices.contains(j) else { return }
-        withAnimation(.snappy) { selectedID = line[j].id }
+        withMotion(.snappy) { selectedID = line[j].id }
     }
 
     /// The people (not shared holidays) with a step due now, soonest first, other than the one on screen.
@@ -199,7 +200,7 @@ struct HomeView: View {
             let name = DisplayName.plain(person.name)
             let words = list.count == 1 ? "\(name) needs you · \(first.dueDate.formatted(.dateTime.month(.abbreviated).day()))"
                 : "\(name) and \(list.count - 1) \(list.count == 2 ? "other" : "others") need you"
-            Button { withAnimation(.snappy) { selectedID = first.id } } label: {
+            Button { withMotion(.snappy) { selectedID = first.id } } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "chevron.left").font(.caption.weight(.bold)).foregroundStyle(Brand.action)
                     PersonPortrait(person: person, size: 22)
@@ -440,6 +441,44 @@ struct HorizonBand: View {
     static let axisY: CGFloat = 150
     private static let levels: [CGFloat] = [96, 50, 74, 28]
 
+    /// "Coming up", and the busy-month link when a busy month is near.
+    @ViewBuilder private var headerTitle: some View {
+        HStack {
+            Text("Coming up").textStyle(.eyebrow)
+            if let season = seasons.first(where: { OccasionDates.daysBetween(now, $0.monthStart) <= 56 }) {
+                Button { model.route = .season(season.monthStart) } label: {
+                    Text("· \(season.monthStart.formatted(.dateTime.month(.wide))) is busy").textStyle(.eyebrow, color: Brand.action)
+                        .frame(minHeight: 44)
+                }
+            }
+        }
+    }
+
+    /// + Add and Everyone.
+    @ViewBuilder private var headerLinks: some View {
+        HStack(spacing: 0) {
+            // A menu opens right at the button, on the system's readable material (the centered dialog
+            // floated far above it and read poorly over the page, Nov 21).
+            Menu {
+                Button { model.route = .addBirthday("") } label: { Label("Someone", systemImage: "person.badge.plus") }
+                Button(action: addFromContacts) { Label("Someone from Contacts", systemImage: "person.crop.circle") }
+                Button { model.route = .addWish(nil) } label: { Label("An idea", systemImage: "gift") }
+            } label: {
+                Text("+ Add").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                    .frame(minHeight: 44)
+            }
+            .menuOrder(.fixed)
+            .accessibilityLabel("Add")
+            .padding(.trailing, Brand.space4)
+            Button { model.push(.people) } label: {
+                Text("Everyone ›").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
+                    .frame(minHeight: 44)
+            }
+            .accessibilityLabel("Everyone")
+            .accessibilityHint("Opens everyone, and saved ideas")
+        }
+    }
+
     var body: some View {
         let cal = Calendar.current
         let start = cal.date(from: cal.dateComponents([.year, .month], from: now))!
@@ -448,34 +487,14 @@ struct HorizonBand: View {
         let marks = fit.marks
 
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Coming up").textStyle(.eyebrow)
-                if let season = seasons.first(where: { OccasionDates.daysBetween(now, $0.monthStart) <= 56 }) {
-                    Button { model.route = .season(season.monthStart) } label: {
-                        Text("· \(season.monthStart.formatted(.dateTime.month(.wide))) is busy").textStyle(.eyebrow, color: Brand.action)
-                            .frame(minHeight: 44)
-                    }
+            // At large text sizes the header splits into two rows, so the links never crowd each other or get cut
+            // short (UX-14, Nov 24, 2026). Same links, same order.
+            ViewThatFits(in: .horizontal) {
+                HStack { headerTitle; Spacer(); headerLinks }
+                VStack(alignment: .leading, spacing: 0) {
+                    headerTitle
+                    HStack { headerLinks; Spacer() }
                 }
-                Spacer()
-                // A menu opens right at the button, on the system's readable material (the centered dialog
-                // floated far above it and read poorly over the page, Nov 21).
-                Menu {
-                    Button { model.route = .addBirthday("") } label: { Label("Someone", systemImage: "person.badge.plus") }
-                    Button(action: addFromContacts) { Label("Someone from Contacts", systemImage: "person.crop.circle") }
-                    Button { model.route = .addWish(nil) } label: { Label("An idea", systemImage: "gift") }
-                } label: {
-                    Text("+ Add").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
-                        .frame(minHeight: 44)
-                }
-                .menuOrder(.fixed)
-                .accessibilityLabel("Add")
-                .padding(.trailing, Brand.space4)
-                Button { model.push(.people) } label: {
-                    Text("Everyone ›").font(.callout.weight(.semibold)).foregroundStyle(Brand.action)
-                        .frame(minHeight: 44)
-                }
-                .accessibilityLabel("Everyone")
-                .accessibilityHint("Opens everyone, and saved ideas")
             }
             .padding(.horizontal, Brand.space5)
             .padding(.top, Brand.space2)
@@ -517,7 +536,7 @@ struct HorizonBand: View {
                     userScrolling = phase == .interacting || phase == .decelerating
                     // When the slide settles, line the featured person up with the marker.
                     if phase == .idle, let m = marks.first(where: { $0.moment.id == selectedID }) {
-                        withAnimation(.snappy) { position.scrollTo(x: m.x) }
+                        withMotion(.snappy) { position.scrollTo(x: m.x) }
                     }
                 }
                 .onAppear {
@@ -525,7 +544,7 @@ struct HorizonBand: View {
                 }
                 .onChange(of: selectedID) { _, id in
                     guard !userScrolling, let m = marks.first(where: { $0.moment.id == id }) else { return }
-                    withAnimation(.snappy) { position.scrollTo(x: m.x) }
+                    withMotion(.snappy) { position.scrollTo(x: m.x) }
                 }
                 .overlay(alignment: .topLeading) {
                     Rectangle().fill(Brand.action.opacity(0.25)).frame(width: 1, height: Self.axisY)
@@ -612,7 +631,7 @@ struct HorizonBand: View {
         let color = selected ? Brand.action : Brand.ink
         return Button {
             select(mark.moment.id)
-            withAnimation(.snappy) { position.scrollTo(x: mark.x) }
+            withMotion(.snappy) { position.scrollTo(x: mark.x) }
         } label: {
             ZStack(alignment: .topLeading) {
                 Rectangle().fill(selected ? Brand.action : Brand.inkMuted)
@@ -847,8 +866,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
             .accessibilityHint(openHint)
             Text(subline)
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
-                .lineLimit(1).minimumScaleFactor(0.7)
-                .frame(height: sublineHeight)
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(minHeight: sublineHeight)
                 .overlay(alignment: .bottom) {
                     if hinting {
                         Text("See \(title) ›").textStyle(.caption, color: Brand.action)
@@ -870,10 +889,11 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .accessibilityHidden(true)
                 }
                 if !status.isEmpty {
-                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(2).minimumScaleFactor(0.85)
+                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(3).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .frame(height: statusHeight, alignment: .center)
+            .frame(minHeight: statusHeight, alignment: .center)
             .padding(.top, Brand.space4)
             if showsActions {
                 button

@@ -100,7 +100,7 @@ struct PersonHero: View {
             }
             .padding(.horizontal, Brand.space5)
             .padding(.bottom, Brand.space4)
-            .animation(.easeOut(duration: 0.2), value: page)
+            .animation(Motion.animation(.easeOut(duration: 0.2)), value: page)
         }
         .overlay(alignment: .topTrailing) {
             if let tag {

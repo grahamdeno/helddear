@@ -67,7 +67,7 @@ struct HolidayView: View {
             Text(ref.label)
                 .font(Brand.display(60, relativeTo: .largeTitle)).tracking(-1)
                 .foregroundStyle(Brand.ink)
-                .lineLimit(2).minimumScaleFactor(0.5)
+                .lineLimit(3).minimumScaleFactor(0.8)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: Brand.space2) {

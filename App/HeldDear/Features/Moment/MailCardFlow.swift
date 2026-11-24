@@ -59,7 +59,7 @@ struct MailCardFlow: View {
             case .failed(let why): failed(why)
             }
         }
-        .animation(.easeOut(duration: 0.22), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.22)), value: step)
         .task { await load() }
     }
 

@@ -113,13 +113,13 @@ struct HomeWidgetView: View {
     private func small(_ e: WidgetSnapshot.Entry) -> some View {
         VStack(spacing: 4) {
             Text(e.dueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()).uppercased())
-                .font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(Brand.inkMuted).lineLimit(1)
+                .font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Brand.inkMuted).lineLimit(1)
             Spacer(minLength: 0)
             WidgetFace(entry: e, size: 46, ringed: (e.total ?? 0) > 0)
             Text(e.name).font(Brand.display(22)).foregroundStyle(Brand.ink).lineLimit(1).minimumScaleFactor(0.7)
             Spacer(minLength: 0)
             Text("\(WidgetLook.countdown(e, from: entry.date)) · \(WidgetLook.readiness(e))")
-                .font(.system(size: 11, weight: .medium)).foregroundStyle(Brand.inkMuted).lineLimit(1).minimumScaleFactor(0.8)
+                .font(.caption.weight(.medium)).foregroundStyle(Brand.inkMuted).lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .widgetURL(e.link)
@@ -129,9 +129,9 @@ struct HomeWidgetView: View {
     private var medium: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("COMING UP").font(.system(size: 10, weight: .semibold)).tracking(1.2).foregroundStyle(Brand.inkMuted)
+                Text("COMING UP").font(.caption2.weight(.semibold)).tracking(1.2).foregroundStyle(Brand.inkMuted)
                 Spacer()
-                Text("Held Dear").font(.system(size: 11, weight: .medium)).foregroundStyle(Brand.action)
+                Text("Held Dear").font(.caption.weight(.medium)).foregroundStyle(Brand.action)
             }
             Spacer(minLength: 0)
             HStack(alignment: .bottom, spacing: 4) {
@@ -141,7 +141,7 @@ struct HomeWidgetView: View {
                             WidgetFace(entry: e, size: 36, ringed: i == 0 && (e.total ?? 0) > 0)
                             Text(e.name).font(Brand.display(15)).foregroundStyle(Brand.ink).lineLimit(1).minimumScaleFactor(0.7)
                             Text(e.dueDate.formatted(.dateTime.month(.abbreviated).day()))
-                                .font(.system(size: 10, weight: .medium)).foregroundStyle(Brand.inkMuted)
+                                .font(.caption2.weight(.medium)).foregroundStyle(Brand.inkMuted)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -154,9 +154,9 @@ struct HomeWidgetView: View {
     private func large(_ e: WidgetSnapshot.Entry) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("COMING UP").font(.system(size: 10, weight: .semibold)).tracking(1.2).foregroundStyle(Brand.inkMuted)
+                Text("COMING UP").font(.caption2.weight(.semibold)).tracking(1.2).foregroundStyle(Brand.inkMuted)
                 Spacer()
-                Text("Held Dear").font(.system(size: 11, weight: .medium)).foregroundStyle(Brand.action)
+                Text("Held Dear").font(.caption.weight(.medium)).foregroundStyle(Brand.action)
             }
             Link(destination: e.link) {
                 HStack(spacing: 12) {
@@ -258,7 +258,7 @@ struct HolidayWidgetView: View {
         } else if let e = entry.holiday {
             let d = WidgetLook.days(e, from: entry.date)
             VStack(alignment: .leading, spacing: 4) {
-                Text(e.name.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(1.2)
+                Text(e.name.uppercased()).font(.caption2.weight(.semibold)).tracking(1.2)
                     .foregroundStyle(Brand.inkMuted).lineLimit(1)
                 Spacer(minLength: 0)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -273,7 +273,7 @@ struct HolidayWidgetView: View {
                         }
                     }
                 }
-                Text(WidgetLook.readiness(e)).font(.system(size: 11, weight: .medium)).foregroundStyle(Brand.inkMuted)
+                Text(WidgetLook.readiness(e)).font(.caption.weight(.medium)).foregroundStyle(Brand.inkMuted)
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

@@ -1,0 +1,93 @@
+name: ux-walk
+# The accessibility walk (Story E, Nov 24, 2026). Run by hand. Builds the app for the simulator (unsigned), runs the
+# UI-test walk in demo mode in five setups (the fifth with every permission denied), and prints Apple's accessibility audit for every main screen. Uploads
+# nothing to Apple and changes nothing live; the screenshots stay in this run's artifacts.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ux-walk
+  cancel-in-progress: false
+
+jobs:
+  walk:
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - config: default-light
+            device: "iPhone 17 Pro"
+            appearance: light
+            size: large
+          - config: default-dark
+            device: "iPhone 17 Pro"
+            appearance: dark
+            size: large
+          - config: big-text
+            device: "iPhone 17 Pro"
+            appearance: light
+            size: accessibility-extra-extra-extra-large
+          - config: small-phone
+            device: "iPhone SE (3rd generation)"
+            appearance: light
+            size: large
+          - config: denied
+            device: "iPhone 17 Pro"
+            appearance: light
+            size: large
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
+          sudo xcode-select -s "$XC"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Boot the simulator in this setup
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -F "${{ matrix.device }} (" | grep -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+          if [ -z "$UDID" ]; then
+            echo "::warning::${{ matrix.device }} not available; using the first iPhone"
+            UDID=$(xcrun simctl list devices available iPhone | grep -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1)
+          fi
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl ui "$UDID" appearance ${{ matrix.appearance }}
+          xcrun simctl ui "$UDID" content_size ${{ matrix.size }}
+          if [ "${{ matrix.config }}" = denied ]; then
+            for s in contacts photos microphone speech-recognition; do
+              xcrun simctl privacy "$UDID" revoke "$s" com.grahamdeno.helddear || echo "::warning::could not revoke $s"
+            done
+          fi
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: Walk
+        env:
+          TEST_RUNNER_WALK_CONFIG: ${{ matrix.config }}
+        run: |
+          set -o pipefail
+          xcodebuild test -project HeldDear.xcodeproj -scheme HeldDearWalk \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath "walk-${{ matrix.config }}.xcresult" \
+            -only-testing:"HeldDearUITests/WalkTests/${{ matrix.config == 'denied' && 'testEverythingDenied' || 'testWalkMainScreens' }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE|error:|Executed" || true
+      - name: Summary
+        if: always()
+        run: |
+          echo "### ${{ matrix.config }}" >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^(AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE)" walk.log | sort -u | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Keep screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walk-${{ matrix.config }}
+          path: walk-${{ matrix.config }}.xcresult
+          retention-days: 30

@@ -192,7 +192,7 @@ final class HolidayTests: XCTestCase {
     // MARK: R2, R3 build switches
 
     func testBuildSwitches_offInTestBuilds() {
-        XCTAssertTrue(AppFeatures.mailedCards, "Mailed cards are on in 1.0 (decided Nov 21, 2026)")
+        XCTAssertFalse(AppFeatures.mailedCards, "Mailed cards are off in 1.0 (plan B, Nov 24, 2026); back in 1.1")
         XCTAssertFalse(AppFeatures.familyPages, "Family pages stay off in 1.0 builds")
         XCTAssertFalse(AppFeatures.testFlightTools, "Only testflight.yml compiles the TestFlight tools in")
     }

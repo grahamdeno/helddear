@@ -98,7 +98,7 @@ struct PlanView: View {
             Text(personName)
                 .font(Brand.display(NameSize.title(personName), relativeTo: .largeTitle)).tracking(-1.5)
                 .foregroundStyle(Brand.ink)
-                .lineLimit(2).minimumScaleFactor(0.5)
+                .lineLimit(3).minimumScaleFactor(0.8)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             if let line = PlanReadiness.relationLine(relationship: person?.relationship, turning: moment.turning) {
@@ -802,7 +802,7 @@ private struct PartScreen: View {
                 HStack {
                     Text(label).textStyle(.body)
                     Spacer(minLength: Brand.space2)
-                    Text(value ?? "Add").textStyle(.body, color: value == nil ? Brand.action : Brand.inkSoft).lineLimit(1)
+                    Text(value ?? "Add").textStyle(.body, color: value == nil ? Brand.action : Brand.inkSoft).lineLimit(2)
                 }
                 .frame(minHeight: 48)
                 .contentShape(Rectangle())
@@ -1010,7 +1010,7 @@ private struct PartScreen: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if selected { Image(systemName: "checkmark").font(.footnote.weight(.bold)) }
-                Text(title).font(.callout.weight(.semibold)).lineLimit(1)
+                Text(title).font(.callout.weight(.semibold)).lineLimit(2)
             }
             .foregroundStyle(selected ? Brand.page : Brand.ink)
             .padding(.horizontal, 14)

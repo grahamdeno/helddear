@@ -190,12 +190,12 @@ struct BirthdaySuggestionsView: View {
 
     private func skip(_ id: String) {
         BirthdaySuggestions.markSkipped(id, for: person.id)
-        withAnimation(.snappy) { _ = skipped.insert(id) }
+        withMotion(.snappy) { _ = skipped.insert(id) }
         // "Photo skipped · Undo" for a few seconds (Graham, Nov 22, 2026).
         let personID = person.id
         model.offerUndo("Photo skipped") {
             BirthdaySuggestions.unmarkSkipped(id, for: personID)
-            withAnimation(.snappy) { _ = skipped.remove(id) }
+            withMotion(.snappy) { _ = skipped.remove(id) }
         }
     }
 }
@@ -229,8 +229,11 @@ struct SuggestionViewer: View {
                     .gesture(MagnifyGesture()
                         .onChanged { zoom = min(max(baseZoom * $0.magnification, 1), 5) }
                         .onEnded { _ in baseZoom = zoom })
-                    .onTapGesture(count: 2) { withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 2.5; baseZoom = zoom } }
+                    .onTapGesture(count: 2) { withMotion(.snappy) { zoom = zoom > 1 ? 1 : 2.5; baseZoom = zoom } }
                     .accessibilityLabel("Photo from \(caption)")
+                    .accessibilityAction(named: zoom > 1 ? "Zoom out" : "Zoom in") {
+                        withMotion(.snappy) { zoom = zoom > 1 ? 1 : 2.5; baseZoom = zoom }
+                    }
             } else {
                 ProgressView().tint(.white)
             }

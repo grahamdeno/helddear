@@ -110,6 +110,17 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 
 - **1.0:** planned Nov 20, 2026; frozen when this scope is merged. Items, in order: Epic 2 (2.1 to 2.7, R1 to R4),
   Epic 1 (1.1 to 1.5), then polish of the kept features. New ideas go to 1.1.
+- **1.0 plan B (Graham, Nov 24, 2026): scope frozen.** 1.0 ships without Held Dear's server: mailed cards and family
+  pages are off (build switches `HELDDEAR_MAILED_CARDS` and `HELDDEAR_FAMILY_PAGES`, never set; the privacy guard
+  fails if a build or workflow sets them). They come back in 1.1, after the server review's fixes (M1 to M6) are
+  shipped. Remaining 1.0 work: accessibility findings UX-1 to UX-9 (Stories A to D) and UX-13 (delete all my data),
+  the accessibility walk (Story E), App Privacy answers for a server-free app, a frozen build used for a week, then
+  Stage 6 (Fable go-live assessment, listing, screenshots, review notes). Target: submit about Dec 5 to 8. Graham
+  asked Opus, in Held Dear Product, to carry this through to Submit (only Graham presses Submit for Review and
+  Release). New ideas go to 1.1.
+- **Added to 1.0 (Graham, Nov 24, 2026):** the remaining accessibility findings UX-10 (Reduce Motion everywhere),
+  UX-12 (a "How Held Dear works" page) and UX-14 (Home's links), and the Held Dear website (home, privacy, support at
+  helddear.tangomike.app) the App Store needs.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).

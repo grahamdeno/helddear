@@ -47,14 +47,14 @@ struct MomentFlowView: View {
         }
         .id(stepKey)
         .transition(.opacity)
-        .animation(.easeOut(duration: 0.22), value: stepKey)
+        .animation(Motion.animation(.easeOut(duration: 0.22)), value: stepKey)
         .background(Brand.page.ignoresSafeArea())
     }
 
     private var stepKey: String { String(describing: step) }
 
     private func go(_ next: MomentStep) {
-        withAnimation(.easeOut(duration: 0.22)) { step = next }
+        withMotion(.easeOut(duration: 0.22)) { step = next }
     }
 
     private func close() { model.route = nil }

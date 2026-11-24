@@ -12,11 +12,14 @@ enum Brand {
     static let card = dynamic(0xE3DCD1, 0x221F1B)
     /// A lighter sheet that content sits on, so sections read as separate things (feedback on build 1016).
     static let raised = dynamic(0xF8F4EE, 0x2E2A25)
-    static let raisedLine = dynamic(0xDDD4C7, 0x3E3933)
+    /// Borders and dividers reach 3:1 against the page (Fable's audit UX-7, Nov 24, 2026), and darken further with
+    /// Increase Contrast.
+    static let raisedLine = dynamic(0x8F8475, 0x847A6D, high: (0x6E6457, 0xA39888))
     static let ink = dynamic(0x1C1A17, 0xEFE8DC)
-    static let inkMuted = dynamic(0x5F554A, 0xA89E90)
+    /// With Increase Contrast, muted text is drawn as dark as the soft ink.
+    static let inkMuted = dynamic(0x5F554A, 0xA89E90, high: (0x3A342D, 0xCFC6B8))
     static let inkSoft = dynamic(0x3A342D, 0xCFC6B8)
-    static let line = dynamic(0xD3CABD, 0x34302A)
+    static let line = dynamic(0x857A6B, 0x847A6D, high: (0x6E6457, 0xA39888))
     /// Oxblood. The one color for the main thing to tap.
     static let action = dynamic(0x7A2E2A, 0xD98A7E)
     static let onAction = dynamic(0xF7F1E8, 0x1A1210)
@@ -39,18 +42,30 @@ enum Brand {
         return faceFills[sum % faceFills.count]
     }
 
-    private static func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
+    private static func dynamic(_ light: UInt32, _ dark: UInt32, high: (UInt32, UInt32)? = nil) -> Color {
         Color(UIColor { traits in
-            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
+            let dark_ = traits.userInterfaceStyle == .dark
+            if let high, traits.accessibilityContrast == .high { return UIColor(hex: dark_ ? high.1 : high.0) }
+            return UIColor(hex: dark_ ? dark : light)
         })
     }
+
+    /// The colors with their light and dark values, for the contrast test.
+    static let contrastPairs: [(name: String, light: UInt32, dark: UInt32)] = [
+        ("line", 0x857A6B, 0x847A6D), ("raisedLine", 0x8F8475, 0x847A6D),
+        ("inkMuted", 0x5F554A, 0xA89E90), ("inkSoft", 0x3A342D, 0xCFC6B8), ("ink", 0x1C1A17, 0xEFE8DC),
+    ]
+    static let pageHex: (light: UInt32, dark: UInt32) = (0xEDE8E0, 0x171513)
 
     /// Big numbers (countdowns, day numbers): the light display serif.
     static func countdownFont(_ size: CGFloat) -> Font { display(size, relativeTo: .largeTitle) }
 
-    /// The light display serif, for names and big numbers (Fraunces 72pt Light).
+    /// The light display serif, for names and big numbers (Fraunces 72pt Light). With Bold Text on, the heavier
+    /// Fraunces text cut is used instead, so names and headings get bolder too (Fable's audit UX-3, Nov 24, 2026).
     static func display(_ size: CGFloat, relativeTo style: Font.TextStyle = .largeTitle, italic: Bool = false) -> Font {
-        guard TypeStyle.hasSerif else { return Font.system(size: size, weight: .light, design: .serif) }
+        let bold = UIAccessibility.isBoldTextEnabled
+        guard TypeStyle.hasSerif else { return Font.system(size: size, weight: bold ? .semibold : .light, design: .serif) }
+        if bold { return Font.custom(italic ? TypeStyle.textItalic : TypeStyle.textRegular, size: size, relativeTo: style).weight(.semibold) }
         return Font.custom(italic ? TypeStyle.displayItalic : TypeStyle.displayLight, size: size, relativeTo: style)
     }
 
@@ -58,7 +73,8 @@ enum Brand {
     static func serif(_ size: CGFloat, relativeTo style: Font.TextStyle = .body, italic: Bool = false) -> Font {
         guard TypeStyle.hasSerif else { return Font.system(size: size, design: .serif) }
         if size >= 28 { return display(size, relativeTo: style, italic: italic) }
-        return Font.custom(italic ? TypeStyle.textItalic : TypeStyle.textRegular, size: size, relativeTo: style)
+        let font = Font.custom(italic ? TypeStyle.textItalic : TypeStyle.textRegular, size: size, relativeTo: style)
+        return UIAccessibility.isBoldTextEnabled ? font.weight(.semibold) : font
     }
 
     // MARK: Spacing and radius
@@ -98,8 +114,8 @@ enum TypeStyle {
         case .headline: 24
         case .body, .bodyStrong: 17
         case .callout: 15
-        case .caption: 13
-        case .eyebrow: 12
+        case .caption: 15
+        case .eyebrow: 13
         }
     }
 
@@ -126,9 +142,19 @@ enum TypeStyle {
         case .headline: .title3
         case .body, .bodyStrong: .body
         case .callout: .callout
-        case .caption: .caption
-        case .eyebrow: .caption2
+        // Captions and eyebrows are the subheadline and footnote sizes (15 and 13 pt at default text size), so small
+        // text stays readable (Fable's audit UX-1, Nov 24, 2026). Both still grow with the user's text size.
+        case .caption: .subheadline
+        case .eyebrow: .footnote
         }
+    }
+
+    /// The ink a style is drawn in: eyebrows default to soft ink, and small text asked to be muted gets soft ink.
+    static func ink(for style: TypeStyle, requested: Color) -> Color {
+        let small = style == .caption || style == .eyebrow
+        if style == .eyebrow && requested == Brand.ink { return Brand.inkSoft }
+        if small && requested == Brand.inkMuted { return Brand.inkSoft }
+        return requested
     }
 
     var font: Font {
@@ -144,9 +170,10 @@ enum TypeStyle {
 }
 
 extension View {
+    /// Small text (captions, eyebrows) never uses the muted ink: it's drawn in the soft ink instead (UX-1).
     func textStyle(_ style: TypeStyle, color: Color = Brand.ink) -> some View {
         self.font(style.font)
-            .foregroundStyle(style == .eyebrow && color == Brand.ink ? Brand.inkMuted : color)
+            .foregroundStyle(TypeStyle.ink(for: style, requested: color))
             .tracking(style == .eyebrow ? 1.6 : (style.isSerif ? -0.4 : 0))
             .textCase(style == .eyebrow ? .uppercase : nil)
     }

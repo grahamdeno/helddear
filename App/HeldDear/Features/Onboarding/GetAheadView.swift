@@ -26,7 +26,7 @@ struct GetAheadView: View {
             case .end: end
             }
         }
-        .animation(.easeOut(duration: 0.22), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.22)), value: step)
         .onAppear(perform: load)
         .onChange(of: photoItem) { _, item in savePhoto(item) }
     }

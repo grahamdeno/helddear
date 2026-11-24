@@ -16,7 +16,7 @@ struct SwipeToRemove: ViewModifier {
         ZStack(alignment: .trailing) {
             if offset < 0 {
                 Button {
-                    withAnimation(.snappy) { offset = 0; open = false }
+                    withMotion(.snappy) { offset = 0; open = false }
                     action()
                 } label: {
                     Text(title).font(.callout.weight(.semibold)).foregroundStyle(Brand.onAction)
@@ -32,10 +32,12 @@ struct SwipeToRemove: ViewModifier {
                 .overlay {
                     if open {
                         Color.clear.contentShape(Rectangle())
-                            .onTapGesture { withAnimation(.snappy) { offset = 0; open = false } }
+                            .onTapGesture { withMotion(.snappy) { offset = 0; open = false } }
                     }
                 }
                 .offset(x: offset)
+                // The same removal as a named VoiceOver action, so it never needs a swipe (Fable's audit UX-4).
+                .accessibilityAction(named: Text(title)) { action() }
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 18)
                         .onChanged { g in
@@ -48,16 +50,16 @@ struct SwipeToRemove: ViewModifier {
                             // The lift that ends the swipe can arrive as a tap; keep taps off a moment longer.
                             if swiping { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { swiping = false } }
                             guard abs(g.translation.width) > abs(g.translation.height) * 1.4 else {
-                                withAnimation(.snappy) { offset = open ? -reveal : 0 }
+                                withMotion(.snappy) { offset = open ? -reveal : 0 }
                                 return
                             }
                             if offset < -reveal * 2.2 {
-                                withAnimation(.snappy) { offset = 0; open = false }
+                                withMotion(.snappy) { offset = 0; open = false }
                                 action()
                             } else if offset < -reveal / 2 {
-                                withAnimation(.snappy) { offset = -reveal; open = true }
+                                withMotion(.snappy) { offset = -reveal; open = true }
                             } else {
-                                withAnimation(.snappy) { offset = 0; open = false }
+                                withMotion(.snappy) { offset = 0; open = false }
                             }
                         }
                 )
@@ -79,7 +81,7 @@ struct UndoBanner: View {
     var body: some View {
         if let note = model.undo {
             HStack(spacing: Brand.space3) {
-                Text(note.text).textStyle(.callout, color: Brand.page).lineLimit(1)
+                Text(note.text).textStyle(.callout, color: Brand.page).lineLimit(2)
                 Spacer(minLength: Brand.space2)
                 Button("Undo") { model.undoRemoval() }
                     .font(.callout.weight(.semibold)).foregroundStyle(Brand.page).frame(minHeight: 44)
@@ -88,7 +90,7 @@ struct UndoBanner: View {
             .background(Brand.ink, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .padding(.horizontal, Brand.space4)
             .padding(.bottom, Brand.space2)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .transition(Motion.slide(.bottom))
             .accessibilityElement(children: .combine)
             .accessibilityAction(named: "Undo") { model.undoRemoval() }
         }

@@ -63,7 +63,7 @@ struct FindsView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Text(prices.count == 1 ? prices.first!.label : prices.isEmpty ? "Any price" : "\(prices.count) prices")
-                            .font(.callout.weight(.semibold)).lineLimit(1)
+                            .font(.callout.weight(.semibold)).lineLimit(2)
                         Image(systemName: "chevron.down").font(.caption.weight(.bold))
                     }
                     .foregroundStyle(prices.isEmpty ? Brand.ink : Brand.page)
@@ -94,7 +94,7 @@ struct FindsView: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if on { Image(systemName: "checkmark").font(.footnote.weight(.bold)) }
-                Text(title).font(.callout.weight(.semibold)).lineLimit(1)
+                Text(title).font(.callout.weight(.semibold)).lineLimit(2)
             }
             .foregroundStyle(on ? Brand.page : Brand.ink)
             .padding(.horizontal, 14)

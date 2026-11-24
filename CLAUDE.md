@@ -88,6 +88,8 @@ SKU helddear001. iOS 26, iPhone only.
 ## Product rules that the code must keep
 - One decision or one tap per flow screen. Home and Person are browse screens.
 - Data stays on the phone. No network, analytics or third-party SDKs. Contacts read only, calendar write only.
+  **1.0 is server-free (plan B, Nov 24, 2026):** mailed cards and family pages are off until 1.1; the guard fails if
+  a build turns them on. The two server exceptions below apply from 1.1.
   One exception (Nov 12, 2026): mailed cards. Only `Services/MailedCards.swift` talks to Held Dear's server
   (`server/`, Vercel project helddear-mail) at checkout. The server holds the Handwrytten and Stripe keys and
   places an order only after Stripe confirms the Apple Pay payment. `scripts/privacy_guard.py` enforces this in CI.
