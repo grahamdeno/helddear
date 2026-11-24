@@ -67,10 +67,11 @@ enum ICloudSync {
         @Published var account = "Checking iCloud…"
         @Published var last = ""
         @Published var problem: String?
-        /// When each kind last finished, so the page shows whether anything has gone up (Nov 21, 2026).
-        @Published var lastSent = ""
+        /// When each kind last finished, so the page shows whether anything has gone up (Nov 21, 2026). Kept as
+        /// dates and worded when shown ("today at 1:17 PM"), so "today" never goes stale (Nov 24, 2026).
+        @Published var sentAt: Date?
         @Published var schemaReady = UserDefaults.standard.bool(forKey: "cloudKitSchemaInitialized-31")
-        @Published var lastReceived = ""
+        @Published var receivedAt: Date?
 
         func update(_ event: NSPersistentCloudKitContainer.Event) {
             let kind: String
@@ -84,9 +85,9 @@ enum ICloudSync {
                 if let error = event.error as NSError? {
                     problem = ICloudSync.problemLine("\(kind) didn't finish", error)
                 } else {
-                    last = "\(kind) \(end.formatted(date: .omitted, time: .shortened))"
-                    if event.type == .export { lastSent = end.formatted(date: .abbreviated, time: .shortened) }
-                    if event.type == .import { lastReceived = end.formatted(date: .abbreviated, time: .shortened) }
+                    last = "\(kind) \(SyncTime.line(end))"
+                    if event.type == .export { sentAt = end }
+                    if event.type == .import { receivedAt = end }
                     if event.type == .setup { ICloudSync.setupFinished() }
                     if event.type != .setup { problem = nil }
                 }

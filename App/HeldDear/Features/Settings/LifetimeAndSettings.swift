@@ -541,11 +541,10 @@ struct SettingsView: View {
         if ICloudSync.isOnAtLaunch {
             VStack(alignment: .leading, spacing: 4) {
                 Eyebrow(text: "Status")
-                ForEach([iCloudStatus.account, iCloudStatus.last].filter { !$0.isEmpty }, id: \.self) { line in
-                    Text(line).textStyle(.body)
-                }
-                if !iCloudStatus.lastSent.isEmpty { Text("Last sent \(iCloudStatus.lastSent)").textStyle(.body) }
-                if !iCloudStatus.lastReceived.isEmpty { Text("Last received \(iCloudStatus.lastReceived)").textStyle(.body) }
+                // One line each, no repeats (Graham, Nov 24, 2026): the account, then when something last went up and came down.
+                Text(iCloudStatus.account).textStyle(.body)
+                if let sent = iCloudStatus.sentAt { Text("Last sent \(SyncTime.line(sent))").textStyle(.body) }
+                if let received = iCloudStatus.receivedAt { Text("Last received \(SyncTime.line(received))").textStyle(.body) }
                 if ICloudSync.environment == "Development" {
                     Text(iCloudStatus.schemaReady ? "iCloud records: created" : "iCloud records: not created yet")
                         .textStyle(.caption, color: Brand.inkMuted)
