@@ -113,7 +113,7 @@ struct TextLink: View {
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.opacity(configuration.isPressed ? 0.75 : 1)
-            .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
+            .animation(Motion.animation(.easeOut(duration: 0.2)), value: configuration.isPressed)
     }
 }
 

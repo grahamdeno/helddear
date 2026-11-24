@@ -140,6 +140,11 @@ struct SettingsView: View {
                 NavigationLink { subpage("Your profile") { profilePage } } label: { profileCard }
                     .buttonStyle(PressStyle())
                 lifetimeCard
+                group("Getting started") {
+                    NavigationLink { subpage("How Held Dear works") { HowItWorksView() } } label: {
+                        YouRowLabel(icon: "questionmark.circle", title: "How Held Dear works", detail: nil)
+                    }
+                }
                 group("Make") {
                     YouRow(icon: "photo.on.rectangle", title: "Make a digital card", detail: nil, caption: "To text or post, for Christmas or any reason") { makingCard = true }
                     if !savedCards.isEmpty {
@@ -178,7 +183,7 @@ struct SettingsView: View {
                     }
                 }
                 VStack(spacing: 4) {
-                    Text("Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail.")
+                    Text(AppFeatures.privacyLine)
                     Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))")
                 }
                 .textStyle(.caption, color: Brand.inkMuted)

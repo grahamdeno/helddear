@@ -226,7 +226,7 @@ struct PersonView: View {
         .onScrollGeometryChange(for: Bool.self) { g in
             g.contentOffset.y + g.contentInsets.top > PersonHero.height - 150
         } action: { _, past in
-            withAnimation(.easeOut(duration: 0.2)) { pastHero = past }
+            withMotion(.easeOut(duration: 0.2)) { pastHero = past }
         }
         .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .top) { topBar }
@@ -1605,7 +1605,7 @@ struct FocusPicker: View {
                         }
                         .onEnded { _ in panStart = pan })
                     .onTapGesture(count: 2) {
-                        withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 3; zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } }
+                        withMotion(.snappy) { zoom = zoom > 1 ? 1 : 3; zoomStart = zoom; if zoom == 1 { pan = .zero; panStart = .zero } }
                     }
                 }
                 .frame(height: 270)

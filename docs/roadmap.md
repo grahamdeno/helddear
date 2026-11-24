@@ -118,6 +118,9 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   Stage 6 (Fable go-live assessment, listing, screenshots, review notes). Target: submit about Dec 5 to 8. Graham
   asked Opus, in Held Dear Product, to carry this through to Submit (only Graham presses Submit for Review and
   Release). New ideas go to 1.1.
+- **Added to 1.0 (Graham, Nov 24, 2026):** the remaining accessibility findings UX-10 (Reduce Motion everywhere),
+  UX-12 (a "How Held Dear works" page) and UX-14 (Home's links), and the Held Dear website (home, privacy, support at
+  helddear.tangomike.app) the App Store needs.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).

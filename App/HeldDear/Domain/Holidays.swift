@@ -166,6 +166,14 @@ enum AppFeatures {
     /// True when 1.0 can't reach Held Dear's server at all: no mailed cards, no family pages.
     static var serverFree: Bool { !mailedCards && !familyPages }
 
+    /// The one-line privacy promise shown in onboarding and at the foot of You. It names the card exception only in a
+    /// build where mailed cards are on.
+    static var privacyLine: String {
+        mailedCards
+            ? "Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail."
+            : "Your plans stay yours: on your phone and in your own iCloud. Held Dear has no account and no server."
+    }
+
     /// Family pages stay off in 1.0. They come back only in builds made with HELDDEAR_FAMILY_PAGES.
     #if HELDDEAR_FAMILY_PAGES
     static let familyPages = true

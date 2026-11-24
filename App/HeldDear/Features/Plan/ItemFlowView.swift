@@ -42,7 +42,7 @@ struct ItemFlowView: View {
             case .finish: finishStep
             }
         }
-        .animation(.easeOut(duration: 0.2), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.2)), value: step)
         .onAppear {
             guard !started else { return }
             started = true

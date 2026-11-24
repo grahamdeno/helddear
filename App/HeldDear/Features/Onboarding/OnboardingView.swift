@@ -24,11 +24,11 @@ struct OnboardingView: View {
             case .notify: NotificationsSetupView(onDone: finish)
             }
         }
-        .animation(.easeOut(duration: 0.25), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.25)), value: step)
     }
 
     private func go(_ next: Step) {
-        withAnimation(.easeOut(duration: 0.25)) { step = next }
+        withMotion(.easeOut(duration: 0.25)) { step = next }
     }
 
     private func handleImport(_ access: ContactsService.Access, _ count: Int) {
@@ -63,7 +63,7 @@ struct FindBirthdaysView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 80)
             Question(title: "Find the birthdays you already have")
-            Text("Held Dear looks for birthdays already saved in your contacts. Your plans stay yours: on your phone and in your own iCloud. Held Dear only sees a card you choose to mail.")
+            Text("Held Dear looks for birthdays already saved in your contacts. \(AppFeatures.privacyLine)")
                 .textStyle(.body, color: Brand.ink.opacity(0.85))
         } footer: {
             PrimaryButton(title: working ? "Looking…" : "Allow contacts") { allow() }

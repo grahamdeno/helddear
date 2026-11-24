@@ -52,7 +52,7 @@ struct MakeCardFlow: View {
             case .card: cardStep
             }
         }
-        .animation(.easeOut(duration: 0.2), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.2)), value: step)
         .task { restore() }
         .sheet(isPresented: Binding(get: { sharing != nil }, set: { if !$0 { sharing = nil } })) {
             ShareSheet(items: sharing ?? []) { _ in sharing = nil }

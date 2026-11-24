@@ -234,7 +234,7 @@ struct SeasonView: View {
                 PrimaryButton(title: "Plan them together") {
                     queue = toPlan.map(\.id)
                     index = 0
-                    withAnimation(.easeOut(duration: 0.22)) { planning = true }
+                    withMotion(.easeOut(duration: 0.22)) { planning = true }
                 }
                 TextLink(title: "One at a time is fine") { model.route = nil }
             }
@@ -250,7 +250,7 @@ struct SeasonView: View {
     }
 
     private func advance() {
-        withAnimation(.easeOut(duration: 0.22)) {
+        withMotion(.easeOut(duration: 0.22)) {
             if index + 1 < queue.count { index += 1 } else { planning = false; model.route = nil }
         }
     }

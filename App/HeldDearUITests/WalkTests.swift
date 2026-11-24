@@ -59,7 +59,8 @@ final class WalkTests: XCTestCase {
         if tap("Settings", screen: "You and Settings") {
             record("You and Settings")
             if tap("iCloud", screen: "iCloud status") { record("iCloud status"); back() }
-            if tap("Your data", screen: "Your data") { record("Your data"); back() }
+            if tap("How Held Dear works", screen: "How it works") { record("How it works"); back() }
+            if tap("Export and import", screen: "Export and import") { record("Export and import"); back() }
             back()
         }
 

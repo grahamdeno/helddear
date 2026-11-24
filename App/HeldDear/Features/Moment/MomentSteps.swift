@@ -277,7 +277,7 @@ struct PhotoStep: View {
                 }
             }
         }
-        .animation(.easeOut(duration: 0.22), value: phase)
+        .animation(Motion.animation(.easeOut(duration: 0.22)), value: phase)
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .onAppear(perform: load)
         .onChange(of: pickerItem) { _, item in addPicked(item) }

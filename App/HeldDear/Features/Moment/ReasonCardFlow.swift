@@ -40,7 +40,7 @@ struct ReasonCardFlow: View {
             case .sent: sentStep
             }
         }
-        .animation(.easeOut(duration: 0.22), value: step)
+        .animation(Motion.animation(.easeOut(duration: 0.22)), value: step)
         .onAppear {
             choices = model.photoChoices(for: person)
             selected = choices.first?.id
