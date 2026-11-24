@@ -139,6 +139,19 @@ final class SchemaTestTargetTests: XCTestCase {
         }
     }
 
+    /// Build 2 deadlocked: no observer on the main queue, and iCloud record IDs only off the main thread.
+    func testTheTestAppNeverObservesOnTheMainQueueOrReadsRecordIDsOnTheMainThread() throws {
+        let source = try text("App/HeldDearSchemaTest/SchemaTest.swift")
+        XCTAssertFalse(source.contains("queue: .main"))
+        XCTAssertFalse(source.contains("OperationQueue.main"))
+        XCTAssertFalse(source.contains("addObserver(forName"), "observers are added through SeedObserver, which has no queue")
+        XCTAssertTrue(source.contains("SeedObserver.add("))
+        for line in source.components(separatedBy: "\n") where line.contains("recordIDs(for") {
+            XCTAssertTrue(line.contains("SeedThread.offMain"), "recordIDs(for:) must run off the main thread: \(line)")
+        }
+        XCTAssertTrue(source.contains("did not finish within 60 seconds"), "the first save waits for the setup event, at most 60 seconds")
+    }
+
     // MARK: the two workflows
 
     func testTheTestWorkflowsNameOnlyTheTestContainerAndRunByHandOnly() throws {

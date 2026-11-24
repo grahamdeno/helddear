@@ -1,12 +1,54 @@
 #if SCHEMA_TEST
 import CloudKit
 import CoreData
+import Darwin
+import os
 import SwiftUI
 
-/// The Schema Test app (target HeldDearSchemaTest, compile flag SCHEMA_TEST; never part of the real app). On launch it
-/// opens an empty store of its own, saves two made-up objects of every record type (a short set and a long set, every
-/// field filled, photos under and over 1 MB, long strings that force the asset fields), waits for Core Data to send
-/// them to the test container's iCloud, asks iCloud for each record, and shows one line per record type.
+/// What the CloudKit events said, copied in the handler (which runs on Core Data's own queue and never waits for the
+/// main thread) and read later from anywhere.
+final class SchemaTestWatcher {
+    private let lock = NSLock()
+    private var setupEnded = false
+    private var setupFailure: String?
+    private var failed = false
+    private var errors: [NSError] = []
+    private let log: (String) -> Void
+
+    init(log: @escaping (String) -> Void) { self.log = log }
+
+    /// Registers on the posting thread's queue, never the main queue. Register before the stores load, so the setup event is seen.
+    func attach(to container: NSPersistentCloudKitContainer) -> NSObjectProtocol {
+        SeedObserver.add(name: NSPersistentCloudKitContainer.eventChangedNotification, object: container) { [weak self] note in
+            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                    as? NSPersistentCloudKitContainer.Event, event.endDate != nil else { return }
+            let succeeded = event.succeeded
+            let error = event.error as NSError?
+            let isSetup = event.type == .setup, isExport = event.type == .export
+            self?.record(setup: isSetup, export: isExport, succeeded: succeeded, error: error)
+        }
+    }
+
+    private func record(setup: Bool, export: Bool, succeeded: Bool, error: NSError?) {
+        lock.lock()
+        if setup { setupEnded = true; if !succeeded { setupFailure = error.map { ICloudSync.reason($0) } ?? "the setup failed" } }
+        if export, !succeeded { failed = true; if let error { errors.append(error) } }
+        lock.unlock()
+        log("\(setup ? "setup" : export ? "export" : "other") event ended, succeeded: \(succeeded)\(error.map { ", " + ICloudSync.reason($0) } ?? "")")
+    }
+
+    var setupDone: (ended: Bool, failure: String?) { lock.lock(); defer { lock.unlock() }; return (setupEnded, setupFailure) }
+    var exportFailure: (failed: Bool, errors: [NSError]) { lock.lock(); defer { lock.unlock() }; return (failed, errors) }
+    func startNewStep() { lock.lock(); failed = false; errors = []; lock.unlock() }
+}
+
+/// The Schema Test app (target HeldDearSchemaTest, compile flag SCHEMA_TEST; never part of the real app). It opens an
+/// empty store of its own and sends made-up records to the test container's iCloud in steps, so the work never holds
+/// much memory: first one short record of every record type (all at once), then the long records one record type at a
+/// time. After each step it asks iCloud for the step's records and shows one line per record type.
+///
+/// Every step has a time limit, the screen always finishes, and every step is also written to
+/// Documents/schema-test.txt, so the last step survives the app closing.
 final class SchemaTestRunner: NSObject, ObservableObject {
     struct Row: Identifiable {
         let id: String
@@ -17,18 +59,23 @@ final class SchemaTestRunner: NSObject, ObservableObject {
     }
 
     @Published private(set) var rows: [Row] = CoreStore.model.entities.compactMap(\.name).sorted().map { Row(id: $0, entity: $0, result: nil) }
-    @Published private(set) var note = "Starting"
+    @Published private(set) var diagnostics: [String] = []
+    @Published private(set) var progress = "Starting"
+    @Published private(set) var stopped: String?
     @Published private(set) var finished = false
 
     private var container: NSPersistentCloudKitContainer?
     private var observer: NSObjectProtocol?
-    private var exportErrors: [NSError] = []
-    private var sawFailedExport = false
+    private lazy var watcher = SchemaTestWatcher { [weak self] in self?.write($0) }
+    private let fileLock = NSLock()
     private var started = false
+    private var step = "starting"
+    private var stepStartedAt = Date()
 
     /// The top line.
     var headline: String {
-        if !finished { return "Working: \(note)" }
+        if let stopped { return "Stopped: \(stopped)" }
+        if !finished { return "Working: \(progress)" }
         let count = rows.count
         return rows.allSatisfy(\.uploaded) ? "All \(count) record types uploaded" : "Something was rejected"
     }
@@ -39,93 +86,284 @@ final class SchemaTestRunner: NSObject, ObservableObject {
         Task { await run() }
     }
 
-    @MainActor
-    private func setNote(_ text: String) { note = text }
+    // MARK: diagnostics and the file
 
-    @MainActor
-    private func finish(allWith error: String) {
-        for i in rows.indices where rows[i].result == nil { rows[i].result = error }
-        finished = true
+    private static let fileURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("schema-test.txt")
+
+    /// Appends a line to Documents/schema-test.txt.
+    private func write(_ line: String) {
+        fileLock.lock(); defer { fileLock.unlock() }   // called from Core Data's queue too
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        let data = Data("\(stamp) [\(Self.footprintMB()) MB] \(line)\n".utf8)
+        if let handle = try? FileHandle(forWritingTo: Self.fileURL) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: Self.fileURL)
+        }
+    }
+
+    private static func plistValue(_ key: String) -> String {
+        (Bundle.main.object(forInfoDictionaryKey: key) as? String).map { "\"\($0)\"" } ?? "(missing)"
+    }
+
+    private func gatherDiagnostics() {
+        let group = AppGroup.identifier
+        let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+        diagnostics = [
+            "Bundle ID: \(Bundle.main.bundleIdentifier ?? "(none)")",
+            "Container used: \(ICloudSync.containerID)",
+            "HeldDearCloudKitContainer: \(Self.plistValue("HeldDearCloudKitContainer"))",
+            "HeldDearAppGroup: \(Self.plistValue("HeldDearAppGroup"))",
+            "HeldDearCloudKitEnvironment: \(Self.plistValue("HeldDearCloudKitEnvironment"))",
+            "Build number: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "(none)")",
+            "App group container opens: \(groupURL != nil ? "yes" : "NO") (\(group))"
+        ]
+        diagnostics.forEach { write($0) }
+    }
+
+    // MARK: memory
+
+    /// Memory the app is using now, in MB (the footprint iOS judges it by).
+    static func footprintMB() -> Int {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size) / 4
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        return result == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : -1
+    }
+
+    private func refreshProgress() {
+        let seconds = Int(Date().timeIntervalSince(stepStartedAt))
+        let free = os_proc_available_memory() / 1_048_576
+        progress = "\(step) · \(seconds) s · \(Self.footprintMB()) MB in use, \(free) MB free"
     }
 
     @MainActor
+    private func begin(_ name: String) {
+        step = name
+        stepStartedAt = Date()
+        refreshProgress()
+        write("STEP \(name)")
+    }
+
+    // MARK: finishing
+
+    @MainActor
+    private func stop(_ reason: String, rows text: String) {
+        stopped = reason
+        write("STOPPED \(reason): \(text)")
+        for i in rows.indices where rows[i].result == nil { rows[i].result = text }
+        finished = true
+    }
+
+    // MARK: the account check, with a limit
+
+    private enum AccountCheck {
+        case status(CKAccountStatus)
+        case error(NSError)
+        case timedOut
+    }
+
+    /// Asks for the account status and gives up after `seconds`; the call itself has been seen never to return.
+    private func accountCheck(limit seconds: TimeInterval) async -> AccountCheck {
+        await withCheckedContinuation { continuation in
+            let lock = NSLock()
+            var done = false
+            func finish(_ result: AccountCheck) {
+                lock.lock(); defer { lock.unlock() }
+                guard !done else { return }
+                done = true
+                continuation.resume(returning: result)
+            }
+            CKContainer(identifier: ICloudSync.containerID).accountStatus { status, error in
+                if let error { finish(.error(error as NSError)) } else { finish(.status(status)) }
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + seconds) { finish(.timedOut) }
+        }
+    }
+
+    private static func describe(_ status: CKAccountStatus) -> String {
+        switch status {
+        case .available: return "available"
+        case .noAccount: return "no account"
+        case .restricted: return "restricted"
+        case .couldNotDetermine: return "could not determine"
+        case .temporarilyUnavailable: return "temporarily unavailable"
+        @unknown default: return "unknown (\(status.rawValue))"
+        }
+    }
+
+    // MARK: the run
+
+    private var owner: [CKRecord.ID: (entity: String, set: String)] = [:]
+    /// What each step found: entity + set -> found in iCloud, and why a step did not succeed.
+    private var found: Set<String> = []
+    private var stepOutcomes: [String: SeedStepWait.Outcome] = [:]
+
+    @MainActor
     private func run() async {
-        let container = CKContainer(identifier: ICloudSync.containerID)
-        setNote("checking the iCloud account")
-        let account = try? await container.accountStatus()
-        guard account == .available else {
-            finish(allWith: "No iCloud account is signed in on this iPhone (status \(account.map { String($0.rawValue) } ?? "unknown")).")
+        gatherDiagnostics()
+        let ticker = Task { @MainActor [weak self] in
+            while let self, !self.finished {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                self.refreshProgress()
+            }
+        }
+        defer { ticker.cancel() }
+
+        begin("checking the iCloud account")
+        let check = await accountCheck(limit: 20)
+        switch check {
+        case .timedOut:
+            diagnostics.append("Account status: no answer after 20 seconds")
+            stop("the iCloud account check", rows: "The iCloud account status did not answer within 20 seconds (container \(ICloudSync.containerID)).")
             return
+        case .error(let error):
+            diagnostics.append("Account status error: \(error.domain) \(error.code): \(error.localizedDescription)")
+            stop("the iCloud account check", rows: "The iCloud account status failed: \(error.domain) \(error.code): \(error.localizedDescription).")
+            return
+        case .status(let status):
+            diagnostics.append("Account status: \(Self.describe(status))")
+            write("Account status: \(Self.describe(status))")
+            guard status == .available else {
+                stop("no usable iCloud account", rows: "iCloud account status: \(Self.describe(status)) (\(status.rawValue)).")
+                return
+            }
         }
 
-        setNote("opening an empty store")
+        begin("opening an empty store")
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // A new file name each launch keeps the store empty.
         let url = dir.appendingPathComponent("SchemaTest-\(UUID().uuidString).sqlite")
         let persistent = Store.makeContainer(url: url, cloud: true)
-        self.container = persistent
+        container = persistent
+        // Registered before the stores load so the setup event is not missed; never on the main queue.
+        observer = watcher.attach(to: persistent)
         var loadError: Error?
         persistent.loadPersistentStores { _, error in loadError = error }
         if let loadError {
-            finish(allWith: "The store did not open: \(ICloudSync.reason(loadError as NSError))")
+            stop("the store", rows: "The store did not open: \(ICloudSync.reason(loadError as NSError))")
             return
         }
 
-        observer = NotificationCenter.default.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                                                          object: persistent, queue: .main) { [weak self] note in
-            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
-                    as? NSPersistentCloudKitContainer.Event, event.type == .export, event.endDate != nil else { return }
-            if !event.succeeded {
-                self?.sawFailedExport = true
-                if let error = event.error { self?.exportErrors.append(error as NSError) }
-            }
+        // Nothing touches the container until Core Data's CloudKit setup has ended (at most 60 seconds).
+        begin("waiting for the CloudKit setup")
+        var waited = 0.0
+        while !watcher.setupDone.ended, waited < 60 {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            waited += 0.5
+        }
+        let setup = watcher.setupDone
+        if !setup.ended {
+            stop("the CloudKit setup", rows: "Core Data's CloudKit setup did not finish within 60 seconds.")
+            return
+        }
+        if let failure = setup.failure {
+            stop("the CloudKit setup", rows: "Core Data's CloudKit setup failed: \(failure)")
+            return
         }
 
-        setNote("saving one of every record type")
         let context = persistent.viewContext
-        let made = CloudKitSeed.fill(context)
-        do { try context.save() } catch {
-            finish(allWith: "Saving to the store failed: \(ICloudSync.reason(error as NSError))")
-            return
+        let model = CoreStore.model
+        let order = CloudKitSeed.order(of: model)
+
+        // Step 1: the short set, all 7 at once.
+        do {   // the objects are dropped when this block ends
+            let shortObjects = CloudKitSeed.fillSet(context, model: model, long: false)
+            await upload("short set", objects: Array(shortObjects.values), set: "short", persistent: persistent)
         }
+        context.reset()
 
-        // Which iCloud record belongs to which record type.
-        var owner: [CKRecord.ID: String] = [:]
-        let objects = Array(made.short.values) + Array(made.long.values)
-        let ids = persistent.recordIDs(for: objects.map(\.objectID))
-        for object in objects { if let id = ids[object.objectID] { owner[id] = object.entity.name } }
-
-        setNote("waiting for the export to iCloud")
-        let database = container.privateCloudDatabase
-        let end = Date().addingTimeInterval(300)
-        var found: [CKRecord.ID: CKRecord] = [:]
-        while Date() < end {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
-            let fetched = (try? await database.records(for: Array(owner.keys), desiredKeys: [])) ?? [:]
-            for (id, result) in fetched { if case .success(let record) = result { found[id] = record } }
-            setNote("\(found.count) of \(owner.count) records are in iCloud")
-            if found.count == owner.count || sawFailedExport { break }
+        // Steps 2 to 8: the long records, one record type at a time, linked to the long records already saved.
+        var savedLong: [String: NSManagedObjectID] = [:]
+        for entity in order {
+            let name = entity.name!
+            let object: NSManagedObject = autoreleasepool {
+                let existing = savedLong.mapValues { context.object(with: $0) }   // faults: no text is loaded
+                return CloudKitSeed.fillOne(context, entity: entity, long: true, linking: existing)
+            }
+            await upload("long CD_\(name)", objects: [object], set: "long", persistent: persistent)
+            savedLong[name] = object.objectID
+            context.reset()
         }
         if let observer { NotificationCenter.default.removeObserver(observer) }
 
-        let reasons = Self.recordErrors(exportErrors)
         for i in rows.indices {
             let entity = rows[i].entity
-            let mine = owner.filter { $0.value == entity }.map(\.key)
-            let missing = mine.filter { found[$0] == nil }
-            let wrongType = mine.compactMap { found[$0] }.filter { $0.recordType != "CD_\(entity)" }
-            if mine.isEmpty {
-                rows[i].result = "No record was made for \(entity)."
-            } else if missing.isEmpty && wrongType.isEmpty {
-                rows[i].result = "Uploaded"
+            let parts = ["short", "long"].map { set -> String? in
+                if found.contains("\(entity)/\(set)") { return nil }
+                switch stepOutcomes["\(entity)/\(set)"] {
+                case .rejected(let why)?: return "Rejected (\(set) record, record type CD_\(entity)). \(why)"
+                default: return "Not uploaded in time (\(set) record, record type CD_\(entity))."
+                }
+            }.compactMap { $0 }
+            rows[i].result = parts.isEmpty ? "Uploaded" : parts.joined(separator: " ")
+            write("RESULT CD_\(entity): \(rows[i].result ?? "")")
+        }
+        progress = "done"
+        finished = true
+        write("FINISHED")
+    }
+
+    /// Saves one step's objects, then waits (at most `SeedStepWait.limit`) for iCloud to have all of them.
+    @MainActor
+    private func upload(_ name: String, objects: [NSManagedObject], set: String, persistent: NSPersistentCloudKitContainer) async {
+        begin(name)
+        guard let context = objects.first?.managedObjectContext else { return }
+        do { try context.save() } catch {
+            let why = "Saving to the store failed: \(ICloudSync.reason(error as NSError))"
+            for o in objects { stepOutcomes["\(o.entity.name ?? "?")/\(set)"] = .rejected(why) }
+            write(why)
+            return
+        }
+        let ids = objects.map(\.objectID)
+        var entityOf: [NSManagedObjectID: String] = [:]
+        for o in objects { entityOf[o.objectID] = o.entity.name ?? "?" }
+        watcher.startNewStep()
+        let database = CKContainer(identifier: ICloudSync.containerID).privateCloudDatabase
+        var foundHere: [NSManagedObjectID: Bool] = [:]
+        var outcome = SeedStepWait.Outcome.waiting
+
+        while outcome == .waiting {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            // Asked again every time: a record ID exists only after Core Data has started the export.
+            let recordIDs = await SeedThread.offMain { persistent.recordIDs(for: ids) }
+            var foundCount = 0
+            if !recordIDs.isEmpty {
+                let fetched = (try? await database.records(for: Array(recordIDs.values), desiredKeys: [])) ?? [:]
+                for (objectID, recordID) in recordIDs {
+                    if case .success(let record)? = fetched[recordID], record.recordType == "CD_\(entityOf[objectID] ?? "?")" {
+                        foundHere[objectID] = true
+                    }
+                }
+                foundCount = foundHere.count
+            }
+            let export = watcher.exportFailure
+            let failure = export.failed ? (Self.recordErrors(export.errors).general ?? "The export failed with no reason given.") : nil
+            outcome = SeedStepWait.evaluate(expected: ids.count, recordIDsKnown: recordIDs.count, found: foundCount, failure: failure,
+                                            elapsed: Date().timeIntervalSince(stepStartedAt))
+            write("\(name): \(recordIDs.count) of \(ids.count) record IDs, \(foundCount) in iCloud, \(String(describing: outcome))")
+        }
+        let reasons = Self.recordErrors(watcher.exportFailure.errors)
+        let finalIDs = await SeedThread.offMain { persistent.recordIDs(for: ids) }
+        for id in ids {
+            let key = "\(entityOf[id] ?? "?")/\(set)"
+            if foundHere[id] == true { found.insert(key); continue }
+            if case .rejected(let general) = outcome {
+                let specific = finalIDs[id].flatMap { reasons.byRecord[$0] }
+                stepOutcomes[key] = .rejected(specific ?? general)
             } else {
-                let why = missing.compactMap { reasons.byRecord[$0] }.first ?? reasons.general
-                rows[i].result = "Rejected. Record type CD_\(entity), \(missing.count) of \(mine.count) records missing. "
-                    + (why ?? "iCloud reported no reason; the record is not in iCloud after the export.")
+                stepOutcomes[key] = outcome
             }
         }
-        finished = true
+        write("\(name) result: \(String(describing: outcome))")
     }
 
     /// The reasons iCloud gave, per record where it named one, and the whole text otherwise. Looks through every
@@ -157,6 +395,11 @@ struct SchemaTestView: View {
                 Section {
                     Text(runner.headline).font(.headline)
                     if !runner.finished { ProgressView() }
+                }
+                Section("Diagnostics") {
+                    ForEach(runner.diagnostics, id: \.self) { line in
+                        Text(line).font(.footnote.monospaced()).textSelection(.enabled)
+                    }
                 }
                 Section("Record types") {
                     ForEach(runner.rows) { row in
