@@ -22,4 +22,17 @@ Ratings: 1 cosmetic, 2 minor, 3 hurts use, 4 blocks use. Every 3 and 4 is fixed 
 
 ## From the walk (ux-walk.yml)
 
-Not run yet. Each run's `AUDIT` and `NOT REACHED` lines go here with the setup, screen, rating and fix.
+### Run 45487663525, Nov 24, 2026 (main d1b4d19)
+
+All five setups ran. Apple's audit found 38 issues in light, 37 in dark, 3 at the largest text, 2 on the small phone and
+0 in the denied setup. The walk reached Home, a person, Details, You and How it works; its taps missed rows whose
+labels carry a value ("iCloud, On"), so People, Ideas, Christmas, iCloud and Export weren't audited. Run 2 fixes the taps
+and saves the screenshots for review.
+
+| ID | Rating | Screen | What the audit saw | Next |
+|---|---|---|---|---|
+| W-1 | 3 until checked | Home | Text clipped on the name, date, subline, status line and link; 4 small hit areas; partial Dynamic Type | Likely Home's shrink-to-fit page and the neighbouring swipe pages; confirm on screenshots, then fix |
+| W-2 | 3 until checked | Person, Details | Contrast failed on "1 day · inner ring reminders" and "+ Add to Birthday"; small hit areas on "+ Add to Birthday" and "Not this year" | The brand colours pass (5.4:1 and up), so check the screenshots for scaling or an overlay |
+| W-3 | 2 | Home, Details | Dynamic Type partially unsupported on eyebrows, tabs and "+ Add" | Review after W-1 |
+| W-4 | Pass | Setup, every permission denied | Setup offers "Add people one at a time instead" with an Add someone button; 0 audit issues | Run 2 walks on into the add form |
+
