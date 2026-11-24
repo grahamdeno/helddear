@@ -7,7 +7,11 @@ import CloudKit
 /// CloudKit container mirrors the store, photos travel as Photo records, and the You page settings travel in
 /// iCloud's key-value store. Turning sync off keeps everything on this iPhone.
 enum ICloudSync {
-    static let containerID = "iCloud.com.grahamdeno.helddear"
+    /// The real app's container. Only the Schema Test app (a separate target) sets HeldDearCloudKitContainer in its
+    /// Info.plist; the real app has no such key and always gets the real container.
+    static var containerID: String {
+        Bundle.main.object(forInfoDictionaryKey: "HeldDearCloudKitContainer") as? String ?? "iCloud.com.grahamdeno.helddear"
+    }
     static let settingKey = "keepInICloud"
 
     /// The "Keep in iCloud" setting, on unless the user turned it off. Takes effect at the next launch.

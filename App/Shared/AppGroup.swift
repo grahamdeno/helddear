@@ -4,7 +4,11 @@ import Foundation
 /// The app writes a small people snapshot and a widget snapshot; the share extension writes wishes to an inbox
 /// that the app imports the next time it is active. Nothing here leaves the phone.
 enum AppGroup {
-    static let identifier = "group.com.grahamdeno.helddear"
+    /// The real app's group. Only the Schema Test app (a separate target) sets HeldDearAppGroup in its Info.plist; the
+    /// real app, its share extension and its widget have no such key, so they always get the real group.
+    static var identifier: String {
+        Bundle.main.object(forInfoDictionaryKey: "HeldDearAppGroup") as? String ?? "group.com.grahamdeno.helddear"
+    }
 
     static var container: URL {
         if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier) {

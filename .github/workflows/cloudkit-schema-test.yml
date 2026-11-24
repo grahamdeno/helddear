@@ -1,0 +1,77 @@
+name: cloudkit-schema-test
+
+# Changes the Schema Test app's CloudKit container, Development environment only, from cloudkit/schema.ckdb. Started by
+# hand, with Graham's go. A copy of cloudkit-schema.yml with the container fixed to the test container. Nothing here can
+# reach the real app's container: the guard steps below fail the run if this file names the real container or any
+# environment but development. The test container's live environment is deployed by hand in the CloudKit Console.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import-test-development-schema:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if this workflow names any other environment
+        run: |
+          python3 -I scripts/cloudkit_env_guard.py selftest
+          python3 -I scripts/cloudkit_env_guard.py check .github/workflows/cloudkit-schema-test.yml
+
+      - name: Fail if this workflow names the real app's container
+        run: python3 -I scripts/cloudkit_env_guard.py container .github/workflows/cloudkit-schema-test.yml
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then echo '::error::Xcode 26 is unavailable'; exit 1; fi
+          sudo xcode-select -s "$XC"
+
+      - name: Validate the schema (test container, development)
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
+          xcrun cktool import-schema --validate \
+            --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear.schematest \
+            --environment development --file cloudkit/schema.ckdb
+
+      - name: Import the schema (test container, development)
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
+          xcrun cktool import-schema \
+            --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear.schematest \
+            --environment development --file cloudkit/schema.ckdb
+
+      - name: Export the schema as Apple now holds it (test container, development)
+        env:
+          CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+        run: |
+          if [ -z "$CLOUDKIT_MANAGEMENT_TOKEN" ]; then echo '::error::CLOUDKIT_MANAGEMENT_TOKEN is not set'; exit 1; fi
+          xcrun cktool export-schema \
+            --team-id 7MHDTK68M2 --container-id iCloud.com.grahamdeno.helddear.schematest \
+            --environment development --output-file exported.ckdb
+
+      - name: Show the export and compare it with cloudkit/schema.ckdb
+        # The schema is record and field names only, nothing secret. Differences are listed, not failed on.
+        run: |
+          echo "===== Apple's schema for the test container (exported.ckdb) ====="
+          cat exported.ckdb
+          echo "===== Differences, ignoring blank lines and indentation (ours < > Apple's) ====="
+          diff <(grep -v '^[[:space:]]*$' cloudkit/schema.ckdb | sed 's/^[[:space:]]*//') \
+               <(grep -v '^[[:space:]]*$' exported.ckdb | sed 's/^[[:space:]]*//') || true
+          echo "===== End ====="
+
+      - name: Upload the export
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudkit-test-container-schema-export
+          path: exported.ckdb
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Schema Test app only. Merged with the generated Info.plist. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fraunces72pt-Light.ttf</string>
+		<string>Fraunces72pt-LightItalic.ttf</string>
+		<string>Fraunces9pt-Regular.ttf</string>
+		<string>Fraunces9pt-Italic.ttf</string>
+	</array>
+	<!-- CloudKit pushes need this to deliver changes while the app is closed. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<!-- Read by ICloudSync.containerID and AppGroup.identifier. The real app has neither key and uses its own values. -->
+	<key>HeldDearCloudKitContainer</key>
+	<string>$(HELDDEAR_CLOUDKIT_CONTAINER)</string>
+	<key>HeldDearAppGroup</key>
+	<string>$(HELDDEAR_APP_GROUP)</string>
+	<key>HeldDearCloudKitEnvironment</key>
+	<string>$(HELDDEAR_CLOUDKIT_ENVIRONMENT)</string>
+</dict>
+</plist>

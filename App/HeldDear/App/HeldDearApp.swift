@@ -3,10 +3,16 @@ import SwiftUI
 
 @main
 struct HeldDearApp: App {
+    static let refreshTaskID = "com.grahamdeno.helddear.refresh"
+
+    #if SCHEMA_TEST
+    // The Schema Test app (target HeldDearSchemaTest only): one screen that uploads one of every record type.
+    var body: some Scene {
+        WindowGroup { SchemaTestView() }
+    }
+    #else
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
-
-    static let refreshTaskID = "com.grahamdeno.helddear.refresh"
 
     init() {
         #if DEBUG
@@ -35,6 +41,7 @@ struct HeldDearApp: App {
             await Self.backgroundRefresh()
         }
     }
+    #endif
 
     @MainActor
     static func backgroundRefresh() async {

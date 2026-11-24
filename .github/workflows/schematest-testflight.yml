@@ -1,0 +1,126 @@
+name: schematest-testflight
+# Archives the Schema Test app (target HeldDearSchemaTest, bundle com.grahamdeno.helddear.schematest) and uploads it to
+# TestFlight (internal testing only) as the App Store Connect record "Held Dear Schema Test" (Apple ID 6838458371).
+# Run by hand only, with Graham's go. Never on push. The app has its own container iCloud.com.grahamdeno.helddear.schematest
+# and group group.com.grahamdeno.helddear.schematest, and no widget or share extension. The build number is this
+# workflow's own run number. Uses the same App Store Connect key secrets as testflight.yml.
+# Never submits for review. Graham presses Submit for Review himself.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Archive, sign and check entitlements, but do not upload to TestFlight"
+        type: boolean
+        default: false
+
+concurrency:
+  group: schematest-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guards
+        run: |
+          python3 -I scripts/privacy_guard.py selftest
+          python3 -I scripts/privacy_guard.py check
+
+      - name: Select the newest Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Tools
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Write API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_P8" ]; then echo "::error::ASC_KEY_P8 secret is missing"; exit 1; fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey.p8"
+
+      - name: Archive
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project HeldDear.xcodeproj -scheme HeldDearSchemaTest \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/HeldDearSchemaTest.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee "$RUNNER_TEMP/archive.log" | tail -n 40 \
+            || { grep -E "error:|Error|No profiles|No Accounts|certificate|provisioning" "$RUNNER_TEMP/archive.log" | sort -u | head -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
+
+      - name: Sign the archive ad hoc with the test app's entitlements and check them
+        run: |
+          APP="$RUNNER_TEMP/HeldDearSchemaTest.xcarchive/Products/Applications/HeldDearSchemaTest.app"
+          find "$APP" -depth \( -name "*.framework" -o -name "*.dylib" \) -print -exec codesign --force --sign - {} \;
+          # The entitlements file names build settings; fill them in the way the build does.
+          sed -e 's/\$(HELDDEAR_APP_GROUP)/group.com.grahamdeno.helddear.schematest/' \
+              -e 's/\$(HELDDEAR_CLOUDKIT_CONTAINER)/iCloud.com.grahamdeno.helddear.schematest/' \
+              -e 's/\$(HELDDEAR_CLOUDKIT_ENVIRONMENT)/Release/' \
+              Config/HeldDearSchemaTest.entitlements > "$RUNNER_TEMP/schematest.entitlements"
+          codesign --force --sign - --entitlements "$RUNNER_TEMP/schematest.entitlements" --generate-entitlement-der "$APP"
+          codesign -d --entitlements - "$APP" > "$RUNNER_TEMP/signed-entitlements.txt" 2>&1
+          cat "$RUNNER_TEMP/signed-entitlements.txt"
+          grep -q "group.com.grahamdeno.helddear.schematest" "$RUNNER_TEMP/signed-entitlements.txt" || { echo "::error::no test App Group entitlement"; exit 1; }
+          grep -q "iCloud.com.grahamdeno.helddear.schematest" "$RUNNER_TEMP/signed-entitlements.txt" || { echo "::error::no test container entitlement"; exit 1; }
+          # Neither the real group nor the real container may appear: a name that is not followed by .schematest.
+          if grep -E "(group|iCloud)\.com\.grahamdeno\.helddear([^.]|$)" "$RUNNER_TEMP/signed-entitlements.txt"; then
+            echo "::error::the test app names the real app's group or container"; exit 1
+          fi
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "com.grahamdeno.helddear.schematest" ] || { echo "::error::wrong bundle ID"; exit 1; }
+          [ ! -d "$APP/PlugIns" ] || { echo "::error::the test app must have no extensions"; exit 1; }
+
+      - name: Export and upload
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/export.plist" <<'P'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>7MHDTK68M2</string>
+            <key>destination</key><string>__DEST__</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          P
+          DEST=upload; [ "${{ inputs.dry_run }}" = "true" ] && DEST=export
+          sed -i '' "s/__DEST__/$DEST/" "$RUNNER_TEMP/export.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HeldDearSchemaTest.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee "$RUNNER_TEMP/export.log" | tail -n 40 \
+            || { grep -E -i "error:|failed|certificate|provisioning|capabilit|entitlement" "$RUNNER_TEMP/export.log" | sort -u | head -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; }
+          if [ "$DEST" = "export" ]; then
+            echo "::notice::Dry run: exported and signed. Nothing uploaded."
+          else
+            echo "::notice::Uploaded Schema Test build ${{ github.run_number }} to App Store Connect"
+          fi
+
+      - name: Remove key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
