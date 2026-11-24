@@ -386,9 +386,11 @@ struct MailCardFlow: View {
             switch outcome {
             case .some(.success(let result)):
                 context.onMailed(card.name)
-                step = .done(result.mailing ?? "Mailing within 2 business days")
+                step = .done(result.mailing ?? "Mailing within 3 business days")
             case .some(.failure(let error)):
-                reference = UUID().uuidString
+                // Keep the same reference unless the order is finished (nothing charged, or refunded), so a retry
+                // can never charge or mail twice (M1, Nov 24, 2026).
+                if (error as? MailedCards.Failure)?.startOver ?? true { reference = UUID().uuidString }
                 step = .failed(error.localizedDescription)
             case .none:
                 break   // Closed the Apple Pay sheet without paying: stay on review.
