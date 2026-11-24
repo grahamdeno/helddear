@@ -25,6 +25,7 @@ Anything below uploads a build or changes something live. Check this list before
 | Running `cloudkit-schema-test.yml` by hand | Changes the test container's (`iCloud.com.grahamdeno.helddear.schematest`) Development schema only; it refuses any other environment and the real container | Graham's go |
 | Deploying `server/` to the Vercel project helddear-mail (production, helddear-mail.vercel.app) | Changes the live server for mailed cards and family pages | Ship |
 | Merge to `main` touching `server/**` | Does not deploy on its own (checked Nov 21, 2026: PRs #11 to #29 merged with no new Vercel deployment). Deploying is a separate redeploy of helddear-mail | Ship (for the redeploy) |
+| Merge to `main` touching `site/**` or `.github/workflows/site.yml` | `site.yml` publishes helddear.tangomike.app (Cloudflare Pages project helddear-site): home, privacy, support | Graham's go for that change (first publish approved Nov 24, 2026) |
 | Changing helddear-mail environment variables (Handwrytten, Stripe, Blob keys) | Changes live secrets | Graham's go (secrets) |
 
 `build.yml` (pull requests, pushes to `main`) builds and tests only; it uploads and deploys nothing.

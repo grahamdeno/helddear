@@ -1,0 +1,52 @@
+# Publishes the Held Dear website (helddear.tangomike.app: home, privacy, support) from site/ on main.
+# Cloudflare Pages project "helddear-site" (Direct Upload). The whole site goes up each time; if a page or the
+# Cloudflare secrets are missing it stops before uploading, so a partial site never replaces the live one.
+# Listed in CLAUDE.md "Uploads and deploys": a merge to main touching site/** changes the live site.
+name: Website
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/site.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: site
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+      SITE_URL: ${{ vars.SITE_URL || 'https://helddear-site.pages.dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the site is complete
+        id: build
+        run: |
+          missing=""
+          for f in site/index.html site/privacy.html site/support.html site/404.html site/site.css site/_headers site/img/icon.png; do
+            [ -f "$f" ] || missing="$missing $f"
+          done
+          if [ -n "$missing" ]; then echo "::warning::Not publishing: missing$missing"; echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+      - name: Publish to Cloudflare Pages
+        if: steps.build.outputs.ok == 'true' && env.HAS_TOKEN == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@3.114.0 pages deploy site --project-name=helddear-site --branch=main --commit-dirty=true
+      - name: No Cloudflare key yet
+        if: steps.build.outputs.ok == 'true' && env.HAS_TOKEN != 'true'
+        run: echo "::warning::Not publishing: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to the repo's secrets."
+      - name: Check the live site
+        if: steps.build.outputs.ok == 'true' && env.HAS_TOKEN == 'true'
+        run: |
+          sleep 20
+          for p in "" privacy support; do
+            curl -fsSL "$SITE_URL/$p" | grep -q "Held Dear" || { echo "::error::$SITE_URL/$p did not load"; exit 1; }
+          done
+          echo "::notice::$SITE_URL ok"
