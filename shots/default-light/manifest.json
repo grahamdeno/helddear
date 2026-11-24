@@ -1,0 +1,53 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "7A4E2CFC-831C-47BA-80AF-9AC550E8E8FA.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "default-light · Export and import_0_4A6DD474-5E9C-4E6A-9915-0EB3B0A9C7B3.png",
+        "timestamp" : 1795563401.215
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "774594BC-0872-49F5-9428-0337C9CF298E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "default-light · How it works_0_A589A852-91B8-419E-AC69-D6AA8965E12B.png",
+        "timestamp" : 1795563391.38
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "53CCB3F5-0A61-4DCC-9686-8CF393CD8838.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "default-light · iCloud status_0_646B1C2E-FC1C-4147-ABB4-8493CCD764E2.png",
+        "timestamp" : 1795563381.687
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "7CD697C3-8975-4A91-B98B-FF5F0616FB82.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "default-light · You and Settings_0_423E1463-5353-4F0F-BEBE-0605A6DA167A.png",
+        "timestamp" : 1795563352.415
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "820496A2-1712-476C-8CDE-8D1BFD2F5110.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "default-light · Home_0_41771FEC-44AA-4946-B6E6-751C89AA4B77.png",
+        "timestamp" : 1795563313.783
+      }
+    ],
+    "testIdentifier" : "WalkTests/testWalkMainScreens()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/WalkTests/testWalkMainScreens"
+  }
+]
