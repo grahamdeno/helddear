@@ -4,36 +4,203 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Held Dear: Your People</title>
-<meta name="description" content="Held Dear turns each birthday for the people you care about into one finished, personal act, and keeps a one-line record of every year.">
-<meta name="theme-color" content="#F4EFE7">
+<meta name="description" content="Held Dear keeps every birthday, anniversary and holiday for the people you love on one line through the year, and helps you turn each one into a finished plan. Private, on your iPhone.">
+<meta property="og:title" content="Held Dear: Your People">
+<meta property="og:description" content="Every birthday, anniversary and holiday for the people you love, planned and done.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://helddear.tangomike.app/">
+<meta property="og:image" content="https://helddear.tangomike.app/img/icon.png">
+<meta name="theme-color" content="#EDE8E0">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/site.css?v=1.0.0">
+<link rel="preload" href="/fonts/fraunces-light.woff" as="font" type="font/woff" crossorigin>
+<link rel="stylesheet" href="/site.css?v=2.0.0">
 </head>
 <body>
-<header><div class="wrap">
+<a class="skip" href="#main">Skip to the page</a>
+<header class="wrap top">
   <a class="home" href="/"><img src="/img/icon.png" alt="">Held Dear</a>
-  <nav aria-label="Main"><a href="/privacy">Privacy</a><a href="/support">Support</a></nav>
-</div></header>
-<main><div class="wrap">
-<img class="icon" src="/img/icon.png" alt="The Held Dear app icon">
-<h1>Held Dear</h1>
-<p class="lede">Each birthday for the people you care about, turned into one finished, personal act, with a one-line record of every year.</p>
-<h2>What it does</h2>
-<ul>
-<li>Brings in birthdays from your contacts and shows who's coming up, left to right.</li>
-<li>Plans each day as a few parts (a card, a call, a gift, a cake), each with who's doing it and when.</li>
-<li>Keeps ideas and wishes for each person, so a good idea in March is there in December.</li>
-<li>Groups Christmas, Mother's Day and Father's Day into one page.</li>
-<li>Keeps a short line for each year, so you can see what you did and how it went.</li>
-</ul>
-<h2>Private by design</h2>
-<div class="band">
-<p>No account and no server. Your people, dates and photos stay on your iPhone, and in your own iCloud if you turn it on. Held Dear collects nothing.</p>
-<p><a href="/privacy">Read the privacy policy</a></p>
-</div>
-<p class="muted">For iPhone, iOS 26 or later.</p>
-</div></main>
-<footer><div class="wrap">Held Dear is made by Graham D. · <a href="https://tangomike.app">tangomike.app</a> · <a href="mailto:support@tangomike.app">support@tangomike.app</a></div></footer>
+  <nav aria-label="Main"><a class="wide" href="#how">How it works</a><a class="wide" href="#price">Price</a><a href="/privacy">Privacy</a><a href="/support">Support</a></nav>
+</header>
+
+<main id="main">
+
+<section class="wrap hero">
+  <div>
+    <h1>The people you love, and every day that's theirs.</h1>
+    <p class="lede">Held Dear keeps each birthday, anniversary and holiday on one line through your year. When one comes close, it helps you plan the whole thing, the card, the call, the gift and the cake, and see that it's done.</p>
+    <div class="ctas">
+      <!-- Swap for Apple's official App Store badge and the app link once 1.0 is live. -->
+      <a class="btn" href="#price">Coming to the App Store in December</a>
+      <a href="#how">See how it works</a>
+    </div>
+  </div>
+  <!-- Screenshot: Home. Drop /img/shots/home.png (1320 x 2868) in place of the slot. -->
+  <div class="phone tilt" role="img" aria-label="Held Dear's Home screen">
+    <div class="slot"><strong>Home</strong>The next person's day, and the year coming up below it.<span>Screenshot goes here</span></div>
+  </div>
+</section>
+
+<section class="horizon" aria-label="An example year in Held Dear">
+  <div class="horizon-inner">
+    <div class="mark x-jan20 h3"><b>Grandpa</b><i>Turns 80</i></div>
+    <div class="mark x-feb14 h1"><b>Our anniversary</b><i>Twelve years</i></div>
+    <div class="mark x-mar08 h2"><b>Sam</b><i>Birthday</i></div>
+    <div class="mark x-may10 h3"><b>Mother's Day</b><i>Three people</i></div>
+    <div class="mark x-jun21 h1"><b>Father's Day</b><i>Two people</i></div>
+    <div class="mark x-aug05 h2"><b>Leo</b><i>Turns 14</i></div>
+    <div class="mark x-sep28 h4"><b>Mom</b><i>Birthday</i></div>
+    <div class="mark x-nov26 h1"><b>Ava</b><i>Birthday</i></div>
+    <div class="mark x-dec25 h3 now"><b>Christmas</b><i>Eight people</i></div>
+    <div class="axis"></div>
+    <div class="months" aria-hidden="true"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span></div>
+  </div>
+  <p class="horizon-note wrap">Your year, left to right. The day that needs you next is the one in color.</p>
+</section>
+
+<section class="wrap feature" id="how">
+  <div class="text">
+    <h2>One plan for each day, and you can see when it's ready.</h2>
+    <p>A birthday is rarely one thing. Held Dear breaks each day into a few parts, says who's doing each one and by when, and counts them as they get done. Home shows the next person's day and how close it is.</p>
+    <ul class="parts" aria-label="An example plan for Mom's birthday">
+      <li class="ready"><span>Card</span><span>You, by Sep 21</span><span>Ready</span></li>
+      <li class="ready"><span>Gift</span><span>Ordered, arrives Sep 25</span><span>Ready</span></li>
+      <li><span>Cake</span><span>Leo picks it up</span><span>Sep 28</span></li>
+      <li><span>Call</span><span>On the day, after dinner</span><span>Sep 28</span></li>
+    </ul>
+  </div>
+  <!-- Screenshot: a plan. Drop /img/shots/plan.png (1320 x 2868). -->
+  <div class="phone" role="img" aria-label="A birthday plan in Held Dear">
+    <div class="slot"><strong>A plan</strong>The parts of one person's day, each with who and when.<span>Screenshot goes here</span></div>
+  </div>
+</section>
+
+<section class="wrap feature flip">
+  <div class="text">
+    <h2>Christmas, Mother's Day and Father's Day on one page.</h2>
+    <p>Shared holidays show once on your year, not eight times. Open Christmas and every person's plan is there together, so the stockings, the gifts and the gifts from the kids stay in step.</p>
+    <p>Anniversaries link two people, so a couple's day is planned once. Add your own family days and traditions, and Held Dear gives you one heads-up six weeks ahead.</p>
+  </div>
+  <!-- Screenshot: the Christmas page. Drop /img/shots/holiday.png (1320 x 2868). -->
+  <div class="phone" role="img" aria-label="The Christmas page in Held Dear">
+    <div class="slot"><strong>Christmas</strong>Everyone's plan for the holiday on one page.<span>Screenshot goes here</span></div>
+  </div>
+</section>
+
+<section class="wrap feature">
+  <div class="text">
+    <h2>Save the idea when it comes to you.</h2>
+    <p>Someone mentions a pottery class in March. Save it to them in a second, by typing, by voice, or by sharing a link from any app. When their day comes, the idea is waiting, with the page's picture beside it.</p>
+    <p>Short on ideas? Held Dear suggests some on your phone from what you've saved about the person, and shows finds from small makers.</p>
+  </div>
+  <!-- Screenshot: a person's ideas. Drop /img/shots/ideas.png (1320 x 2868). -->
+  <div class="phone" role="img" aria-label="Saved ideas for one person in Held Dear">
+    <div class="slot"><strong>Ideas</strong>Everything saved for one person, ready when the day comes.<span>Screenshot goes here</span></div>
+  </div>
+</section>
+
+<section class="wrap feature flip">
+  <div class="text">
+    <h2>A card made from your own photos.</h2>
+    <p>Pick a few photos and Held Dear makes a card to text or post: a still card, or a short moving one that plays the photos and ends on your words. It finds photos from past birthdays in your library to get you started.</p>
+    <!-- Mailed cards: add a paragraph here only when mailed cards ship in the live app. -->
+  </div>
+  <!-- Screenshot: a digital card. Drop /img/shots/card.png (1320 x 2868). -->
+  <div class="phone" role="img" aria-label="A card made from photos in Held Dear">
+    <div class="slot"><strong>A card</strong>Your photos and your words, ready to send.<span>Screenshot goes here</span></div>
+  </div>
+</section>
+
+<section class="wrap feature">
+  <div class="text">
+    <h2>A line for every year.</h2>
+    <p>After each day, Held Dear keeps one line about what you did. Over time it becomes a quiet record of how you showed up for the people you love.</p>
+    <ul class="ledger" aria-label="An example of the year's line for one person">
+      <li><span>2024</span><span>Dinner at the lake house, and the blue scarf.</span></li>
+      <li><span>2025</span><span>A card from the kids, and a call that ran an hour.</span></li>
+      <li><span>2026</span><span>The pottery class, together.</span></li>
+    </ul>
+  </div>
+  <!-- Screenshot: widgets. Drop /img/shots/widgets.png in place of this block, or keep the shapes below. -->
+  <div class="widgets" role="img" aria-label="Held Dear widgets on the Home Screen">
+    <div class="widget">Next person widget</div>
+    <div class="widget">Lock Screen widget</div>
+    <div class="widget wide">Coming up widget. Screenshot goes here</div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap promise">
+    <div>
+      <h2>Yours, and only yours.</h2>
+      <p class="lede">No account. No server. No ads or tracking.</p>
+      <p>Your people, plans and photos stay on your iPhone, and in your own iCloud if you turn it on, so they're on your iPad too and safe if you change phones. Held Dear can't see them. You can delete everything from the app at any time.</p>
+      <p><a href="/privacy">Read the privacy policy</a></p>
+    </div>
+    <div>
+      <h2>Kind, and easy to read.</h2>
+      <p>No streaks, no red badges, no "you forgot". If a day slips by, Held Dear offers a way back: a late note still counts.</p>
+      <ul>
+        <li>Text grows with your iPhone's text size</li>
+        <li>Works with VoiceOver, Bold Text and Increase Contrast</li>
+        <li>Light and dark, and calm with Reduce Motion</li>
+        <li>A one-page guide in the app to how it all works</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="wrap pricing" id="price">
+  <div class="text">
+    <h2>Free to start. One price for everything.</h2>
+    <p>Try Held Dear with the three people closest to you. When you're ready for everyone, Lifetime unlocks it all with one purchase. No subscription.</p>
+  </div>
+  <div class="price">
+    <div class="tier">
+      <h3>Free</h3>
+      <p class="amount">$0</p>
+      <ul>
+        <li>Plans for three people</li>
+        <li>Everyone's days on your year</li>
+        <li>Ideas, cards and reminders</li>
+      </ul>
+    </div>
+    <div class="tier main">
+      <h3>Lifetime</h3>
+      <p class="amount">$9.99</p>
+      <ul>
+        <li>Plans for everyone</li>
+        <li>Home Screen and Lock Screen widgets</li>
+        <li>Shared with your family through Family Sharing</li>
+        <li>Paid once, yours to keep</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="wrap"><div class="faq">
+  <h2>Questions</h2>
+  <details><summary>Does Held Dear find birthdays for me?</summary><p>Yes. It reads the birthdays already saved in your contacts, and you choose who matters. You can also add anyone by hand. Held Dear never changes a contact, except to add a birthday when you ask it to.</p></details>
+  <details><summary>Is it only for birthdays?</summary><p>No. Anniversaries, Christmas, Mother's Day, Father's Day and your own family days all live on the same year, each with its own plan.</p></details>
+  <details><summary>Can my partner and I both use it?</summary><p>Lifetime works for your whole family through Family Sharing. Each person keeps their own people and plans.</p></details>
+  <details><summary>What happens if I get a new iPhone?</summary><p>Turn on iCloud in Held Dear, sign in on the new phone with the same Apple account, and your people come across on their own.</p></details>
+  <details><summary>What iPhone do I need?</summary><p>An iPhone with iOS 26 or later.</p></details>
+</div></section>
+
+<section class="wrap closing">
+  <img src="/img/icon.png" alt="">
+  <h2>Be there for every day that matters.</h2>
+  <p class="lede">Held Dear for iPhone. Coming to the App Store in December.</p>
+  <div class="ctas"><a class="btn" href="/support">Ask a question</a></div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Held Dear is made by Graham D.</span>
+    <nav aria-label="Footer"><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="https://tangomike.app">More apps</a></nav>
+  </div>
+</footer>
 </body>
 </html>

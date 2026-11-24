@@ -1,26 +1,163 @@
-:root{--page:#F4EFE7;--band:#E9E1D4;--ink:#2B2620;--soft:#4F473E;--line:#857A6B;--action:#7A2E2A}
-@media (prefers-color-scheme:dark){:root{--page:#1E1B17;--band:#2A2621;--ink:#F2ECE2;--soft:#CFC6B8;--line:#847A6D;--action:#E39A8F}}
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--page);color:var(--ink);font:1.125rem/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
-.wrap{max-width:44rem;margin:0 auto;padding:0 1.25rem}
-header{border-bottom:1px solid var(--line)}
-header .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding-top:1rem;padding-bottom:1rem}
-.home{display:flex;align-items:center;gap:.6rem;color:var(--ink);text-decoration:none;font-family:Georgia,"Times New Roman",serif;font-size:1.35rem}
-.home img{width:2.25rem;height:2.25rem;border-radius:.55rem}
-nav{display:flex;flex-wrap:wrap;gap:1.25rem}
-nav a,main a,footer a{color:var(--action);text-underline-offset:.2em}
-nav a{font-size:1rem;padding:.5rem 0}
-h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;line-height:1.2}
-h1{font-size:2.4rem;margin:2.5rem 0 1rem}
-h2{font-size:1.5rem;margin:2.25rem 0 .5rem}
-.lede{font-size:1.3rem;color:var(--soft)}
-.icon{width:6rem;height:6rem;border-radius:1.4rem;margin-top:2.5rem}
-.band{background:var(--band);border-radius:1rem;padding:1.25rem 1.5rem;margin:1.5rem 0}
-.band p{margin:.25rem 0}
-.btn{display:inline-block;background:var(--action);color:var(--page);text-decoration:none;padding:.8rem 1.4rem;border-radius:999px;font-weight:600;min-height:44px}
-.muted{color:var(--soft);font-size:1rem}
-ul{padding-left:1.25rem}li{margin:.35rem 0}
-footer{border-top:1px solid var(--line);margin-top:3rem}
-footer .wrap{padding-top:1.25rem;padding-bottom:2rem;font-size:1rem;color:var(--soft)}
-a:focus-visible{outline:3px solid var(--action);outline-offset:3px}
+/* Held Dear website (Nov 24, 2026). The app's Horizon look on the web: warm stone pages, names in Fraunces Light,
+   interface text in the system sans, one oxblood action. The signature is the horizon: time running left to right,
+   names rising from a line by date, as on the app's Home. No scripts; strict CSP in _headers. */
+
+@font-face { font-family: "Fraunces HD"; src: url("/fonts/fraunces-light.woff") format("woff"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces HD"; src: url("/fonts/fraunces-light-italic.woff") format("woff"); font-weight: 300; font-style: italic; font-display: swap; }
+
+:root {
+  --page: #EDE8E0; --band: #E3DCD1; --raised: #F8F4EE; --ink: #1C1A17; --soft: #3A342D; --muted: #5F554A;
+  --line: #857A6B; --action: #7A2E2A; --on-action: #F7F1E8;
+  --serif: "Fraunces HD", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --wrap: 72rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --page: #171513; --band: #221F1B; --raised: #2E2A25; --ink: #EFE8DC; --soft: #CFC6B8; --muted: #A89E90;
+          --line: #847A6D; --action: #D98A7E; --on-action: #1A1210; }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 1.0625rem/1.6 var(--sans); }
+img { max-width: 100%; display: block; }
+a { color: var(--action); text-underline-offset: .2em; }
+a:focus-visible, .btn:focus-visible { outline: 3px solid var(--action); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 1.5rem; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--raised); padding: .5rem 1rem; z-index: 2; }
+
+/* Header */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1.25rem; }
+.home { display: flex; align-items: center; gap: .65rem; color: var(--ink); text-decoration: none; font: 300 1.5rem/1 var(--serif); }
+.home img { width: 2.25rem; height: 2.25rem; border-radius: .55rem; }
+.top nav { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.top nav a { font-size: 1rem; padding: .6rem 0; text-decoration: none; }
+.top nav a:hover { text-decoration: underline; }
+
+/* Type */
+h1, h2, h3 { font-family: var(--serif); font-weight: 300; letter-spacing: -.01em; margin: 0; }
+h1 { font-size: clamp(2.6rem, 6.2vw, 4.75rem); line-height: 1.04; max-width: 13ch; }
+h2 { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.1; max-width: 16ch; }
+h3 { font-size: 1.5rem; line-height: 1.2; }
+p { margin: 0 0 1rem; max-width: 38rem; }
+.lede { font-size: 1.25rem; line-height: 1.55; color: var(--soft); }
+.small { font-size: .95rem; color: var(--muted); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: .8rem 1.5rem; border-radius: 999px;
+       background: var(--action); color: var(--on-action); font-weight: 600; text-decoration: none; }
+.ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 2rem; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 3rem; align-items: center; padding-block: 3rem 2rem; }
+.hero .lede { margin-top: 1.5rem; }
+
+/* The horizon: the year as a line, names rising to it by date */
+.horizon { margin: 1rem 0 0; padding: 0 0 1rem; overflow-x: auto; }
+.horizon-inner { position: relative; min-width: 56rem; height: 18.5rem; margin: 0 1.5rem; }
+.horizon .axis { position: absolute; left: 0; right: 0; bottom: 3rem; height: 2px; background: var(--ink); }
+.horizon .months { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(12, 1fr);
+                   font-size: .8rem; font-weight: 600; color: var(--muted); }
+.horizon .months span { padding-top: .35rem; border-left: 2px solid var(--ink); height: 2.6rem; padding-left: .4rem; }
+.mark { position: absolute; bottom: 3rem; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); }
+.mark b { font: 300 1.35rem/1.1 var(--serif); white-space: nowrap; padding-bottom: .4rem; }
+.mark i { font-style: normal; font-size: .8rem; color: var(--muted); white-space: nowrap; padding-bottom: .35rem; }
+.mark::after { content: ""; width: 1.5px; background: var(--line); }
+.mark.h1::after { height: 1.25rem; } .mark.h4::after { height: 4rem; } .mark.h2::after { height: 6.75rem; } .mark.h3::after { height: 9.5rem; }
+.mark.now b { color: var(--action); } .mark.now::after { background: var(--action); width: 2px; }
+.x-jan20 { left: 4%; } .x-feb14 { left: 11.5%; } .x-mar08 { left: 18.5%; } .x-may10 { left: 35.5%; } .x-jun21 { left: 47%; }
+.x-aug05 { left: 59.5%; } .x-sep28 { left: 74%; } .x-nov26 { left: 89.5%; } .x-dec25 { left: 97%; }
+.horizon-note { text-align: center; font-size: .95rem; color: var(--muted); margin: .25rem auto 0; }
+
+/* Screenshot frames: placeholders until the real screenshots arrive (1320 x 2868, iPhone 6.9") */
+.phone { position: relative; width: min(100%, 19rem); aspect-ratio: 1320 / 2868; margin: 0 auto; border-radius: 2.6rem;
+         background: var(--band); border: 10px solid var(--ink); overflow: hidden; }
+.phone img { width: 100%; height: 100%; object-fit: cover; }
+.phone .slot { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+               gap: .5rem; padding: 1.5rem; text-align: center; color: var(--muted); font-size: .9rem; }
+.phone .slot strong { font: 300 1.5rem/1.2 var(--serif); color: var(--soft); }
+.phone.tilt { transform: rotate(2deg); }
+.widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; max-width: 22rem; margin: 0 auto; }
+.widget { aspect-ratio: 1; border-radius: 1.4rem; background: var(--raised); border: 1px solid var(--line);
+          display: flex; align-items: center; justify-content: center; text-align: center; padding: 1rem; color: var(--muted); font-size: .9rem; }
+.widget.wide { grid-column: span 2; aspect-ratio: 2.1; }
+
+/* Feature sections */
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4rem; align-items: center; padding-block: 5rem; border-top: 1px solid var(--line); }
+.feature.flip .text { order: 2; }
+.feature h2 { margin-bottom: 1.25rem; }
+.parts { list-style: none; padding: 0; margin: 1.5rem 0 0; max-width: 30rem; }
+.parts li { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 1rem; align-items: baseline; padding: .8rem 0; border-bottom: 1px solid var(--line); }
+.parts li span:first-child { font: 300 1.25rem/1.2 var(--serif); }
+.parts li span:nth-child(2) { color: var(--soft); }
+.parts li span:last-child { font-size: .9rem; color: var(--muted); }
+.parts li.ready span:last-child { color: var(--action); font-weight: 600; }
+
+/* The year's line */
+.ledger { list-style: none; padding: 0; margin: 1.5rem 0 0; max-width: 34rem; }
+.ledger li { display: grid; grid-template-columns: 4rem 1fr; gap: 1.25rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.ledger li span:first-child { font: 300 1.25rem/1.4 var(--serif); color: var(--muted); }
+.ledger li span:last-child { font: 300 italic 1.2rem/1.4 var(--serif); }
+
+/* Quiet band sections */
+.band { background: var(--band); }
+.promise { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4rem; padding-block: 5rem; }
+.promise h2 { margin-bottom: 1.25rem; }
+.promise ul { margin: 0; padding-left: 1.2rem; }
+.promise li { margin: .5rem 0; }
+
+/* Price */
+.pricing { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 4rem; align-items: start; padding-top: 5rem; padding-bottom: 2rem; }
+.pricing h2 { margin-bottom: 1.25rem; }
+.price { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.tier { padding: 2rem; border-radius: 1.25rem; border: 1px solid var(--line); background: var(--raised); }
+.tier h3 { margin-bottom: .25rem; }
+.tier .amount { font: 300 2.75rem/1.1 var(--serif); margin: .5rem 0 1rem; }
+.tier ul { margin: 0; padding-left: 1.2rem; }
+.tier li { margin: .35rem 0; }
+.tier.main { border: 2px solid var(--action); }
+
+/* FAQ */
+.faq { max-width: 44rem; padding-block: 5rem; }
+.faq h2 { margin-bottom: 1.5rem; }
+details { border-bottom: 1px solid var(--line); padding: 1rem 0; }
+summary { cursor: pointer; font: 300 1.3rem/1.35 var(--serif); list-style-position: outside; min-height: 44px; display: list-item; }
+details p { margin-top: .75rem; color: var(--soft); }
+
+/* Closing */
+.closing { text-align: center; padding-block: 6rem; border-top: 1px solid var(--line); }
+.closing h2 { margin: 0 auto 1rem; max-width: 18ch; }
+.closing p { margin: 0 auto; }
+.closing .ctas { justify-content: center; }
+.closing img { width: 5.5rem; height: 5.5rem; border-radius: 1.3rem; margin: 0 auto 2rem; }
+
+/* Plain pages (privacy, support) */
+.plain { max-width: 44rem; padding-block: 2rem 4rem; margin-left: max(0px, calc((100% - var(--wrap)) / 2)); }
+.plain h1 { font-size: clamp(2.4rem, 5vw, 3.25rem); max-width: none; margin: 1.5rem 0 1rem; }
+.plain h2 { font-size: 1.6rem; max-width: none; margin: 2.5rem 0 .75rem; }
+.plain h3 { font-size: 1.25rem; margin: 1.75rem 0 .4rem; }
+.plain ul { padding-left: 1.25rem; } .plain li { margin: .4rem 0; max-width: 38rem; }
+.note { background: var(--band); border-radius: 1rem; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+.note p { margin: .25rem 0; }
+
+/* Footer */
+footer { border-top: 1px solid var(--line); }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; padding: 2rem 1.5rem 3rem; font-size: .95rem; color: var(--muted); }
+footer nav { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+
+@media (max-width: 52rem) {
+  .hero, .feature, .promise { grid-template-columns: 1fr; gap: 2.5rem; }
+  .feature.flip .text { order: 0; }
+  .feature, .promise { padding-block: 3.5rem; }
+  .top nav a.wide { display: none; }
+  .top nav { gap: 1.25rem; }
+  .price, .pricing { grid-template-columns: 1fr; }
+  .pricing { gap: 2rem; padding-top: 3.5rem; }
+  .phone { width: min(80%, 17rem); }
+  .phone.tilt { transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mark.now b { animation: settle 1.2s ease-out .3s both; }
+  @keyframes settle { from { opacity: 0; transform: translateY(.4rem); } to { opacity: 1; transform: none; } }
+}
