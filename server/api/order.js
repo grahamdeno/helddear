@@ -1,11 +1,22 @@
 import { listCards, OCCASION_CATEGORY, placeOrder } from "../lib/handwrytten.js";
 import { charge, refund, tagOrder, tokenFromApplePay } from "../lib/stripe.js";
 import { retailCents, validateOrder } from "../lib/validate.js";
+import { isTestMode } from "../lib/stripe.js";
+import { pausedReply } from "../lib/switches.js";
+
+const real = { listCards, placeOrder, charge, refund, tagOrder, tokenFromApplePay, isTestMode, pausedReply };
 
 // POST /api/order: pay with Apple Pay, then (and only then) mail the card.
 // Names and addresses are used for this one order and never logged.
-export default async function handler(req, res) {
+// With Stripe test keys, nothing is ever sent to Handwrytten: the order is checked and a test order number comes
+// back (M2, Nov 24, 2026), so the whole flow can be tried without mailing a real card.
+export default function handler(req, res) { return handle(req, res, real); }
+
+export async function handle(req, res, d) {
+  const { listCards, placeOrder, charge, refund, tagOrder, tokenFromApplePay } = d;
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  const paused = d.pausedReply();
+  if (paused) return res.status(paused.status).json(paused.body);
   let cards;
   try {
     const raw = String(req.body?.occasion ?? "birthday");
@@ -29,6 +40,10 @@ export default async function handler(req, res) {
   }
   if (payment.status !== "succeeded") {
     return res.status(402).json({ error: "The payment didn't go through. You weren't charged." });
+  }
+
+  if (d.isTestMode()) {
+    return res.status(200).json({ orderId: `test-${o.reference}`, mailing: "Test order: nothing was mailed", test: true });
   }
 
   try {

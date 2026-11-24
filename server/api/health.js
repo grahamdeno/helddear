@@ -1,10 +1,5 @@
-import { isTestMode } from "../lib/stripe.js";
-
+// GET /api/health: alive or not. Nothing about keys or payment mode (M11, Nov 24, 2026).
 export default function handler(req, res) {
-  res.status(200).json({
-    ok: true,
-    testMode: isTestMode(),
-    handwryttenKey: Boolean(process.env.HANDWRYTTEN_API_KEY),
-    stripeKey: Boolean(process.env.STRIPE_SECRET_KEY),
-  });
+  res.setHeader("Cache-Control", "no-store");
+  res.status(200).json({ ok: true });
 }
