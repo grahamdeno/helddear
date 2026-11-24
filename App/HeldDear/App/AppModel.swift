@@ -1043,21 +1043,23 @@ final class AppModel: ObservableObject {
         undoFinish = finish
         let id = UUID()
         withAnimation(.snappy) { self.undo = UndoNote(id: id, text: text) }
+        UndoTiming.announce(text)
         undoTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(UndoTiming.seconds(voiceOver: UIAccessibility.isVoiceOverRunning)))
             guard !Task.isCancelled else { return }
             self?.finishPendingRemoval()
         }
     }
 
-    /// Hides an item at once, shows Undo for five seconds, then removes it.
+    /// Hides an item at once, shows Undo for eight seconds (longer with VoiceOver), then removes it.
     func removePartWithUndo(_ act: Act, name: String) {
         finishPendingRemoval()
         let id = act.id
         removing.insert(id)
         withAnimation(.snappy) { undo = UndoNote(id: id, text: "\(name) removed") }
+        UndoTiming.announce("\(name) removed")
         undoTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(UndoTiming.seconds(voiceOver: UIAccessibility.isVoiceOverRunning)))
             guard !Task.isCancelled else { return }
             self?.finishPendingRemoval()
         }

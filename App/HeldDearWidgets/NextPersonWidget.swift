@@ -87,7 +87,7 @@ struct LockScreenView: View {
                 if days == 0 {
                     VStack(spacing: 0) {
                         Image(systemName: "gift.fill").font(.system(size: 16, weight: .semibold))
-                        Text("Today").font(.system(size: 10, weight: .semibold))
+                        Text("Today").font(.caption2.weight(.semibold))
                     }
                 } else {
                     Gauge(value: Double(max(0, 21 - min(days, 21))), in: 0...21) {
@@ -101,7 +101,7 @@ struct LockScreenView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name).font(Brand.serif(19)).lineLimit(1)
                     Text(e.soonLine ?? "\(days == 1 ? "1 day" : "\(days) days") · \(e.dueDate.formatted(.dateTime.weekday(.wide)))")
-                        .font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                        .font(.subheadline.weight(.semibold)).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .widgetURL(URL(string: "helddear://moment?id=\(e.momentID.uuidString)"))

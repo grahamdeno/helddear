@@ -1573,7 +1573,14 @@ struct FocusPicker: View {
                                     }
                                     .onEnded { _ in dragStart = nil })
                                 .accessibilityLabel("Focus circle")
-                                .accessibilityHint("Drag to move it")
+                                .accessibilityHint("Drag to move it, or use the actions to move it a step")
+                                // Every move without a drag (Fable's audit UX-5): a tenth of the photo per step.
+                                .accessibilityAction(named: "Move left") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: -0.1, dy: 0)) }
+                                .accessibilityAction(named: "Move right") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: 0.1, dy: 0)) }
+                                .accessibilityAction(named: "Move up") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: 0, dy: -0.1)) }
+                                .accessibilityAction(named: "Move down") { self.focus = PhotoFocus.inside(focus.offsetBy(dx: 0, dy: 0.1)) }
+                                .accessibilityAction(named: "Closer") { setSize(max(0.5, sizeFactor - 0.25)) }
+                                .accessibilityAction(named: "Wider") { setSize(min(2.5, sizeFactor + 0.25)) }
                         }
                     }
                     .frame(width: fit.width, height: fit.height)

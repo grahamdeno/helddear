@@ -20,7 +20,8 @@ struct HomeView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { model.route = .settings } label: { YouCircle() }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("You and settings")
+                            .accessibilityLabel("Settings")
+                            .accessibilityHint("Your name, iCloud, reminders and your data")
                     }
                     .sharedBackgroundVisibility(.hidden)
                     // A way back to whoever needs you, when you've moved to someone else (Nov 21, 2026).
@@ -847,8 +848,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
             .accessibilityHint(openHint)
             Text(subline)
                 .font(Brand.display(24, relativeTo: .title3, italic: true)).foregroundStyle(Brand.inkSoft)
-                .lineLimit(1).minimumScaleFactor(0.7)
-                .frame(height: sublineHeight)
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(minHeight: sublineHeight)
                 .overlay(alignment: .bottom) {
                     if hinting {
                         Text("See \(title) ›").textStyle(.caption, color: Brand.action)
@@ -870,10 +871,11 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .accessibilityHidden(true)
                 }
                 if !status.isEmpty {
-                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(2).minimumScaleFactor(0.85)
+                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(3).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .frame(height: statusHeight, alignment: .center)
+            .frame(minHeight: statusHeight, alignment: .center)
             .padding(.top, Brand.space4)
             if showsActions {
                 button

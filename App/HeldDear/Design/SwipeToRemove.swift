@@ -36,6 +36,8 @@ struct SwipeToRemove: ViewModifier {
                     }
                 }
                 .offset(x: offset)
+                // The same removal as a named VoiceOver action, so it never needs a swipe (Fable's audit UX-4).
+                .accessibilityAction(named: Text(title)) { action() }
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 18)
                         .onChanged { g in
@@ -79,7 +81,7 @@ struct UndoBanner: View {
     var body: some View {
         if let note = model.undo {
             HStack(spacing: Brand.space3) {
-                Text(note.text).textStyle(.callout, color: Brand.page).lineLimit(1)
+                Text(note.text).textStyle(.callout, color: Brand.page).lineLimit(2)
                 Spacer(minLength: Brand.space2)
                 Button("Undo") { model.undoRemoval() }
                     .font(.callout.weight(.semibold)).foregroundStyle(Brand.page).frame(minHeight: 44)

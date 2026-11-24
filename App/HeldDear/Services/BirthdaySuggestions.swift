@@ -231,6 +231,9 @@ struct SuggestionViewer: View {
                         .onEnded { _ in baseZoom = zoom })
                     .onTapGesture(count: 2) { withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 2.5; baseZoom = zoom } }
                     .accessibilityLabel("Photo from \(caption)")
+                    .accessibilityAction(named: zoom > 1 ? "Zoom out" : "Zoom in") {
+                        withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 2.5; baseZoom = zoom }
+                    }
             } else {
                 ProgressView().tint(.white)
             }

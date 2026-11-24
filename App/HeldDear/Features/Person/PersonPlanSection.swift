@@ -121,12 +121,14 @@ struct PersonPlanSection: View {
                     Text(item.name).textStyle(.bodyStrong, color: item.progress == .ready ? Brand.inkMuted : Brand.ink)
                         .multilineTextAlignment(.leading)
                     if let note = item.note {
-                        Text(note).textStyle(.caption, color: Brand.inkMuted).lineLimit(1)
+                        Text(note).textStyle(.caption, color: Brand.inkMuted).lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if item.progress != .notStarted {
-                    Text(PartSteps.word(for: item.step)).textStyle(.caption, color: Brand.inkSoft).lineLimit(1)
+                    Text(PartSteps.word(for: item.step)).textStyle(.caption, color: Brand.inkSoft).lineLimit(2)
+                        .multilineTextAlignment(.trailing)
                 }
             }
             .frame(minHeight: 48)
@@ -240,7 +242,7 @@ struct PersonDayCards: View {
                     .lineLimit(lines)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(c.big).font(Brand.display(52, relativeTo: .largeTitle)).foregroundStyle(fg)
-                        .lineLimit(1).minimumScaleFactor(0.5)
+                        .lineLimit(1).minimumScaleFactor(0.8)
                     Text(c.unit).textStyle(.callout, color: fg.opacity(0.85))
                 }
                 Text(date).textStyle(.caption, color: fg.opacity(0.85)).lineLimit(lines)
