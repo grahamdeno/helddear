@@ -14,7 +14,6 @@ final class WalkTests: XCTestCase {
         continueAfterFailure = true
         app = XCUIApplication()
         app.launchArguments = ["-HeldDearDemo"]
-        app.launch()
     }
 
     private func record(_ screen: String) {
@@ -54,6 +53,7 @@ final class WalkTests: XCTestCase {
     }
 
     func testWalkMainScreens() {
+        app.launch()
         record("Home")
 
         if tap("Settings", screen: "You and Settings") {
@@ -80,6 +80,33 @@ final class WalkTests: XCTestCase {
 
         if tap("Christmas", screen: "Holiday") { record("Holiday"); back() }
 
+        print("WALK DONE|\(config)|issues=\(issueCount)")
+    }
+
+    /// Every permission denied (UX audit, Nov 24, 2026). The workflow revokes Contacts, Photos, the microphone and
+    /// speech for the app before this runs. Apple expects the app to keep working: setup must offer a way on without
+    /// contacts, and a person must be addable by hand.
+    func testEverythingDenied() throws {
+        try XCTSkipUnless(config == "denied", "Runs only in the denied setup")
+        app.launchArguments += ["-HeldDearDemoEmpty"]
+        app.launch()
+        record("Setup, start")
+        if tap("Allow contacts", screen: "Setup, contacts denied") {
+            sleep(2)
+            record("Setup, contacts denied")
+        }
+        if tap("Add people one at a time", screen: "Add by hand") {
+            record("Add by hand")
+            let field = app.textFields.firstMatch
+            if field.waitForExistence(timeout: 3) {
+                field.tap()
+                field.typeText("Ada")
+                record("Add by hand, name typed")
+                print("DENIED OK|\(config)|a person can be added by hand")
+            } else {
+                print("NOT REACHED|\(config)|Add by hand|no text field")
+            }
+        }
         print("WALK DONE|\(config)|issues=\(issueCount)")
     }
 }

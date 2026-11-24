@@ -15,6 +15,9 @@ enum DemoMode {
 
     static var heavy: Bool { on && ProcessInfo.processInfo.arguments.contains("-HeldDearDemoHeavy") }
 
+    /// `-HeldDearDemoEmpty`: no people and onboarding not done, for the walk with every permission denied.
+    static var empty: Bool { on && ProcessInfo.processInfo.arguments.contains("-HeldDearDemoEmpty") }
+
     /// Made-up people only (the privacy guard checks names): name, days from today to the birthday, ring.
     static let people: [(name: String, inDays: Int, ring: Ring)] = [
         ("Ada", 3, .inner), ("Ben", 12, .inner), ("Cora", 26, .middle), ("Dev", 41, .middle),
@@ -26,6 +29,12 @@ enum DemoMode {
     @MainActor
     static func seed(_ model: AppModel) {
         guard on else { return }
+        if empty {
+            model.onboarded = false
+            model.firstVisitCardDismissed = false
+            model.commit()
+            return
+        }
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         func add(_ name: String, _ days: Int, _ ring: Ring, year: Int?) {

@@ -13,6 +13,13 @@ Ratings: 1 cosmetic, 2 minor, 3 hurts use, 4 blocks use. Every 3 and 4 is fixed 
 | UX-12 (2) | No "How it works" page | Fixed in PR #122: "How Held Dear works" in You, under Getting started |
 | UX-14 (2) | Home has many small text links competing; hard to tell what to tap | Fixed in PR #122: Home now has one button and at most one link under the name (earlier PRs); the "Coming up" header wraps to two rows at large text |
 
+## Store readiness (Nov 24, 2026)
+
+| Item | Status |
+|---|---|
+| Privacy manifest for the app, widgets and share extension | Added in PR #122 |
+| App keeps working with Contacts, Photos, microphone and speech denied | Walk setup `denied` added; result below |
+
 ## From the walk (ux-walk.yml)
 
 Not run yet. Each run's `AUDIT` and `NOT REACHED` lines go here with the setup, screen, rating and fix.

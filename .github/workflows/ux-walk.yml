@@ -1,6 +1,6 @@
 name: ux-walk
 # The accessibility walk (Story E, Nov 24, 2026). Run by hand. Builds the app for the simulator (unsigned), runs the
-# UI-test walk in demo mode in four setups, and prints Apple's accessibility audit for every main screen. Uploads
+# UI-test walk in demo mode in five setups (the fifth with every permission denied), and prints Apple's accessibility audit for every main screen. Uploads
 # nothing to Apple and changes nothing live; the screenshots stay in this run's artifacts.
 
 on:
@@ -37,6 +37,10 @@ jobs:
             device: "iPhone SE (3rd generation)"
             appearance: light
             size: large
+          - config: denied
+            device: "iPhone 17 Pro"
+            appearance: light
+            size: large
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
@@ -59,6 +63,11 @@ jobs:
           xcrun simctl boot "$UDID" || true
           xcrun simctl ui "$UDID" appearance ${{ matrix.appearance }}
           xcrun simctl ui "$UDID" content_size ${{ matrix.size }}
+          if [ "${{ matrix.config }}" = denied ]; then
+            for s in contacts photos microphone speech-recognition; do
+              xcrun simctl privacy "$UDID" revoke "$s" com.grahamdeno.helddear || echo "::warning::could not revoke $s"
+            done
+          fi
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
       - name: Walk
         env:
@@ -68,12 +77,13 @@ jobs:
           xcodebuild test -project HeldDear.xcodeproj -scheme HeldDearWalk \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath "walk-${{ matrix.config }}.xcresult" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|SCREEN|WALK DONE|error:|Executed" || true
+            -only-testing:"HeldDearUITests/WalkTests/${{ matrix.config == 'denied' && 'testEverythingDenied' || 'testWalkMainScreens' }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE|error:|Executed" || true
       - name: Summary
         if: always()
         run: |
           echo "### ${{ matrix.config }}" >> "$GITHUB_STEP_SUMMARY"
-          grep -E "^(AUDIT|NOT REACHED|SCREEN|WALK DONE)" walk.log | sort -u | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
+          grep -E "^(AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE)" walk.log | sort -u | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Keep screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -33,3 +33,16 @@ final class UXFollowUpTests: XCTestCase {
         XCTAssertTrue(text.contains("Export and import"))
     }
 }
+
+/// The privacy manifest ships in the app and says what the App Privacy answers say (Nov 24, 2026).
+final class PrivacyManifestTests: XCTestCase {
+    func testManifestShipsAndDeclaresNothingCollected() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"), "PrivacyInfo.xcprivacy is not in the app")
+        let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil) as? [String: Any])
+        XCTAssertEqual(plist["NSPrivacyTracking"] as? Bool, false)
+        XCTAssertEqual((plist["NSPrivacyTrackingDomains"] as? [Any])?.count, 0)
+        XCTAssertEqual((plist["NSPrivacyCollectedDataTypes"] as? [Any])?.count, 0)
+        let types = (plist["NSPrivacyAccessedAPITypes"] as? [[String: Any]]) ?? []
+        XCTAssertEqual(types.compactMap { $0["NSPrivacyAccessedAPIType"] as? String }, ["NSPrivacyAccessedAPICategoryUserDefaults"])
+    }
+}
