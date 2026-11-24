@@ -576,7 +576,9 @@ struct SettingsView: View {
                 importing = true
             }
         }
-        Text("Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it.")
+        Text(AppFeatures.mailedCards
+             ? "Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it."
+             : "Held Dear has no account and no server. Purchases go through Apple. Everything stays on your iPhone and in your own iCloud.")
             .textStyle(.caption, color: Brand.inkMuted)
     }
 
