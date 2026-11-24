@@ -24,7 +24,7 @@ final class WalkTests: XCTestCase {
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 self.issueCount += 1
-                let element = issue.element.map { "\($0.elementType.rawValue):\($0.label)" } ?? "-"
+                let element = issue.element.map { "\($0.elementType.rawValue):\($0.label):\(Int($0.frame.minX)),\(Int($0.frame.minY)),\(Int($0.frame.width))x\(Int($0.frame.height))" } ?? "-"
                 print("AUDIT|\(self.config)|\(screen)|\(issue.auditType.rawValue)|\(issue.compactDescription)|\(element)")
                 return true   // Recorded, not failed: findings go to docs/audit/findings.md.
             }
@@ -34,15 +34,23 @@ final class WalkTests: XCTestCase {
         print("SCREEN|\(config)|\(screen)")
     }
 
-    /// Taps the first element with this label, if it appears within a few seconds.
+    /// Taps the first element whose label is this text or starts with it (rows read "iCloud, On"), if it appears within
+    /// a few seconds. Scrolls once to look further down the page.
     @discardableResult
     private func tap(_ label: String, screen: String) -> Bool {
-        let candidates = [app.buttons[label], app.staticTexts[label], app.otherElements[label], app.cells[label]]
-        for el in candidates where el.waitForExistence(timeout: 3) && el.isHittable {
-            el.tap()
-            return true
+        let match = NSPredicate(format: "label == %@ OR label BEGINSWITH %@", label, label + ",")
+        for attempt in 0..<2 {
+            for query in [app.buttons, app.cells, app.staticTexts, app.otherElements] {
+                let el = query.matching(match).firstMatch
+                if el.waitForExistence(timeout: attempt == 0 ? 3 : 1) && el.isHittable {
+                    el.tap()
+                    return true
+                }
+            }
+            app.swipeUp()
         }
-        print("NOT REACHED|\(config)|\(screen)|no element labeled \(label)")
+        let seen = app.buttons.allElementsBoundByIndex.prefix(30).map(\.label).filter { !$0.isEmpty }
+        print("NOT REACHED|\(config)|\(screen)|no element labeled \(label)|buttons on screen: \(seen.joined(separator: " / "))")
         return false
     }
 
@@ -95,10 +103,13 @@ final class WalkTests: XCTestCase {
             sleep(2)
             record("Setup, contacts denied")
         }
-        if tap("Add people one at a time", screen: "Add by hand") {
+        if tap("Add someone", screen: "Add by hand") {
+            record("After denied, add someone")
+            _ = tap("Not now", screen: "Alerts step")
+            sleep(1)
             record("Add by hand")
             let field = app.textFields.firstMatch
-            if field.waitForExistence(timeout: 3) {
+            if field.waitForExistence(timeout: 4) {
                 field.tap()
                 field.typeText("Ada")
                 record("Add by hand, name typed")
