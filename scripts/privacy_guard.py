@@ -26,7 +26,12 @@ FORBIDDEN = {
     r"\bevents\(matching:": "reading calendar events",
     r"(?i)\b(firebase|amplitude|mixpanel|sentry|crashlytics|appsflyer)": "third-party SDK or analytics",
     r"requiresOnDeviceRecognition\s*=\s*false": "server-side speech recognition",
+    r"\bAsyncImage\s*\(": "network image",
 }
+# AsyncImage loads a picture from the web. Only the mailed-card flow may use it, and only with a card's safeCover or
+# safeInside, which are on Held Dear's server (M6, Nov 24, 2026).
+IMAGE_ALLOWED = {"App/HeldDear/Features/Moment/MailCardFlow.swift"}
+SAFE_IMAGE = re.compile(r"AsyncImage\s*\(\s*url:\s*[A-Za-z_][A-Za-z0-9_.]*\.safe(Cover|Inside)\b")
 
 
 # The only files allowed to make network requests, and to which host.
@@ -52,6 +57,8 @@ def scan(text, name="<text>"):
             if name in PREVIEW_ALLOWED and why == "link preview fetch (network)":
                 continue
             if name in CONTACT_WRITE_ALLOWED and why == "writing to Contacts":
+                continue
+            if why == "network image" and name in IMAGE_ALLOWED and SAFE_IMAGE.search(line):
                 continue
             if re.search(pattern, line):
                 hits.append(f"{name}:{i}: {why}: {stripped}")
@@ -168,6 +175,10 @@ def selftest():
     writer = "App/HeldDear/Services/ContactWriteBack.swift"
     assert not scan("let request = CNSaveRequest()", writer), "the write-back file may add a birthday"
     assert scan("let s = URLSession.shared", writer), "the write-back file stays offline"
+    mail_flow = "App/HeldDear/Features/Moment/MailCardFlow.swift"
+    assert not scan("AsyncImage(url: c.safeCover) { $0 }", mail_flow), "card pictures from Held Dear's server are allowed"
+    assert scan("AsyncImage(url: c.cover) { $0 }", mail_flow), "a raw card address (Handwrytten's) is refused"
+    assert scan("AsyncImage(url: c.safeCover) { $0 }", "App/HeldDear/Features/Home/HomeView.swift"), "no web pictures elsewhere"
     assert scan("let r = CNSaveRequest()", "App/HeldDear/Features/Person/PersonView.swift"), "only ContactWriteBack writes"
     assert name_hits('XCTAssertEqual(NameSize.page("' + "Hei" + 'di"), 96)'), "real names are caught"
     assert not name_hits('XCTAssertEqual(NameSize.page("Ada"), 96)'), "invented names pass"

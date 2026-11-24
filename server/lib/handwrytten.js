@@ -126,13 +126,16 @@ export async function listMoreCards(occasion = "birthday", shownIds = []) {
 }
 
 /** One Handwrytten card as the app shows it. The description helps search (Nov 22, 2026). */
+// Card pictures go through Held Dear's server (M6): a path on this server, never Handwrytten's address.
+export const viaServer = (url) => (url ? `/api/card-image?u=${encodeURIComponent(url)}` : null);
+
 export function toAppCard(c) {
   return {
     id: Number(c.id),
     name: String(c.name ?? "Card"),
     description: c.description ? String(c.description).slice(0, 200) : null,
-    cover: c.cover,
-    inside: c.inside_image ?? null,
+    cover: viaServer(c.cover),
+    inside: viaServer(c.inside_image ?? null),
     characters: Number(c.characters) || 300,
     orientation: c.orientation ?? null,
   };
