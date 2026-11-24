@@ -41,7 +41,7 @@ struct MailCardFlow: View {
 
     private var name: String { DisplayName.plain(context.person?.name ?? "") }
     private var price: String {
-        let cents = catalog?.priceCents ?? 699
+        let cents = catalog?.priceCents ?? 799
         return (Double(cents) / 100).formatted(.currency(code: "USD"))
     }
 

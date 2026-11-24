@@ -42,7 +42,7 @@ export const OCCASION_CATEGORY = {
   // A card for a reason, not a day (story 2.8). Keys match the app's CardReason raw values.
   justBecause: [/thinking/i, /blank/i, /friend/i, /everyday/i, /just for fun/i],
   getWell: [/get well/i, /feel better/i],
-  thankYou: [/thank/i],
+  thankYou: [/thank(?!sgiving)/i],
   thinkingOfYou: [/thinking/i, /friend/i, /everyday/i],
   congratulations: [/congrat/i],
   sympathy: [/sympathy/i, /condolence/i],
@@ -52,9 +52,14 @@ export const OCCASION_CATEGORY = {
 // Handwrytten's list: "Birthday (Photo Templates)" has 4 cards, "Birthday (Personal)" has 50).
 const NOT_PERSONAL_CATEGORY = /photo template|business|customer|employee|donor|volunteer|real estate|homiversary|invitation|all categories|favorites/i;
 
+// Reasons where a wrong card would hurt (M5, Nov 24, 2026): only their own categories, never a general fallback.
+// No match means no cards, and the app says none are available.
+export const STRICT_OCCASIONS = new Set(["sympathy"]);
+
 export function pickCategory(cats, occasion) {
   const usable = cats.filter((c) => c.id > 0 && !NOT_PERSONAL_CATEGORY.test(c.name ?? ""));
-  const patterns = [...(OCCASION_CATEGORY[occasion] ?? []), /blank/i, /everyday/i, /thinking/i, /general/i];
+  const own = OCCASION_CATEGORY[occasion] ?? [];
+  const patterns = STRICT_OCCASIONS.has(occasion) ? own : [...own, /blank/i, /everyday/i, /thinking/i, /general/i];
   for (const re of patterns) {
     const matches = usable.filter((c) => re.test(c.name ?? ""));
     const best = matches.find((c) => /personal/i.test(c.name ?? "")) ?? matches[0];
@@ -79,7 +84,9 @@ export async function categoryId(occasion = "birthday") {
     const id = pickCategory(cats, occasion);
     if (id) return id;
   } catch {}
-  return 7; // Handwrytten's documented Birthday category id
+  // Only a birthday falls back to Handwrytten's documented Birthday category. Any other occasion gets no cards rather
+  // than birthday cards (M5): a sympathy card must never become a birthday card.
+  return occasion === "birthday" ? 7 : null;
 }
 
 // Business cards (work anniversaries, employee thank-yous) share categories with personal ones; leave them out.
@@ -102,6 +109,7 @@ export function anyOccasionCategories(cats, excludeId) {
 
 /** More cards beyond the occasion's own: any-occasion designs, without the ones already shown. Up to 40. */
 export async function listMoreCards(occasion = "birthday", shownIds = []) {
+  if (STRICT_OCCASIONS.has(occasion)) return []; // No cheerful "more cards" beside sympathy cards (M5).
   let cats = [];
   try { cats = pickList(await hw("/categories/list"), "categories", "data", "items"); } catch { return []; }
   const own = await categoryId(occasion);
@@ -171,6 +179,7 @@ export async function listSections() {
 /** Cards for an occasion with a cover image, as the app shows them. */
 export async function listCards(occasion = "birthday") {
   const id = await categoryId(occasion);
+  if (!id) return [];
   const json = await hw(`/cards/list?category_id=${id}&with_images=1`);
   return pickList(json, "cards", "data", "items")
     .filter((c) => c.cover && c.id && isPersonal(c.name))

@@ -95,3 +95,14 @@ test("a card carries its description for search, capped", () => {
   assert.equal(c.description.length, 200);
   assert.equal(toAppCard({ id: 1, name: "A", cover: "u" }).description, null);
 });
+
+test("M5: sympathy never falls back to another kind of card", () => {
+  assert.equal(pickCategory([{ id: 7, name: "Birthday" }, { id: 20, name: "Blank" }], "sympathy"), null);
+  assert.equal(pickCategory([{ id: 32, name: "Sympathy (Personal)" }, { id: 20, name: "Blank" }], "sympathy"), 32);
+});
+
+test("M5: thank you never matches Thanksgiving", () => {
+  const list = [{ id: 50, name: "Thanksgiving" }, { id: 51, name: "Thank You" }];
+  assert.equal(pickCategory(list, "thankYou"), 51);
+  assert.notEqual(pickCategory([{ id: 50, name: "Thanksgiving" }, { id: 20, name: "Blank" }], "thankYou"), 50);
+});
