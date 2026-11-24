@@ -15,14 +15,23 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
 - **Claude project:** "App | Held Dear".
 - **Standing chats:** Held Dear Product (Opus), Held Dear Build (Sonnet), Held Dear Review (Fable), Held Dear Grok.
 
-## Where things stand (Nov 20, 2026)
+## Where things stand (Nov 24, 2026)
 
 - **Store:** not released and never submitted. App Store Connect record "Held Dear: Your People" (Apple ID
-  6833744147) exists. TestFlight builds 1001 to 1009 uploaded for internal testing. Latest: build 1009, from `main`
-  at 34fdc3d (PR #10, Home name follows the timeline), uploaded Nov 14.
-- **Branches:** `main` and `testflight` are at the same commit (34fdc3d). PRs #1 to #10 are closed; every one but #4
-  was merged (#4's contact picker fix went in with #5). The repo's default branch was `build/v1` until Nov 23, 2026; it is now `main`.
-- **Schema Test app (Nov 23, 2026, PR in review):** target `HeldDearSchemaTest`, bundle `com.grahamdeno.helddear.schematest`, container `iCloud.com.grahamdeno.helddear.schematest`, group `group.com.grahamdeno.helddear.schematest`, App Store Connect record "Held Dear Schema Test" (Apple ID 6838458371). It saves a short set and a long set of every record type and shows what iCloud accepted. Never part of the real app. Workflows `schematest-testflight.yml` and `cloudkit-schema-test.yml` run by hand with Graham's go.
+  6833744147). Latest TestFlight build: **1053**, from `main` at 4e24a2f, uploaded Nov 24 (first build with working
+  iCloud sync). Install by updating over the existing app; never delete it first.
+- **Branches:** the default branch is `main` (changed from `build/v1` on Nov 23, 2026). `testflight` is at 4e24a2f.
+- **iCloud (done Nov 24, 2026):** the CloudKit schema (`cloudkit/schema.ckdb`, generated from model 3.3: 7 record
+  types, encrypted fields, an asset companion for every text and binary field) was proven in the test container by
+  the Schema Test app (all 14 records uploaded in Production), passed by Fable, imported to the real Development and
+  **deployed to the real Production** (Grok, on Graham's go; only additions). Build 1053 sends and receives on
+  Graham's iPhone, his data is in iCloud, and his iPad picks it up. Signed builds use Production; the app never
+  creates record types itself. Requirement R2 (sharing tested in the test container first) is under Small follow-ups.
+- **Schema Test app:** target `HeldDearSchemaTest`, bundle `com.grahamdeno.helddear.schematest`, container
+  `iCloud.com.grahamdeno.helddear.schematest`, group `group.com.grahamdeno.helddear.schematest`, App Store Connect
+  record "Held Dear Schema Test" (Apple ID 6838458371, internal only, never submitted). Never part of the real app.
+  Workflows `schematest-testflight.yml`, `cloudkit-schema-test.yml` and `cloudkit-schema.yml` run by hand on
+  Graham's go; all are Development-only for schemas.
 - **Server:** Vercel project helddear-mail is live in production (helddear-mail.vercel.app), last deployed Nov 13.
   Mailed cards run in Handwrytten and Stripe test mode. Family pages store on Vercel Blob and are deleted 30 days
   after the day.
