@@ -72,7 +72,12 @@ final class WalkTests: XCTestCase {
             back()
         }
 
-        if tap("Ada", screen: "Person") {
+        // A name on the line only features that person; the big name then opens the page.
+        _ = tap("Ada", screen: "Person")
+        let big = app.buttons.matching(NSPredicate(format: "label == %@", "Ada")).allElementsBoundByIndex
+            .filter { $0.isHittable }.max { $0.frame.height < $1.frame.height }
+        big?.tap()
+        if big != nil {
             record("Person")
             app.swipeUp()
             record("Person, Details")
