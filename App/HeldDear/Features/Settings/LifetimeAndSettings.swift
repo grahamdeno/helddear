@@ -118,6 +118,9 @@ struct SettingsView: View {
     @State private var exportFailed = false
     @State private var exporting = false
     @State private var importing = false
+    @State private var confirmingErase = false
+    @State private var erasing = false
+    @State private var eraseNote: String?
     @State private var keepInICloud = ICloudSync.isOn
     @ObservedObject private var iCloudStatus = ICloudSync.Status.shared
     @State private var yourPhotoItem: PhotosPickerItem?
@@ -575,11 +578,42 @@ struct SettingsView: View {
                       caption: importNote ?? "Puts back everything from an export file: people, days, plans, ideas, years and photos.") {
                 importing = true
             }
+            OptionRow(title: "Delete all my data",
+                      caption: erasing ? "Deleting…" : eraseNote
+                        ?? (ICloudSync.isOnAtLaunch
+                            ? "Removes everything in Held Dear from this iPhone and from your iCloud. Export first if you might want it back."
+                            : "Removes everything in Held Dear from this iPhone. Export first if you might want it back.")) {
+                confirmingErase = true
+            }
+            .disabled(erasing)
+        }
+        .confirmationDialog(ICloudSync.isOnAtLaunch
+                            ? "Delete everything in Held Dear, on this iPhone and in your iCloud? Your other devices will remove it too. This can't be undone."
+                            : "Delete everything in Held Dear on this iPhone? This can't be undone.",
+                            isPresented: $confirmingErase, titleVisibility: .visible) {
+            Button("Delete everything", role: .destructive) { eraseEverything() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your contacts, photo library and calendar aren't touched. A Lifetime purchase stays with your Apple account.")
         }
         Text(AppFeatures.mailedCards
              ? "Held Dear has no account. Purchases go through Apple. A mailed card sends only its message and the two addresses to Handwrytten, to mail it."
              : "Held Dear has no account and no server. Purchases go through Apple. Everything stays on your iPhone and in your own iCloud.")
             .textStyle(.caption, color: Brand.inkMuted)
+    }
+
+    private func eraseEverything() {
+        erasing = true
+        Task { @MainActor in
+            let outcome = await DataErase.eraseEverything(container: model.container.persistent, iCloud: ICloudSync.isOnAtLaunch)
+            await model.refresh()
+            erasing = false
+            switch outcome {
+            case .done: eraseNote = "Everything was deleted."
+            case .iCloudFailed(let why): eraseNote = "Deleted from this iPhone. iCloud didn't confirm (\(why)); try again when online."
+            }
+            UIAccessibility.post(notification: .announcement, argument: eraseNote)
+        }
     }
 
     private var replaceQuestion: String {
