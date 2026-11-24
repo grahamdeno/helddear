@@ -247,7 +247,12 @@ budgets, group gifts from several givers.
 
 ## Small follow-ups
 
-- Set the repo's default branch to `main` (Grok, needs Graham's go). Not yet approved.
+- Set the repo's default branch to `main`: done Nov 23, 2026 (Grok, on Graham's go).
+- **Requirement R2 (approved Nov 24, 2026; from Fable's schema review): test sharing in the test container before it
+  ships.** Any feature that shares records between iCloud accounts (planned for 3.2) must first pass a run in the
+  `iCloud.com.grahamdeno.helddear.schematest` container: a shared record created, accepted on a second account, edited
+  from both sides, and seen on both. Only then can it ship. The Schema Test app never shares a record, so the shared
+  database and its record types are untested. Checked by: a Schema Test run that covers sharing, reviewed by Fable.
 - Clean up merged branches (see the branch list in the onboarding PR). Not yet approved.
 
 ## Shipped
