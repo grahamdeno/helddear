@@ -11,7 +11,12 @@ struct HeldDearApp: App {
         WindowGroup { SchemaTestView() }
     }
     #else
-    @StateObject private var model = AppModel()
+    // Demo mode (debug builds with -HeldDearDemo) runs on an in-memory store with made-up people (Story E).
+    @StateObject private var model: AppModel = {
+        let model = AppModel(inMemory: DemoMode.on)
+        DemoMode.seed(model)
+        return model
+    }()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {

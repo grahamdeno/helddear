@@ -26,7 +26,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func requestAuthorization() async -> Bool {
-        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        if DemoMode.on { return false }   // The accessibility walk never shows a system prompt.
+        return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
     /// Replaces every planned alert. One-off alerts (prefix "oneoff-") are kept.
