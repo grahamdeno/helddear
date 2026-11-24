@@ -102,6 +102,9 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 | Nov 12, 2026 | Horizon look: warm stone, one composed page per main screen, Fraunces names, one oxblood action per screen, time left to right | Replaced Hearth, Quiet and the other rejected directions |
 | Nov 12, 2026 | Family pages may store what the user and family add on Held Dear's server: no accounts, links that expire, deleted 30 days after the day | Second network exception, enforced by the guard |
 | Nov 12, 2026 | Beyond birthdays: anniversaries, holidays and life moments. Hard times are not included | The person is the product, not the birthday |
+| Nov 24, 2026 | Mailed cards back in 1.0, behind a gate: Fable passes the server and card flow by Dec 3, or 1.0 ships with them off | Christmas value, without risking the release date |
+| Nov 24, 2026 | Mailed card price $7.99 (was $6.99); statement name HELDDEAR CARD; refunds: automatic if a card can't be placed, resend or refund if not arrived 10 business days after mailing, no refund for a change of mind once mailed | Handwrytten is $4.57 with the stamp and Stripe about $0.50; $7.99 leaves room for a resend |
+| Nov 24, 2026 | Last day to order a mailed card for Christmas: Dec 13 (Handwrytten says Dec 14) | A day of margin |
 | Nov 12, 2026 | Held Dear Lifetime: $9.99 one time, no subscription | $19.99 was too high for the audience; costs are near zero on the phone |
 | Nov 12, 2026 | Handwrytten mails the cards, paid with Apple Pay through Stripe on Held Dear's server | First network exception; nothing stocked or mailed by Graham |
 | Nov 11, 2026 | One-time purchase, no subscription. iPhone only. Data stays on the phone apart from the decided exceptions | Founding decisions |

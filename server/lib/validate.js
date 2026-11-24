@@ -56,4 +56,5 @@ export function validateOrder(body, cards) {
   };
 }
 
-export const retailCents = () => Number(process.env.RETAIL_CENTS) || 699;
+// $7.99 (Graham, Nov 24, 2026): Handwrytten $4.57 with the stamp, Stripe about $0.50, leaving room for a resend.
+export const retailCents = () => Number(process.env.RETAIL_CENTS) || 799;
