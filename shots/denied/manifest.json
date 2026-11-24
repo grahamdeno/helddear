@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "C6FF7E27-8EBA-4199-88FA-BA15B61CE9C7.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Add by hand_0_4D562810-8550-4B44-AAD5-B98FEF6F99A5.png",
+        "timestamp" : 1795563479.556
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "365684CD-899A-4D6C-B834-86C2A223D220.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · After denied, add someone_0_EBB38CDE-DB72-4E13-98B0-7854E0AC7A48.png",
+        "timestamp" : 1795563473.732
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "43F78492-C3C6-4E64-911C-7514971B806A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Setup, contacts denied_0_15767671-091C-4F4E-8578-2783FC468335.png",
+        "timestamp" : 1795563469.453
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "EED6FB0A-E273-43C6-B5DE-3DF739543042",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "EAB0F25C-72AF-4865-9FDC-A2B8D978785A.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Setup, start_0_929CE8E5-9366-4A93-A861-409C894C2D5A.png",
+        "timestamp" : 1795563461.956
+      }
+    ],
+    "testIdentifier" : "WalkTests/testEverythingDenied()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/WalkTests/testEverythingDenied"
+  }
+]
