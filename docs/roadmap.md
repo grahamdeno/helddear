@@ -129,6 +129,21 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   never for tracking: contact info (name, physical address), other user content (card message, recipient's name and
   address), purchase history (the order record at Stripe and Handwrytten). Payment info not collected (Apple Pay and
   Stripe). Published in App Store Connect only once Fable passes mailed cards; until then "Data Not Collected" stands.
+- **Added to 1.0 (approved Nov 25, 2026), mailed cards, from testing build 1057:**
+  - **Story 3.1, see a card full screen.** As a sender, I want to open a card full screen and zoom in so that I can
+    see it well before I pay. Given the picker, when I tap the card I've picked (or "See it larger", or the VoiceOver
+    action), then it opens full screen with the front and, when there is one, the inside; pinch, double-tap and drag
+    zoom it, and it never moves past its edges; "Use" picks it and closes.
+  - **Story 3.2, enter my return address once.** As a sender, I want my return address kept on this iPhone so that I
+    don't type it for every card. Given a saved, complete address, when I mail a card, then the address step is
+    skipped and the review shows it with "Change your return address"; I can set or remove it in You > Your profile.
+  - **Story 3.3, find my orders later.** As a sender, I want each order kept on this iPhone so that I can find its
+    number if I need help. Given a placed order, then You > Mailed cards lists who, which card, the date and the
+    order number, with Copy; no addresses; test orders are marked and can be removed.
+  - **Story 3.4, the card on the person's year.** As a sender, I want a mailed card's year entry to say what it was
+    and show it so that the record means something later. Given a placed order, then the year shows "Handwritten
+    [kind] card, mailed [date]", the message as its line, and the card's front as its picture; no row repeats the
+    same words twice.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
