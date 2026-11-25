@@ -10,9 +10,17 @@ struct MailContext {
     let occasionKey: String
     let opening: String
     let greeting: String
-    let onMailed: (_ cardName: String) -> Void
+    let onMailed: (MailedCardRecord) -> Void
 
     static func occasionKey(for type: OccasionType) -> String { type.rawValue }
+}
+
+/// What a paid, placed card leaves on the phone for the person's year: the card, its message, and a picture of its
+/// front, kept with the record (Graham, Nov 25, 2026).
+struct MailedCardRecord {
+    let cardName: String
+    let message: String
+    let cover: UIImage?
 }
 
 struct MailCardFlow: View {
@@ -40,6 +48,8 @@ struct MailCardFlow: View {
     private let hadReturnAddress = MailAddress.saved?.isComplete == true
     /// The card opened full screen.
     @State private var viewing: MailCard?
+    /// The picked card's front as the review screen drew it, kept with the year's record after the order.
+    @State private var cover: UIImage?
     @State private var paying = false
     /// The order number for the done screen, so the person has it if they need help (design review, Nov 25, 2026).
     @State private var orderNumber: String?
@@ -320,7 +330,14 @@ struct MailCardFlow: View {
             Card {
                 if let card {
                     HStack(spacing: 14) {
-                        AsyncImage(url: card.safeCover) { $0.resizable().scaledToFit() } placeholder: { Brand.faceFills[0] }
+                        AsyncImage(url: card.safeCover) { phase in
+                            if case .success(let image) = phase {
+                                image.resizable().scaledToFit()
+                                    .onAppear { cover = ImageRenderer(content: image.resizable().scaledToFit().frame(width: 600)).uiImage }
+                            } else {
+                                Brand.faceFills[0]
+                            }
+                        }
                             .frame(width: 64, height: 88)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         VStack(alignment: .leading, spacing: 4) {
@@ -436,7 +453,7 @@ struct MailCardFlow: View {
             paying = false
             switch outcome {
             case .some(.success(let result)):
-                context.onMailed(card.name)
+                context.onMailed(MailedCardRecord(cardName: card.name, message: m, cover: cover))
                 orderNumber = result.orderId
                 if let number = result.orderId {
                     MailedOrders.add(MailedOrder(id: ref, orderNumber: number, firstName: name, cardName: card.name,

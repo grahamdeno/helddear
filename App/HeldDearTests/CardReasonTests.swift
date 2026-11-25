@@ -19,6 +19,18 @@ final class CardReasonTests: XCTestCase {
         var c = DateComponents(); c.year = 2026; c.month = 11; c.day = 21
         let d = Calendar.current.date(from: c)!
         XCTAssertEqual(CardReason.getWell.recordLine(on: d), "Get-well card, Nov 21")
+        XCTAssertEqual(CardReason.thinkingOfYou.recordLine(on: d), "Thinking-of-you card, Nov 21")
+        XCTAssertEqual(CardReason.thinkingOfYou.mailedRecordLine(on: d), "Handwritten thinking-of-you card, mailed Nov 21")
+    }
+
+    func testMailedCardWords() {
+        XCTAssertEqual(MailedCardWords.title(" Flower Buds "), "A handwritten card, mailed (Flower Buds)")
+        XCTAssertEqual(MailedCardWords.messageLine("Thinking of you today.\nLove, Ada"), "\u{201C}Thinking of you today. Love, Ada\u{201D}")
+        XCTAssertNil(MailedCardWords.messageLine("  \n "))
+        let long = String(repeating: "word ", count: 40)
+        let line = MailedCardWords.messageLine(long)!
+        XCTAssertTrue(line.hasSuffix("word\u{2026}\u{201D}"))
+        XCTAssertLessThanOrEqual(line.count, 123)
     }
 
     func testDayCardsKeepTheirOccasionKey() {
