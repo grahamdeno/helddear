@@ -85,6 +85,13 @@ final class WalkTests: XCTestCase {
 
         if tap("Everyone", screen: "People") {
             record("People")
+            // A row in Everyone opens the person's page.
+            if tap("Ada", screen: "Person from Everyone") {
+                record("Person")
+                app.swipeUp()
+                record("Person, Details")
+                back()
+            }
             if tap("Finds", screen: "Finds") { record("Finds") }
             back()
         }

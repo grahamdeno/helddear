@@ -501,6 +501,9 @@ struct HorizonBand: View {
                     VStack(alignment: .leading, spacing: 0) { headerLinks }
                 }
             }
+            // Past the first accessibility size the header would take half the screen from the person above it
+            // (walk run 4). Still well above the default size.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             .padding(.horizontal, Brand.space5)
             .padding(.top, Brand.space2)
 
