@@ -125,6 +125,10 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   UX-12 (a "How Held Dear works" page) and UX-14 (Home's links), and the Held Dear website (home, privacy, support at
   helddear.tangomike.app) the App Store needs.
 - **Added to 1.0 (Graham, Nov 24, 2026):** an Appearance setting in You: Match iPhone, Light or Dark.
+- **App Privacy answers with mailed cards (Graham, Nov 25, 2026):** collected only to mail a card, linked to the user,
+  never for tracking: contact info (name, physical address), other user content (card message, recipient's name and
+  address), purchase history (the order record at Stripe and Handwrytten). Payment info not collected (Apple Pay and
+  Stripe). Published in App Store Connect only once Fable passes mailed cards; until then "Data Not Collected" stands.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).

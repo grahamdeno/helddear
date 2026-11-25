@@ -35,12 +35,20 @@ final class UXFollowUpTests: XCTestCase {
 
 /// The privacy manifest ships in the app and says what the App Privacy answers say (Nov 24, 2026).
 final class PrivacyManifestTests: XCTestCase {
-    func testManifestShipsAndDeclaresNothingCollected() throws {
+    func testManifestShipsAndMatchesTheApprovedAnswers() throws {
         let url = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"), "PrivacyInfo.xcprivacy is not in the app")
         let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil) as? [String: Any])
         XCTAssertEqual(plist["NSPrivacyTracking"] as? Bool, false)
         XCTAssertEqual((plist["NSPrivacyTrackingDomains"] as? [Any])?.count, 0)
-        XCTAssertEqual((plist["NSPrivacyCollectedDataTypes"] as? [Any])?.count, 0)
+        // Mailed cards (approved Nov 25, 2026): name, address, card content and order record, for app functionality only.
+        let collected = (plist["NSPrivacyCollectedDataTypes"] as? [[String: Any]]) ?? []
+        XCTAssertEqual(Set(collected.compactMap { $0["NSPrivacyCollectedDataType"] as? String }), [
+            "NSPrivacyCollectedDataTypeName", "NSPrivacyCollectedDataTypePhysicalAddress",
+            "NSPrivacyCollectedDataTypeOtherUserContent", "NSPrivacyCollectedDataTypePurchaseHistory"])
+        for c in collected {
+            XCTAssertEqual(c["NSPrivacyCollectedDataTypeTracking"] as? Bool, false)
+            XCTAssertEqual(c["NSPrivacyCollectedDataTypePurposes"] as? [String], ["NSPrivacyCollectedDataTypePurposeAppFunctionality"])
+        }
         let types = (plist["NSPrivacyAccessedAPITypes"] as? [[String: Any]]) ?? []
         XCTAssertEqual(types.compactMap { $0["NSPrivacyAccessedAPIType"] as? String }, ["NSPrivacyAccessedAPICategoryUserDefaults"])
     }
