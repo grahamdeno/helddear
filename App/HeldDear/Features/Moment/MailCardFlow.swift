@@ -371,7 +371,8 @@ struct MailCardFlow: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            Text("To mail it, Held Dear sends this card's message and these two addresses to Handwrytten. Nothing else leaves your iPhone.")
+            // Names and the payment are named too (Fable N11; Graham approved Nov 25, 2026).
+            Text("To mail it, Held Dear sends the message, both names and both addresses to Handwrytten, and your Apple Pay payment to Stripe. Nothing else leaves your iPhone.")
                 .textStyle(.caption, color: Brand.inkMuted)
             Link("Terms of sale and refunds", destination: URL(string: "https://helddear.tangomike.app/terms")!)
                 .font(.callout).foregroundStyle(Brand.action).frame(minHeight: 44)
