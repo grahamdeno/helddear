@@ -126,8 +126,11 @@ export async function listMoreCards(occasion = "birthday", shownIds = []) {
 }
 
 /** One Handwrytten card as the app shows it. The description helps search (Nov 22, 2026). */
-// Card pictures go through Held Dear's server (M6): a path on this server, never Handwrytten's address.
-export const viaServer = (url) => (url ? `/api/card-image?u=${encodeURIComponent(url)}` : null);
+// Card pictures go through Held Dear's server (M6): a path on this server, never Handwrytten's address. Vercel's
+// image service on this same server fetches the original once, shrinks it to 480 pixels wide and caches it for 30
+// days (Nov 25, 2026: Handwrytten's full-size fronts were too large to pass through a function, so most never loaded).
+// Only Handwrytten's card image folder is allowed (vercel.json images.remotePatterns).
+export const viaServer = (url) => (url ? `/_vercel/image?url=${encodeURIComponent(url)}&w=480&q=75` : null);
 
 export function toAppCard(c) {
   return {
