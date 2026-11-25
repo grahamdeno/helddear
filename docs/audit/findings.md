@@ -52,3 +52,15 @@ The small-phone setup fell back to the iPhone 17 Pro (no iPhone SE simulator on 
 | W-8 | 2 | You, largest text | The profile card grows very tall and hyphenates "anniversary" | Left as is for 1.0 |
 | W-4 | Pass | Setup, every permission denied | "Add people one at a time instead", Add someone, then the alerts step; "Not now" explains the widget and Home | None |
 | W-2, W-3 | Re-check in run 3 | Person, Details | The walk opened Home again instead of the person (a name on the line only features that person) | The walk now taps the big name |
+
+### Run 45509595261, Nov 24, 2026 (screenshots on walk-shots/45509595261-*)
+
+W-5, W-6 and W-7 are fixed: at the largest text the line under the name wraps, + Add and Everyone sit one per line, and
+the names on the year line no longer collide. The walk still didn't open a person's page (fixed in run 4: it taps
+"Ada's page").
+
+| ID | Rating | Screen | Seen in the screenshot | Fix |
+|---|---|---|---|---|
+| W-9 | 3 | Home, largest text | The page shrinks to fit one screen, so the person's text ends up smaller than chosen and the status line is cut ("You saved 1 idea this...") | At accessibility sizes Home scrolls instead of shrinking; the status line shows in full. Other sizes keep the one-screen Home |
+| W-10 | 2 | iCloud page | The back button shows as a blank square in the simulator | Check on a phone |
+| W-11 | Test | Setup, denied | The walk stopped at the "Without alerts" note | The walk taps OK and goes on to the add form |

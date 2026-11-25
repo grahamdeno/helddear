@@ -782,8 +782,20 @@ private struct ShrinkHeightKey: PreferenceKey {
 struct ShrinkToFit<Content: View>: View {
     @ViewBuilder var content: Content
     @State private var natural: CGFloat = 0
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        if typeSize.isAccessibilitySize {
+            // At the largest text sizes the page scrolls instead of shrinking, so text stays the size the person chose
+            // (walk run 3, Nov 24, 2026). Every other size keeps Home on one screen, as approved for build 1026.
+            ScrollView(.vertical) { content.frame(maxWidth: .infinity) }
+                .scrollBounceBehavior(.basedOnSize)
+        } else {
+            shrunk
+        }
+    }
+
+    private var shrunk: some View {
         GeometryReader { geo in
             let scale = natural > 0 ? min(1, geo.size.height / natural) : 1
             content
@@ -902,7 +914,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .accessibilityHidden(true)
                 }
                 if !status.isEmpty {
-                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(3).minimumScaleFactor(0.85)
+                    Text(status).textStyle(.callout, color: Brand.inkSoft)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 3).minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
