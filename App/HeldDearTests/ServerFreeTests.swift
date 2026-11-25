@@ -1,11 +1,15 @@
 import XCTest
 @testable import HeldDear
 
-/// 1.0 is server-free (Graham, Nov 24, 2026, plan B): mailed cards and family pages come back in 1.1.
+/// 1.0 (Graham, Nov 24, 2026): mailed cards are back behind Fable's Dec 3 gate; family pages stay off until 1.1.
 final class ServerFreeTests: XCTestCase {
-    func testMailedCardsAndFamilyPagesAreOffIn1_0() {
-        XCTAssertFalse(AppFeatures.mailedCards)
+    func testMailedCardsOnAndFamilyPagesOffIn1_0() {
+        XCTAssertTrue(AppFeatures.mailedCards)
         XCTAssertFalse(AppFeatures.familyPages)
-        XCTAssertTrue(AppFeatures.serverFree)
+        XCTAssertFalse(AppFeatures.serverFree)
+    }
+
+    func testPrivacyLineNamesTheCardException() {
+        XCTAssertTrue(AppFeatures.privacyLine.contains("card you choose to mail"))
     }
 }

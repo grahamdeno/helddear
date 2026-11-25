@@ -17,7 +17,9 @@ export default async function handler(req, res) {
     const more = await listMoreCards(occasion, cards.map((c) => c.id)).catch(() => []);
     const [sections, own] = await Promise.all([listSections().catch(() => []), ownSection(occasion)]);
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=86400");
-    return res.status(200).json({ cards, more, sections, own, priceCents: retailCents(), currency: "usd", testMode: isTestMode() });
+    // Last day to order for Christmas (Dec 13; Handwrytten says Dec 14). CHRISTMAS_ORDER_BY overrides, as YYYY-MM-DD.
+    const christmasOrderBy = process.env.CHRISTMAS_ORDER_BY || `${new Date().getUTCFullYear()}-12-13`;
+    return res.status(200).json({ cards, more, sections, own, priceCents: retailCents(), currency: "usd", testMode: isTestMode(), christmasOrderBy });
   } catch (e) {
     console.error("cards failed:", e.message);
     return res.status(502).json({ error: "Cards are unavailable right now. Try again in a little while." });

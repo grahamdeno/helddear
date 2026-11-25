@@ -86,8 +86,17 @@ struct MailCardFlow: View {
                 introStep(3, "It's written in real pen", "A writing machine holds a ballpoint pen and writes your message and the envelope in a handwriting style.")
                 introStep(4, "Stamped and mailed", "First-class mail with your return address. Most cards arrive in 2 to 7 business days.")
             }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(MailArrival.arrivalLine(orderedOn: Date())).textStyle(.bodyStrong)
+                if let line = MailArrival.christmasLine(today: Date(), orderBy: MailArrival.day(fromISO: catalog?.christmasOrderBy)) {
+                    Text(line).textStyle(.callout, color: Brand.action)
+                }
+            }
+            .accessibilityElement(children: .combine)
             Text("Pay with Apple Pay. Held Dear sends only the card, your message and the two addresses, to mail it.")
                 .textStyle(.caption, color: Brand.inkMuted)
+            Link("Terms of sale and refunds", destination: URL(string: "https://helddear.tangomike.app/terms")!)
+                .font(.callout).foregroundStyle(Brand.action).frame(minHeight: 44)
         } footer: {
             PrimaryButton(title: "Choose a card") {
                 UserDefaults.standard.set(true, forKey: "mailedCardIntroSeen")

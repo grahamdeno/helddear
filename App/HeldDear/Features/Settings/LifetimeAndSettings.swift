@@ -526,6 +526,13 @@ struct SettingsView: View {
                     .tint(Brand.action)
                 }
                 card {
+                    Toggle(isOn: Binding(get: { UserDefaults.standard.bool(forKey: MailedCards.testServerKey) },
+                                         set: { UserDefaults.standard.set($0, forKey: MailedCards.testServerKey) })) {
+                        toggleText("Test card server", "Mailed cards use Stripe test payments and nothing is mailed. Not in the App Store version.")
+                    }
+                    .tint(Brand.action)
+                }
+                card {
                     Toggle(isOn: Binding(get: { purchases.hasLifetime },
                                          set: { on in Task { await purchases.setTestOverride(on) } })) {
                         toggleText("Lifetime for testing", "Turns the paid features on without buying. Not in the App Store version. A sandbox purchase also works and is free.")
