@@ -26,21 +26,27 @@ struct FamilyInSuggestion: View {
                                   : "\(subject.capitalizedFirst) is in \(days) days. Ask the people you pick to add a note or send a card, one text each.")
                         .textStyle(.callout, color: Brand.inkMuted)
                 }
-                HStack(spacing: Brand.space4) {
-                    Button { onOpen(followUp) } label: {
-                        Text("Choose who to ask").textStyle(.bodyStrong, color: Brand.onAction)
-                            .padding(.horizontal, Brand.space4).frame(minHeight: 44)
-                            .background(Brand.action, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                    }
-                    .buttonStyle(PressStyle())
-                    TextLink(title: followUp ? "No thanks" : "Not this year") {
-                        FamilyCircle.shared.update(moment.id) { r in if followUp { r.followedUp = true } else { r.dismissed = true } }
-                        refresh += 1
-                        Task { await model.scheduleAlerts() }
-                    }
+                // Side by side when they fit; stacked at large text so the button's words never break mid-word (walk run 5).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: Brand.space4) { familyButtons(followUp: followUp) }
+                    VStack(alignment: .leading, spacing: Brand.space2) { familyButtons(followUp: followUp) }
                 }
             }
             .id(refresh)
+        }
+    }
+
+    @ViewBuilder private func familyButtons(followUp: Bool) -> some View {
+        Button { onOpen(followUp) } label: {
+            Text("Choose who to ask").textStyle(.bodyStrong, color: Brand.onAction)
+                .padding(.horizontal, Brand.space4).frame(minHeight: 44)
+                .background(Brand.action, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+        }
+        .buttonStyle(PressStyle())
+        TextLink(title: followUp ? "No thanks" : "Not this year") {
+            FamilyCircle.shared.update(moment.id) { r in if followUp { r.followedUp = true } else { r.dismissed = true } }
+            refresh += 1
+            Task { await model.scheduleAlerts() }
         }
     }
 }

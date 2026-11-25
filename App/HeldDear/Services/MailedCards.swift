@@ -146,7 +146,10 @@ enum MailedCards {
         let (data, response) = try await URLSession.shared.data(from: components.url!)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         if code == 503 {
-            throw Failure(message: "Mailed cards are paused right now. Please try again later.")
+            // TestFlight builds say how to reach the test server (build 1055: the switch was off).
+            throw Failure(message: AppFeatures.testFlightTools && !usesTestServer
+                ? "Mailed cards are paused on the live server. To try them with test payments, turn on You > TestFlight only > Test card server."
+                : "Mailed cards are paused right now. Please try again later.")
         }
         guard code == 200 else {
             throw Failure(message: "Cards are unavailable right now. Try again in a little while.")
