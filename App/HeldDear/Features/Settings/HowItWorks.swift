@@ -35,9 +35,10 @@ struct HowItWorksView: View {
             "After each day, Held Dear keeps one line about what you did, so you can look back.",
         ]),
         Section(id: "Your data", icon: "lock", lines: [
-            AppFeatures.mailedCards
-                ? "Everything stays on your iPhone, and in your own iCloud if you turn it on. The one exception is a card you mail: its message and the two addresses go to Handwrytten, only to mail it."
-                : "Everything stays on your iPhone, and in your own iCloud if you turn it on.",
+            "Everything stays on your iPhone, and in your own iCloud if you turn it on.",
+        ] + (AppFeatures.mailedCards
+            ? ["A card you mail is the one exception: its message and both addresses go to Handwrytten to mail it."]
+            : []) + [
             "To remove everything, go to You, then Export and import, then Delete all my data.",
         ]),
     ]
