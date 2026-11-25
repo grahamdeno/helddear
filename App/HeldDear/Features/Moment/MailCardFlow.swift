@@ -30,7 +30,7 @@ struct MailCardFlow: View {
     var go: ((MomentStep) -> Void)? = nil
     var close: () -> Void
 
-    enum Step: Equatable { case intro, loading, pick, message, recipient, sender, review, done(String), failed(String) }
+    enum Step: Equatable { case intro, loading, pick, message, recipient, sender, review, confirming, done(String), failed(String) }
     /// The first mailed card starts with how it works (Nov 21, 2026); after that, straight to the cards.
     @State private var step: Step = UserDefaults.standard.bool(forKey: "mailedCardIntroSeen") ? .loading : .intro
     @State private var catalog: MailedCards.Catalog?
@@ -75,6 +75,7 @@ struct MailCardFlow: View {
                                          next: hadReturnAddress ? .review : .sender, isRecipient: true)
             case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept for next time.", address: $sender, next: .review, isRecipient: false)
             case .review: review
+            case .confirming: confirming
             case .done(let mailing): done(mailing)
             case .failed(let why): failed(why)
             }
@@ -87,6 +88,18 @@ struct MailCardFlow: View {
     }
 
     // MARK: Steps
+
+    /// Paid, and the order is still being confirmed after the Apple Pay sheet closed. Leaves by itself.
+    private var confirming: some View {
+        FlowScreen(onClose: nil) {
+            Spacer(minLength: 120)
+            ProgressView().frame(maxWidth: .infinity)
+            Text("Confirming your order…").textStyle(.callout, color: Brand.inkMuted).frame(maxWidth: .infinity)
+            Text("You won't be charged twice. This can take up to a minute and a half.")
+                .textStyle(.caption, color: Brand.inkMuted).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+        }
+        .accessibilityElement(children: .combine)
+    }
 
     private var loading: some View {
         FlowScreen(onClose: close) {
@@ -461,6 +474,8 @@ struct MailCardFlow: View {
             } catch {
                 return .failure(error)
             }
+        } onWaiting: {
+            step = .confirming
         } finish: { outcome in
             paying = false
             switch outcome {
