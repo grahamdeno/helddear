@@ -910,12 +910,15 @@ struct PersonView: View {
             entryToEdit = entry
         } label: {
             HStack(spacing: 14) {
-                PhotoTile(image: PhotoStore.load(entry.photoFile), label: "No photo", height: 72, radius: Brand.radiusMd)
+                // A year with no photo shows the card that was sent, when there was one (Nov 25, 2026).
+                PhotoTile(image: PhotoStore.load(entry.photoFile ?? entry.cardFile), label: "No photo", height: 72, radius: Brand.radiusMd)
                     .frame(width: 72)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(entry.year)).font(Brand.serif(22, relativeTo: .title3)).foregroundStyle(Brand.ink)
                     Text(entry.what).font(TypeStyle.body.strong).foregroundStyle(Brand.ink)
-                    if let line = entry.line { Text(line).textStyle(.callout, color: Brand.ink.opacity(0.85)) }
+                    if let line = entry.line, line != entry.what {
+                        Text(line).textStyle(.callout, color: Brand.ink.opacity(0.85)).lineLimit(3)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

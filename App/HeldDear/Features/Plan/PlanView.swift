@@ -1213,10 +1213,11 @@ private struct CardChoice: View {
             MailCardFlow(context: MailContext(person: moment.person, occasionKey: MailContext.occasionKey(for: moment.type),
                                               opening: moment.type.cardOpening,
                                               greeting: moment.type.greeting(name: name),
-                                              onMailed: { cardName in
+                                              onMailed: { record in
                                                   // This card item is done; the rest of the plan stays as it is.
                                                   _ = model.setStep(act, "written")
-                                                  act.title = "A handwritten card, mailed (\(cardName))"
+                                                  act.title = MailedCardWords.title(record.cardName)
+                                                  if act.cardFile == nil { act.cardFile = record.cover.flatMap { PhotoStore.save($0, maxSide: 1200) } }
                                                   model.save()
                                               }),
                          close: { mailing = false })

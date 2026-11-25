@@ -772,9 +772,10 @@ final class AppModel: ObservableObject {
     }
 
     /// A Handwrytten card was paid for and placed: the plan is a card, and it's done.
-    func mailedCard(_ m: Moment, cardName: String) {
+    func mailedCard(_ m: Moment, record: MailedCardRecord) {
         PlanStore.removeOldFlowPlans(of: m, in: context)
-        let act = Act(role: .plan, kind: .card, title: "A handwritten card, mailed (\(cardName))")
+        let act = Act(role: .plan, kind: .card, title: MailedCardWords.title(record.cardName))
+        act.cardFile = record.cover.flatMap { PhotoStore.save($0, maxSide: 1200) }
         context.insert(act)
         act.moment = m
         act.complete(.mailed)
@@ -1129,10 +1130,24 @@ final class AppModel: ObservableObject {
 
     /// A card for a reason (story 2.8) goes in the person's yearly record as one line: "Get-well card, Nov 21".
     func recordCard(_ person: Person, reason: CardReason, cardImage: UIImage? = nil, now: Date = Date()) {
+        // One line, not the same words twice (Graham, Nov 25, 2026); the user can add their own line to it.
         let entry = LedgerEntry(year: Calendar.current.component(.year, from: now), type: .event,
-                                what: reason.recordLine(on: now), photoFile: nil, line: reason.recordLine(on: now),
+                                what: reason.recordLine(on: now), photoFile: nil, line: nil,
                                 personName: person.name, momentID: nil)
         entry.cardFile = cardImage.flatMap { PhotoStore.save($0, maxSide: 2100) }
+        context.insert(entry)
+        entry.person = person
+        commit()
+    }
+
+    /// A mailed reason card on the person's year: what it was, the message it carried, and the card's front as the
+    /// picture (Graham, Nov 25, 2026).
+    func recordMailedCard(_ person: Person, reason: CardReason, record: MailedCardRecord, now: Date = Date()) {
+        let entry = LedgerEntry(year: Calendar.current.component(.year, from: now), type: .event,
+                                what: reason.mailedRecordLine(on: now), photoFile: nil,
+                                line: MailedCardWords.messageLine(record.message),
+                                personName: person.name, momentID: nil)
+        entry.cardFile = record.cover.flatMap { PhotoStore.save($0, maxSide: 1200) }
         context.insert(entry)
         entry.person = person
         commit()
