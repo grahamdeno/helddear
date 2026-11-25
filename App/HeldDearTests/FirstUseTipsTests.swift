@@ -31,7 +31,7 @@ final class FirstUseTipsTests: XCTestCase {
     func testEveryTipIsOneShortSentenceWithNoPronounsForPeople() {
         for tip in FirstUseTip.allCases {
             XCTAssertLessThanOrEqual(tip.line.count, 90, tip.rawValue)
-            for w in [" he ", " she ", " his ", " her ", " they ", " them "] {
+            for w in [" he ", " she ", " his ", " her ", " they ", " them ", " their "] {
                 XCTAssertFalse(" \(tip.line.lowercased()) ".contains(w), "\(tip.rawValue): \(w)")
             }
         }
