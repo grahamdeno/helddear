@@ -248,9 +248,15 @@ final class ApplePayCheckout: NSObject, PKPaymentAuthorizationControllerDelegate
     private var onPayment: ((PKPayment) async -> Result<MailedCards.OrderResult, Error>)?
     private var finish: ((Result<MailedCards.OrderResult, Error>?) -> Void)?
     private var outcome: Result<MailedCards.OrderResult, Error>?
+    private var onWaiting: (() -> Void)?
+    /// Paid, and the order is still being confirmed (build 1059: iOS can close the sheet before a slow order answers).
+    private var authorized = false
+    private var sheetClosed = false
+    private var delivered = false
 
     func start(priceCents: Int, label: String,
                onPayment: @escaping (PKPayment) async -> Result<MailedCards.OrderResult, Error>,
+               onWaiting: (() -> Void)? = nil,
                finish: @escaping (Result<MailedCards.OrderResult, Error>?) -> Void) {
         let request = PKPaymentRequest()
         request.merchantIdentifier = MailedCards.merchantID
@@ -264,8 +270,12 @@ final class ApplePayCheckout: NSObject, PKPaymentAuthorizationControllerDelegate
             PKPaymentSummaryItem(label: "Held Dear", amount: amount),
         ]
         self.onPayment = onPayment
+        self.onWaiting = onWaiting
         self.finish = finish
         outcome = nil
+        authorized = false
+        sheetClosed = false
+        delivered = false
         let controller = PKPaymentAuthorizationController(paymentRequest: request)
         controller.delegate = self
         self.controller = controller
@@ -278,21 +288,33 @@ final class ApplePayCheckout: NSObject, PKPaymentAuthorizationControllerDelegate
                                                     didAuthorizePayment payment: PKPayment,
                                                     handler completion: @escaping (PKPaymentAuthorizationResult) -> Void) {
         Task { @MainActor in
+            self.authorized = true
             let result = await self.onPayment?(payment) ?? .failure(MailedCards.Failure(message: "Something went wrong."))
             self.outcome = result
             switch result {
             case .success: completion(PKPaymentAuthorizationResult(status: .success, errors: nil))
             case .failure: completion(PKPaymentAuthorizationResult(status: .failure, errors: nil))
             }
+            // The sheet already closed while the order was being confirmed: hand over the answer now.
+            if self.sheetClosed { self.deliver() }
         }
+    }
+
+    private func deliver() {
+        guard !delivered else { return }
+        delivered = true
+        finish?(outcome)
     }
 
     nonisolated func paymentAuthorizationControllerDidFinish(_ controller: PKPaymentAuthorizationController) {
         Task { @MainActor in
             controller.dismiss {
                 Task { @MainActor in
-                    self.finish?(self.outcome)
+                    self.sheetClosed = true
                     self.controller = nil
+                    // Paid but not yet answered: never treat it as "closed without paying". Show that it's being
+                    // confirmed, and finish when the answer comes.
+                    if self.authorized && self.outcome == nil { self.onWaiting?() } else { self.deliver() }
                 }
             }
         }
