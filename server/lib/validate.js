@@ -20,11 +20,18 @@ function address(a, who) {
   return { value: out };
 }
 
-export function validateOrder(body, cards) {
+/** Everything that can be checked without Handwrytten (Fable N9): checked first, so a bad order never reaches it.
+ *  The card itself is checked after, against the cards the picker shows. */
+export function validateOrder(body, cards = null) {
   const reference = clean(body?.reference, 64);
   if (!/^[A-Za-z0-9-]{8,64}$/.test(reference)) return { error: "Missing order reference" };
-  const card = cards.find((c) => c.id === Number(body?.cardId));
-  if (!card) return { error: "That card isn't available" };
+  const cardId = Number(body?.cardId);
+  if (!Number.isInteger(cardId) || cardId <= 0) return { error: "That card isn't available" };
+  let card = { id: cardId, characters: 1000 };
+  if (cards) {
+    card = cards.find((c) => c.id === cardId);
+    if (!card) return { error: "That card isn't available" };
+  }
   const message = clean(body?.message, 1000);
   if (!message) return { error: "The message is empty" };
   const wishes = clean(body?.wishes, 80);
