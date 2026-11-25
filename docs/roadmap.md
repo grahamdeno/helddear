@@ -145,11 +145,14 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
     [kind] card, mailed [date]", the message as its line, and the card's front as its picture; no row repeats the
     same words twice.
 - **Mailed card review decisions (Graham, Nov 25, 2026, Fable findings N1 to N11):** stuck or failed orders are
-  reported by Grok's daily order check, from the server's "ATTENTION mailed card order" log lines (no email service).
+  reported by Grok's daily order check, from the daily job's report and "ATTENTION mailed card order" log lines (no email
+  service).
   The test server keeps Handwrytten's key so its card list works; orders are locked to live payment keys in two places.
   The review screen names both names, both addresses and the Apple Pay payment. App Privacy keeps "Payment info: not
   collected" (Apple Pay's encrypted payment goes straight to Stripe; the server keeps only Stripe's card fingerprint
   for the daily limit). A 300-per-minute limit on card pictures (/_vercel/image) is approved.
+- **App Store listing approved (Graham, Nov 25, 2026):** docs/app-store-listing.md. Subtitle "Birthday and holiday
+  planner"; written after an independent review of what 1.0 does.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
