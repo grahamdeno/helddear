@@ -71,6 +71,10 @@ jobs:
             > ci-artifacts/build.log 2>&1 \
             || { grep -E "error:|failed|crash|Early unexpected exit|encountered an error|Terminating app|Fatal error" ci-artifacts/build.log | grep -v "CoreData: error" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done; tail -40 ci-artifacts/build.log; exit 1; }
           grep -E "Test Suite 'All tests'|Executed|\*\* TEST" ci-artifacts/build.log | tail -5
+          # Per-suite counts for the reviewed order code, so a review can see them by name (Fable re-check, Nov 25, 2026).
+          for s in SlowOrderTests MailedOrdersTests CardReasonTests; do
+            echo "$s: $(grep -c "Test Case '-\[HeldDearTests\.$s .*' passed" ci-artifacts/build.log) passed, $(grep -c "Test Case '-\[HeldDearTests\.$s .*' failed" ci-artifacts/build.log) failed"
+          done
 
       - name: Upload diagnostics
         if: always()
