@@ -97,12 +97,14 @@ enum MailedCards {
         var error: String?
         /// True when the server refunded this order; a new card then needs a new reference.
         var refunded: Bool?
+        /// True when the payment for this reference is still being confirmed (Fable N2).
+        var pending: Bool?
 
         init(orderId: String? = nil, mailing: String? = nil, error: String? = nil, refunded: Bool? = nil) {
             self.orderId = orderId; self.mailing = mailing; self.error = error; self.refunded = refunded
         }
 
-        enum CodingKeys: String, CodingKey { case orderId, mailing, error, refunded }
+        enum CodingKeys: String, CodingKey { case orderId, mailing, error, refunded, pending }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -111,6 +113,7 @@ enum MailedCards {
             mailing = try? c.decodeIfPresent(String.self, forKey: .mailing)
             error = try? c.decodeIfPresent(String.self, forKey: .error)
             refunded = try? c.decodeIfPresent(Bool.self, forKey: .refunded)
+            pending = try? c.decodeIfPresent(Bool.self, forKey: .pending)
         }
     }
 
@@ -121,23 +124,39 @@ enum MailedCards {
         var errorDescription: String? { message }
     }
 
-    /// Where one order stands on the server (M1, Nov 24, 2026).
-    enum Standing: Equatable { case none, charged(orderId: Int?), refunded, unknown }
+    /// Where one order stands on the server, from its own record (M1; Fable N1, Nov 25, 2026).
+    enum Standing: Equatable { case none, pending, charged(orderId: String?), refunded, attention, unknown }
 
-    /// The words for an order whose reply never came, from where the server says it stands. Plain rules, unit tested.
-    static func slowReplyOutcome(_ standing: Standing) -> Result<OrderResult, Failure> {
+    static let support = "support@tangomike.app"
+
+    /// The answer for an order whose reply never came, once the server's standing settles it; nil means keep checking.
+    /// "none" never starts a new reference: the first reply may still be on its way (Fable N1). Plain rules, unit tested.
+    static func settled(_ standing: Standing) -> Result<OrderResult, Failure>? {
         switch standing {
         case .charged(let id?):
-            return .success(OrderResult(orderId: String(id), mailing: "Mailing within 3 business days"))
-        case .charged(nil):
-            return .failure(Failure(message: "Your payment went through and the card is being placed. Check again in a minute; you won't be charged twice."))
+            return .success(OrderResult(orderId: id, mailing: "Mailing within 3 business days"))
         case .refunded:
             return .failure(Failure(message: "The card couldn't be placed, so the payment was refunded.", startOver: true))
-        case .none:
-            return .failure(Failure(message: "The order didn't go through. You weren't charged.", startOver: true))
-        case .unknown:
-            return .failure(Failure(message: "We couldn't confirm the order. Try again: you won't be charged twice for this card."))
+        case .attention:
+            return .failure(Failure(message: "Something went wrong after your payment. It's being handled, and you won't be charged for a card that isn't mailed. If you need help, write to \(support)."))
+        case .none, .pending, .charged(nil), .unknown:
+            return nil
         }
+    }
+
+    /// After about 90 seconds with no settled answer: say so plainly, keep the reference, and give the support address.
+    static func notConfirmed(reference: String) -> Failure {
+        Failure(message: "We couldn't confirm this order yet. You won't be charged twice for it. If you need help, write to \(support) and give reference \(reference.prefix(8)).")
+    }
+
+    /// Checks where the order stands every 10 seconds for about 90 seconds (Fable N1).
+    static func settle(reference: String, tries: Int = 9, every: Duration = .seconds(10),
+                       check: (String) async -> Standing = standing(reference:)) async -> Result<OrderResult, Failure> {
+        for attempt in 0..<tries {
+            if attempt > 0 { try? await Task.sleep(for: every) }
+            if let answer = settled(await check(reference)) { return answer }
+        }
+        return .failure(notConfirmed(reference: reference))
     }
 
     static func standing(reference: String) async -> Standing {
@@ -145,14 +164,16 @@ enum MailedCards {
         components.queryItems = [URLQueryItem(name: "reference", value: reference)]
         struct Reply: Decodable { var state: String; var orderId: String? }
         var request = URLRequest(url: components.url!)
-        request.timeoutInterval = 15
+        request.timeoutInterval = 10
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let reply = try? JSONDecoder().decode(Reply.self, from: data) else { return .unknown }
         switch reply.state {
         case "none": return .none
+        case "pending": return .pending
         case "refunded": return .refunded
-        case "charged": return .charged(orderId: reply.orderId.flatMap { Int($0) })
+        case "attention": return .attention
+        case "charged": return .charged(orderId: reply.orderId)
         default: return .unknown
         }
     }
@@ -201,19 +222,21 @@ enum MailedCards {
         do {
             reply = try await URLSession.shared.data(for: request)
         } catch {
-            // No reply (slow network, timeout): never guess. Ask the server where this order stands (M1).
-            return try slowReplyOutcome(await standing(reference: reference)).get()
+            // No reply (slow network, timeout): never guess. Ask the server where this order stands (M1, N1).
+            return try await settle(reference: reference).get()
         }
         let (data, response) = reply
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         if let result = try? JSONDecoder().decode(OrderResult.self, from: data) {
             if code == 200 { return result }
+            // Still being confirmed (a charge already under way for this reference): check, never charge again (N2).
+            if code == 409, result.pending == true { return try await settle(reference: reference).get() }
             // 402 and 400 mean nothing was charged; a refund means this reference is finished.
             let startOver = result.refunded == true || code == 402 || code == 400 || code == 429 || code == 503
             throw Failure(message: result.error ?? "Something went wrong.", startOver: startOver)
         }
         // A reply we can't read: ask the server rather than guess.
-        return try slowReplyOutcome(await standing(reference: reference)).get()
+        return try await settle(reference: reference).get()
     }
 }
 
