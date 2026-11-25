@@ -80,6 +80,8 @@ struct MailCardFlow: View {
         .animation(Motion.animation(.easeOut(duration: 0.22)), value: step)
         .task { await load() }
         .fullScreenCover(item: $viewing) { c in CardViewer(card: c) { card = c } }
+        // A new card means a new picture for the year; never keep the last card's.
+        .onChange(of: card) { _, _ in cover = nil }
     }
 
     // MARK: Steps
