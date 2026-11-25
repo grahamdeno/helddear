@@ -227,46 +227,30 @@ struct PhotoTile: View {
     }
 }
 
-/// The one-line input with a dictation button.
+/// The one-line input. Voice input is the keyboard's own microphone (Held Dear's dictation button was removed, Graham,
+/// Nov 25, 2026).
 struct LineField: View {
     var label: String
     @Binding var text: String
     var placeholder: String = ""
-    var showsDictation = true
     var onSubmit: () -> Void = {}
     @FocusState private var focused: Bool
-    @StateObject private var dictation = Dictation()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).font(TypeStyle.caption.font).foregroundStyle(Brand.inkMuted)
-            HStack(spacing: 10) {
-                TextField(placeholder, text: $text)
-                    .font(Brand.serif(22, relativeTo: .title3))
-                    .foregroundStyle(Brand.ink)
-                    .focused($focused)
-                    .submitLabel(.done)
-                    .onSubmit(onSubmit)
-                if showsDictation {
-                    Button {
-                        if dictation.isListening { dictation.stop() } else { focused = false; dictation.start { text = $0 } }
-                    } label: {
-                        Image(systemName: dictation.isListening ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Brand.onAction)
-                            .frame(width: 44, height: 44)
-                            .background(Brand.action, in: Circle())
-                    }
-                    .accessibilityLabel(dictation.isListening ? "Stop dictating" : "Dictate")
+            TextField(placeholder, text: $text)
+                .font(Brand.serif(22, relativeTo: .title3))
+                .foregroundStyle(Brand.ink)
+                .focused($focused)
+                .submitLabel(.done)
+                .onSubmit(onSubmit)
+                .padding(.horizontal, Brand.space4).padding(.vertical, 8)
+                .frame(minHeight: 60)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(focused ? Brand.action : Brand.line).frame(height: 1)
                 }
-            }
-            .padding(.leading, Brand.space4).padding(.trailing, 8).padding(.vertical, 8)
-            .frame(minHeight: 60)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(focused || dictation.isListening ? Brand.action : Brand.line).frame(height: 1)
-            }
-            .onTapGesture { focused = true }
+                .onTapGesture { focused = true }
         }
-        .onDisappear { dictation.stop() }
     }
 }
