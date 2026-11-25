@@ -154,7 +154,8 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 - **App Store listing approved (Graham, Nov 25, 2026):** docs/app-store-listing.md. Subtitle "Birthday and holiday
   planner"; written after an independent review of what 1.0 does.
 - **Mailed cards review (Nov 25, 2026):** Fable passed PR #152 at 42c15f8 (findings N1 to N11, re-check R1 to R5);
-  merged on Graham's go. Production still runs the old server until Graham's ship go for the redeploy.
+  merged on Graham's go. Server shipped to production at cd2602f on Graham's ship go, Nov 25, 2026
+  (dpl_9uTEnEPZj4vv3v4pySoXUG3acLTG); MAILED_CARDS stays unset, so cards answer "paused" until Graham's go.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
