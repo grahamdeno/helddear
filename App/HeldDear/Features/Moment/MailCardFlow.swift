@@ -42,6 +42,8 @@ struct MailCardFlow: View {
     @State private var recipient = MailAddress()
     /// The address came from Contacts, so there's nothing to keep (story 2.13: Contacts stay read only, never copied).
     @State private var fromContacts = false
+    /// The address was already kept for this person, so there's nothing to ask: edits are kept too (Graham, Nov 25, 2026).
+    @State private var savedOnPerson = false
     @State private var keepAddress = true
     @State private var sender = MailAddress.saved ?? MailAddress()
     /// A complete saved return address skips its step; the review screen has a link to change it (Graham, Nov 25, 2026).
@@ -307,16 +309,22 @@ struct MailCardFlow: View {
         FlowScreen(onClose: close) {
             Question(title: title, subtitle: subtitle, style: .title)
             AddressForm(address: address)
-            if isRecipient, !fromContacts, context.person != nil {
-                Toggle(isOn: $keepAddress) {
-                    Text("Keep this address for \(name) on this iPhone").textStyle(.body)
+            if isRecipient, context.person != nil {
+                if fromContacts {
+                    Text("From \(name)'s contact card.").textStyle(.caption, color: Brand.inkMuted)
+                } else if savedOnPerson {
+                    Text("Saved for \(name) on this iPhone. Changes here are saved too.").textStyle(.caption, color: Brand.inkMuted)
+                } else {
+                    Toggle(isOn: $keepAddress) {
+                        Text("Remember \(name)'s address for next time").textStyle(.body)
+                    }
+                    .tint(Brand.action)
                 }
-                .tint(Brand.action)
             }
         } footer: {
             PrimaryButton(title: "Next") {
                 if !isRecipient { MailAddress.saved = sender }
-                if isRecipient, !fromContacts, keepAddress, let person = context.person {
+                if isRecipient, !fromContacts, keepAddress || savedOnPerson, let person = context.person {
                     person.mailingAddress = recipient
                     try? person.managedObjectContext?.save()
                 }
@@ -431,6 +439,7 @@ struct MailCardFlow: View {
                 fromContacts = true
             } else if let saved = context.person?.mailingAddress {
                 recipient = saved
+                savedOnPerson = true
             }
             if recipient.firstName.isEmpty { recipient.firstName = name }
             // Stay on the how-it-works screen if it's showing; its button goes on to the cards.
