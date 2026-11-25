@@ -145,7 +145,7 @@ struct FamilyInFlow: View {
         FlowScreen(onClose: onClose) {
             Question(title: "Make \(name)'s page",
                      subtitle: "Family adds notes from the link, with no app or account. The page and its notes are deleted 30 days after the day.")
-            LineField(label: "Your name, as family knows you", text: $fromName, placeholder: "Your first name", showsDictation: false)
+            LineField(label: "Your name, as family knows you", text: $fromName, placeholder: "Your first name")
             LineField(label: "A line for family (optional)", text: $line, placeholder: "Write a note for \(name) by \(OccasionDates.shortDate(OccasionDates.adding(days: -1, to: moment.dueDate)))")
             if let error { Text(error).textStyle(.callout, color: Brand.error) }
         } footer: {

@@ -311,7 +311,7 @@ struct MailCardFlow: View {
                     }
                 Text("\(max(0, limit - message.count - wishes.count)) characters left").textStyle(.caption, color: Brand.inkMuted)
             }
-            LineField(label: "Signed", text: $wishes, placeholder: sender.firstName.isEmpty ? "Love, me" : "Love, \(sender.firstName)", showsDictation: false)
+            LineField(label: "Signed", text: $wishes, placeholder: sender.firstName.isEmpty ? "Love, me" : "Love, \(sender.firstName)")
         } footer: {
             PrimaryButton(title: "Next") { step = .recipient }
                 .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

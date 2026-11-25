@@ -283,7 +283,7 @@ struct PlanView: View {
         FlowScreen {
             TextLink(title: "‹ Add something") { screen = .add }
             Question(title: "What is it?", subtitle: "A name is enough. You can set the rest on the next screen.")
-            LineField(label: "Name", text: $newName, placeholder: "For example, Pajamas", showsDictation: true)
+            LineField(label: "Name", text: $newName, placeholder: "For example, Pajamas")
         } footer: {
             let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
             PrimaryButton(title: "Add") {
