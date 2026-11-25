@@ -278,6 +278,9 @@ struct PersonView: View {
                 .accessibilityLabel("Back to \(back)")
                 Spacer()
             }
+            // The floating back button sits over the photo; past xxxLarge it would cover the name and the days chip
+            // (walk run 5). VoiceOver still reads it in full.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .padding(.horizontal, Brand.space4)
             .transition(.opacity)
         }
@@ -454,7 +457,8 @@ struct PersonView: View {
                 Image(systemName: icon).font(.system(size: 18, weight: .regular)).foregroundStyle(Brand.action)
                     .frame(width: 48, height: 48)
                     .background(Brand.card, in: Circle())
-                Text(title).font(.caption.weight(.medium)).foregroundStyle(Brand.inkSoft).lineLimit(1).minimumScaleFactor(0.8)
+                Text(title).font(.caption.weight(.medium)).foregroundStyle(Brand.inkSoft).lineLimit(2).minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())

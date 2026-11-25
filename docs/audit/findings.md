@@ -76,3 +76,17 @@ way to typing a name (DENIED OK). The small phone (iPhone 17 Pro fallback) had 0
 | W-13 | 2 | Home, largest text | Coming up's header takes almost half the screen | The header stops growing at the first accessibility size |
 | W-4 | Pass | Setup, denied | Add someone opens the add form and a name can be typed | None |
 | W-2, W-3 | Re-check | Person, Details | Not reached: "Ada's page" wasn't tappable in the walk | Run 5 opens the person from Everyone |
+
+### Run 45531777017, Nov 24, 2026 (screenshots on walk-shots/45531777017-*)
+
+A person's page and Details were reached for the first time. W-12 is fixed (Everyone shows full dates and ages at the
+largest text) and the Home header keeps + Add and Everyone beside Coming up.
+
+| ID | Rating | Screen | Seen in the screenshot | Fix |
+|---|---|---|---|---|
+| W-14 | 3 | Person, largest text | The floating "< Everyone" button runs into the days chip and over the name | Both stop growing past xxxLarge; VoiceOver reads them in full |
+| W-15 | 3 | Person, largest text | "Choose who to ask" breaks mid-word ("Choos / e who") | The two buttons stack when they don't fit side by side |
+| W-16 | 2 | Person, largest text | "Share day" cut to "Share..." under its icon | Action names may use two lines |
+| W-2, W-3 | 2 | Person, Details | Audit flags contrast on "+ Add to Birthday", "1 day · inner ring reminders" and the small "days"; the colours measure 5.3:1 and up | Left as is; checked by eye in the screenshots |
+| B-1 | 3 | Mail a card (Graham, build 1055) | "Choose something else" did nothing when the card flow was opened from a plan | It closes the flow there |
+| B-2 | 2 | Mail a card (Graham, build 1055) | "Paused" in a test build gave no hint | Test builds say to turn on Test card server |
