@@ -140,7 +140,7 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   - **Story 3.3, find my orders later.** As a sender, I want each order kept on this iPhone so that I can find its
     number if I need help. Given a placed order, then You > Mailed cards lists who, which card, the date and the
     order number, with Copy; no addresses; test orders are marked and can be removed.
-  - **Story 3.4, the card on the person's year.** As a sender, I want a mailed card's year entry to say what it was
+  - **Story 3.4, the card on the person's year (proposed Nov 25, waiting for Graham).** As a sender, I want a mailed card's year entry to say what it was
     and show it so that the record means something later. Given a placed order, then the year shows "Handwritten
     [kind] card, mailed [date]", the message as its line, and the card's front as its picture; no row repeats the
     same words twice.
