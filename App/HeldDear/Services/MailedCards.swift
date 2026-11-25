@@ -84,11 +84,51 @@ enum MailedCards {
         var orderId: Int?
         var mailing: String?
         var error: String?
+        /// True when the server refunded this order; a new card then needs a new reference.
+        var refunded: Bool?
     }
 
     struct Failure: LocalizedError {
         var message: String
+        /// Whether the next try should use a new reference: only when nothing was charged, or it was refunded.
+        var startOver = false
         var errorDescription: String? { message }
+    }
+
+    /// Where one order stands on the server (M1, Nov 24, 2026).
+    enum Standing: Equatable { case none, charged(orderId: Int?), refunded, unknown }
+
+    /// The words for an order whose reply never came, from where the server says it stands. Plain rules, unit tested.
+    static func slowReplyOutcome(_ standing: Standing) -> Result<OrderResult, Failure> {
+        switch standing {
+        case .charged(let id?):
+            return .success(OrderResult(orderId: id, mailing: "Mailing within 3 business days"))
+        case .charged(nil):
+            return .failure(Failure(message: "Your payment went through and the card is being placed. Check again in a minute; you won't be charged twice."))
+        case .refunded:
+            return .failure(Failure(message: "The card couldn't be placed, so the payment was refunded.", startOver: true))
+        case .none:
+            return .failure(Failure(message: "The order didn't go through. You weren't charged.", startOver: true))
+        case .unknown:
+            return .failure(Failure(message: "We couldn't confirm the order. Try again: you won't be charged twice for this card."))
+        }
+    }
+
+    static func standing(reference: String) async -> Standing {
+        var components = URLComponents(url: baseURL.appendingPathComponent("api/order-status"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "reference", value: reference)]
+        struct Reply: Decodable { var state: String; var orderId: String? }
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 15
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let reply = try? JSONDecoder().decode(Reply.self, from: data) else { return .unknown }
+        switch reply.state {
+        case "none": return .none
+        case "refunded": return .refunded
+        case "charged": return .charged(orderId: reply.orderId.flatMap { Int($0) })
+        default: return .unknown
+        }
     }
 
     static var canPay: Bool { PKPaymentAuthorizationController.canMakePayments(usingNetworks: networks) }
@@ -123,13 +163,24 @@ enum MailedCards {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
-        request.timeoutInterval = 25
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let result = (try? JSONDecoder().decode(OrderResult.self, from: data)) ?? OrderResult(error: "Something went wrong. You weren't charged.")
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-            throw Failure(message: result.error ?? "Something went wrong. You weren't charged.")
+        request.timeoutInterval = 35
+        let reply: (Data, URLResponse)
+        do {
+            reply = try await URLSession.shared.data(for: request)
+        } catch {
+            // No reply (slow network, timeout): never guess. Ask the server where this order stands (M1).
+            return try slowReplyOutcome(await standing(reference: reference)).get()
         }
-        return result
+        let (data, response) = reply
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if let result = try? JSONDecoder().decode(OrderResult.self, from: data) {
+            if code == 200 { return result }
+            // 402 and 400 mean nothing was charged; a refund means this reference is finished.
+            let startOver = result.refunded == true || code == 402 || code == 400 || code == 503
+            throw Failure(message: result.error ?? "Something went wrong.", startOver: startOver)
+        }
+        // A reply we can't read: ask the server rather than guess.
+        return try slowReplyOutcome(await standing(reference: reference)).get()
     }
 }
 

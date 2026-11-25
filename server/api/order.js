@@ -1,10 +1,10 @@
 import { listCards, OCCASION_CATEGORY, placeOrder } from "../lib/handwrytten.js";
-import { charge, refund, tagOrder, tokenFromApplePay } from "../lib/stripe.js";
+import { charge, findByReference, markRefunded, refund, tagOrder, tokenFromApplePay } from "../lib/stripe.js";
 import { retailCents, validateOrder } from "../lib/validate.js";
 import { isTestMode } from "../lib/stripe.js";
 import { pausedReply } from "../lib/switches.js";
 
-const real = { listCards, placeOrder, charge, refund, tagOrder, tokenFromApplePay, isTestMode, pausedReply };
+const real = { listCards, placeOrder, charge, refund, tagOrder, tokenFromApplePay, isTestMode, pausedReply, findByReference, markRefunded };
 
 // POST /api/order: pay with Apple Pay, then (and only then) mail the card.
 // Names and addresses are used for this one order and never logged.
@@ -29,6 +29,21 @@ export async function handle(req, res, d) {
   if (checked.error) return res.status(400).json({ error: checked.error });
   const o = checked.value;
 
+  // A retry with the same reference never charges or mails twice (M1): if this order was already paid, answer with
+  // where it stands.
+  try {
+    const before = await d.findByReference(o.reference);
+    if (before.state === "charged" && before.orderId) {
+      return res.status(200).json({ orderId: Number(before.orderId) || before.orderId, mailing: "Mailing within 3 business days", repeat: true });
+    }
+    if (before.state === "refunded") {
+      return res.status(409).json({ error: "This order was refunded. Start a new card to try again.", refunded: true });
+    }
+  } catch (e) {
+    console.error("lookup failed:", e.message);
+    return res.status(502).json({ error: "Payments can't be checked right now. You weren't charged. Try again in a little while." });
+  }
+
   let payment;
   try {
     const token = await tokenFromApplePay(o.applePay);
@@ -49,10 +64,12 @@ export async function handle(req, res, d) {
   try {
     const orderId = await placeOrder({ ...o, cardId: o.card.id });
     await tagOrder(payment.id, String(orderId ?? "")).catch(() => {});
-    return res.status(200).json({ orderId, mailing: "Mailing within 2 business days" });
+    return res.status(200).json({ orderId, mailing: "Mailing within 3 business days" });
   } catch (e) {
     console.error("order failed:", e.message);
-    await refund(payment.id, o.reference).catch((r) => console.error("refund failed:", r.message));
-    return res.status(502).json({ error: "The card couldn't be placed, so the payment was refunded. Please try again later." });
+    await refund(payment.id, o.reference)
+      .then(() => d.markRefunded(payment.id).catch(() => {}))
+      .catch((r) => console.error("refund failed:", r.message));
+    return res.status(502).json({ error: "The card couldn't be placed, so the payment was refunded. Please try again later.", refunded: true });
   }
 }

@@ -48,6 +48,8 @@ function deps(over = {}) {
       placeOrder: async () => { calls.placed++; return 777; },
       isTestMode: () => false,
       pausedReply: () => null,
+      findByReference: async () => ({ state: "none" }),
+      markRefunded: async () => {},
       ...over,
     },
   };
@@ -86,4 +88,29 @@ test("a failed order is refunded", async () => {
   await handle({ method: "POST", body }, res, d);
   assert.equal(res.code, 502);
   assert.equal(calls.refunded, 1);
+});
+
+test("M1: a retry of a paid order returns it without charging or mailing again", async () => {
+  const { d, calls } = deps({ findByReference: async () => ({ state: "charged", orderId: "777" }) });
+  const res = fakeRes();
+  await handle({ method: "POST", body }, res, d);
+  assert.equal(res.code, 200);
+  assert.equal(res.json.repeat, true);
+  assert.equal(calls.charged + calls.placed, 0);
+});
+
+test("M1: a refunded reference can't be charged again", async () => {
+  const { d, calls } = deps({ findByReference: async () => ({ state: "refunded" }) });
+  const res = fakeRes();
+  await handle({ method: "POST", body }, res, d);
+  assert.equal(res.code, 409);
+  assert.equal(calls.charged, 0);
+});
+
+test("M1: if payments can't be checked, nothing is charged", async () => {
+  const { d, calls } = deps({ findByReference: async () => { throw new Error("down"); } });
+  const res = fakeRes();
+  await handle({ method: "POST", body }, res, d);
+  assert.equal(res.code, 502);
+  assert.equal(calls.charged, 0);
 });
