@@ -307,6 +307,10 @@ budgets, group gifts from several givers.
 
 ## Small follow-ups
 
+- **Flaky store test (Nov 25, 2026):** DataFoundationTests.testS3_aFailedCopyLeavesNothingAndIsTriedAgain compares the
+  old store's file bytes; SQLite sometimes rewrites the header, so it failed once on PR #155 and passed on a rerun.
+  Compare the old store's rows instead. Store tests are always reviewed (Fable).
+
 - **L1 (Fable, low, Nov 25, 2026):** a Stripe 400 with type invalid_request_error should read as declined
   (server/api/order.js, the charge catch). Today it reads as "still being confirmed" and the daily check settles it.
 - **L2 (Fable, low):** the daily report sits at a fixed public path, reports/<mode>/order-check.json
