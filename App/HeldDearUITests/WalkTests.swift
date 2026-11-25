@@ -39,7 +39,7 @@ final class WalkTests: XCTestCase {
     @discardableResult
     private func tap(_ label: String, screen: String) -> Bool {
         let match = NSPredicate(format: "label == %@ OR label BEGINSWITH %@", label, label + ",")
-        for attempt in 0..<2 {
+        for attempt in 0..<4 {
             for query in [app.buttons, app.cells, app.staticTexts, app.otherElements] {
                 let el = query.matching(match).firstMatch
                 if el.waitForExistence(timeout: attempt == 0 ? 3 : 1) && el.isHittable {
@@ -74,10 +74,8 @@ final class WalkTests: XCTestCase {
 
         // A name on the line only features that person; the big name then opens the page.
         _ = tap("Ada", screen: "Person")
-        let big = app.buttons.matching(NSPredicate(format: "label == %@", "Ada")).allElementsBoundByIndex
-            .filter { $0.isHittable }.max { $0.frame.height < $1.frame.height }
-        big?.tap()
-        if big != nil {
+        // The face and name open the page; VoiceOver calls that button "Ada's page".
+        if tap("Ada's page", screen: "Person") {
             record("Person")
             app.swipeUp()
             record("Person, Details")
@@ -85,8 +83,15 @@ final class WalkTests: XCTestCase {
             back()
         }
 
-        if tap("People", screen: "People") {
+        if tap("Everyone", screen: "People") {
             record("People")
+            // A row in Everyone opens the person's page.
+            if tap("Ada", screen: "Person from Everyone") {
+                record("Person")
+                app.swipeUp()
+                record("Person, Details")
+                back()
+            }
             if tap("Finds", screen: "Finds") { record("Finds") }
             back()
         }
@@ -111,6 +116,8 @@ final class WalkTests: XCTestCase {
         if tap("Add someone", screen: "Add by hand") {
             record("After denied, add someone")
             _ = tap("Not now", screen: "Alerts step")
+            let ok = app.alerts.buttons["OK"]
+            if ok.waitForExistence(timeout: 3) { ok.tap() }
             sleep(1)
             record("Add by hand")
             let field = app.textFields.firstMatch

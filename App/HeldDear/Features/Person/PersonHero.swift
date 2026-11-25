@@ -108,6 +108,7 @@ struct PersonHero: View {
                     .padding(.horizontal, 12).padding(.vertical, 7)
                     .background(Color.black.opacity(0.72), in: Capsule())
                     .padding(.top, 62).padding(.trailing, Brand.space4)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .accessibilityHidden(true)
             }
         }

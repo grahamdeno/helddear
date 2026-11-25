@@ -6,6 +6,13 @@ struct RingsView: View {
     @EnvironmentObject var model: AppModel
     @State private var sheetPerson: Person?
     @State private var addingFromContacts = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// At the largest text sizes rows stack instead of squeezing, and nothing is cut short (walk run 4, Nov 24, 2026).
+    private var big: Bool { typeSize.isAccessibilitySize }
+    private var rowLayout: AnyLayout {
+        big ? AnyLayout(VStackLayout(alignment: .leading, spacing: Brand.space2))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: Brand.space4))
+    }
 
     var body: some View {
         let _ = model.revision
@@ -68,11 +75,11 @@ struct RingsView: View {
             HStack(spacing: Brand.space4) {
                 Text(String(Calendar.current.component(.day, from: date)))
                     .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
-                    .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
+                    .foregroundStyle(Brand.ink).frame(width: big ? nil : 46, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(ref.label).textStyle(.bodyStrong).lineLimit(2)
+                    Text(ref.label).textStyle(.bodyStrong).lineLimit(big ? nil : 2)
                     Text("\(date.formatted(.dateTime.month(.abbreviated).day())) · \(people) \(people == 1 ? "person" : "people")")
-                        .textStyle(.caption, color: Brand.inkMuted).lineLimit(2)
+                        .textStyle(.caption, color: Brand.inkMuted).lineLimit(big ? nil : 2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(Brand.inkMuted)
@@ -94,15 +101,15 @@ struct RingsView: View {
     }
 
     private func personRow(_ p: Person, next: Moment?) -> some View {
-        HStack(alignment: .center, spacing: Brand.space4) {
+        rowLayout {
             NavigationLink(value: Nav.person(p.id, focus: nil)) {
-                HStack(spacing: Brand.space4) {
+                rowLayout {
                     Text(next.map { String(Calendar.current.component(.day, from: $0.dueDate)) } ?? "–")
                         .font(Brand.display(32, relativeTo: .title2)).monospacedDigit()
-                        .foregroundStyle(Brand.ink).frame(width: 46, alignment: .leading)
+                        .foregroundStyle(Brand.ink).frame(width: big ? nil : 46, alignment: .leading)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(p.name).textStyle(.bodyStrong).lineLimit(2)
-                        Text(caption(next)).textStyle(.caption, color: Brand.inkMuted).lineLimit(2)
+                        Text(p.name).textStyle(.bodyStrong).lineLimit(big ? nil : 2)
+                        Text(caption(next)).textStyle(.caption, color: Brand.inkMuted).lineLimit(big ? nil : 2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

@@ -445,11 +445,18 @@ struct HorizonBand: View {
     @ViewBuilder private var headerTitle: some View {
         HStack {
             Text("Coming up").textStyle(.eyebrow)
-            if let season = seasons.first(where: { OccasionDates.daysBetween(now, $0.monthStart) <= 56 }) {
-                Button { model.route = .season(season.monthStart) } label: {
-                    Text("· \(season.monthStart.formatted(.dateTime.month(.wide))) is busy").textStyle(.eyebrow, color: Brand.action)
-                        .frame(minHeight: 44)
-                }
+            busyLink(dot: true)
+        }
+    }
+
+    private var busySeason: Season? { seasons.first(where: { OccasionDates.daysBetween(now, $0.monthStart) <= 56 }) }
+
+    /// "January is busy", when a busy month is near.
+    @ViewBuilder private func busyLink(dot: Bool) -> some View {
+        if let season = busySeason {
+            Button { model.route = .season(season.monthStart) } label: {
+                Text("\(dot ? "· " : "")\(season.monthStart.formatted(.dateTime.month(.wide))) is busy").textStyle(.eyebrow, color: Brand.action)
+                    .frame(minHeight: 44)
             }
         }
     }
@@ -491,6 +498,12 @@ struct HorizonBand: View {
             // short (UX-14, Nov 24, 2026). Same links, same order.
             ViewThatFits(in: .horizontal) {
                 HStack { headerTitle; Spacer(); headerLinks }
+                // A busy month is the first thing to move: + Add and Everyone stay beside Coming up, and the busy
+                // month goes on its own line under them (Graham, build 1055).
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack { Text("Coming up").textStyle(.eyebrow); Spacer(); headerLinks }
+                    busyLink(dot: false)
+                }
                 VStack(alignment: .leading, spacing: 0) {
                     headerTitle
                     HStack { headerLinks; Spacer() }
@@ -501,6 +514,9 @@ struct HorizonBand: View {
                     VStack(alignment: .leading, spacing: 0) { headerLinks }
                 }
             }
+            // Past the first accessibility size the header would take half the screen from the person above it
+            // (walk run 4). Still well above the default size.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             .padding(.horizontal, Brand.space5)
             .padding(.top, Brand.space2)
 
@@ -782,8 +798,20 @@ private struct ShrinkHeightKey: PreferenceKey {
 struct ShrinkToFit<Content: View>: View {
     @ViewBuilder var content: Content
     @State private var natural: CGFloat = 0
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        if typeSize.isAccessibilitySize {
+            // At the largest text sizes the page scrolls instead of shrinking, so text stays the size the person chose
+            // (walk run 3, Nov 24, 2026). Every other size keeps Home on one screen, as approved for build 1026.
+            ScrollView(.vertical) { content.frame(maxWidth: .infinity) }
+                .scrollBounceBehavior(.basedOnSize)
+        } else {
+            shrunk
+        }
+    }
+
+    private var shrunk: some View {
         GeometryReader { geo in
             let scale = natural > 0 ? min(1, geo.size.height / natural) : 1
             content
@@ -902,7 +930,8 @@ struct FeaturedSlots<MainButton: View, LinkLine: View>: View {
                     .accessibilityHidden(true)
                 }
                 if !status.isEmpty {
-                    Text(status).textStyle(.callout, color: Brand.inkSoft).lineLimit(3).minimumScaleFactor(0.85)
+                    Text(status).textStyle(.callout, color: Brand.inkSoft)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 3).minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

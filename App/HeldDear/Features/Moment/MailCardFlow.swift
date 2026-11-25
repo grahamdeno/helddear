@@ -18,7 +18,8 @@ struct MailContext {
 struct MailCardFlow: View {
     @EnvironmentObject var model: AppModel
     let context: MailContext
-    var go: (MomentStep) -> Void = { _ in }
+    /// Back to the day's other choices, when the flow was opened from them; otherwise "Choose something else" closes.
+    var go: ((MomentStep) -> Void)? = nil
     var close: () -> Void
 
     enum Step: Equatable { case intro, loading, pick, message, recipient, sender, review, done(String), failed(String) }
@@ -351,7 +352,8 @@ struct MailCardFlow: View {
             Question(title: "That didn't go through", subtitle: why)
         } footer: {
             PrimaryButton(title: "Try again") { step = catalog == nil ? .loading : .review; if catalog == nil { Task { await load() } } }
-            TextLink(title: "Choose something else") { go(.choose) }
+            // Opened from a plan or a reason there is no choice screen to go back to, so it closes (build 1055).
+            TextLink(title: "Choose something else") { if let go { go(.choose) } else { close() } }
         }
     }
 

@@ -146,7 +146,10 @@ enum MailedCards {
         let (data, response) = try await URLSession.shared.data(from: components.url!)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         if code == 503 {
-            throw Failure(message: "Mailed cards are paused right now. Please try again later.")
+            // TestFlight builds say how to reach the test server (build 1055: the switch was off).
+            throw Failure(message: AppFeatures.testFlightTools && !usesTestServer
+                ? "Mailed cards are paused on the live server. To try them with test payments, turn on You > TestFlight only > Test card server."
+                : "Mailed cards are paused right now. Please try again later.")
         }
         guard code == 200 else {
             throw Failure(message: "Cards are unavailable right now. Try again in a little while.")
@@ -187,7 +190,7 @@ enum MailedCards {
         if let result = try? JSONDecoder().decode(OrderResult.self, from: data) {
             if code == 200 { return result }
             // 402 and 400 mean nothing was charged; a refund means this reference is finished.
-            let startOver = result.refunded == true || code == 402 || code == 400 || code == 503
+            let startOver = result.refunded == true || code == 402 || code == 400 || code == 429 || code == 503
             throw Failure(message: result.error ?? "Something went wrong.", startOver: startOver)
         }
         // A reply we can't read: ask the server rather than guess.

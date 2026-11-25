@@ -1,10 +1,11 @@
 import { listCards, OCCASION_CATEGORY, placeOrder } from "../lib/handwrytten.js";
-import { charge, findByReference, markRefunded, refund, tagOrder, tokenFromApplePay } from "../lib/stripe.js";
+import { cardsToday, charge, findByReference, markRefunded, refund, tagOrder, tokenFromApplePay } from "../lib/stripe.js";
+import { overDailyLimit, readsAsThreat } from "../lib/limits.js";
 import { retailCents, validateOrder } from "../lib/validate.js";
 import { isTestMode } from "../lib/stripe.js";
 import { pausedReply } from "../lib/switches.js";
 
-const real = { listCards, placeOrder, charge, refund, tagOrder, tokenFromApplePay, isTestMode, pausedReply, findByReference, markRefunded };
+const real = { listCards, placeOrder, charge, refund, tagOrder, tokenFromApplePay, isTestMode, pausedReply, findByReference, markRefunded, cardsToday };
 
 // POST /api/order: pay with Apple Pay, then (and only then) mail the card.
 // Names and addresses are used for this one order and never logged.
@@ -29,6 +30,11 @@ export async function handle(req, res, d) {
   if (checked.error) return res.status(400).json({ error: checked.error });
   const o = checked.value;
 
+  // Before anything else: a message that reads as a threat is never mailed (M8).
+  if (readsAsThreat(o.message, o.wishes)) {
+    return res.status(400).json({ error: "This message can't be mailed. Please change it and try again. You weren't charged." });
+  }
+
   // A retry with the same reference never charges or mails twice (M1): if this order was already paid, answer with
   // where it stands.
   try {
@@ -47,8 +53,12 @@ export async function handle(req, res, d) {
   let payment;
   try {
     const token = await tokenFromApplePay(o.applePay);
+    const cardPrint = token.card?.fingerprint ?? null;
+    if (overDailyLimit(await d.cardsToday(cardPrint))) {
+      return res.status(429).json({ error: "That's the most cards one payment card can send in a day. Try again tomorrow. You weren't charged." });
+    }
     payment = await charge({ tokenId: token.id, amount: retailCents(), reference: o.reference,
-                             description: `Held Dear mailed card ${o.card.id}` });
+                             description: `Held Dear mailed card ${o.card.id}`, cardPrint });
   } catch (e) {
     console.error("payment failed:", e.code ?? "", e.message);
     return res.status(402).json({ error: "The payment didn't go through. You weren't charged." });
