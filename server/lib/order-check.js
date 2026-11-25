@@ -1,22 +1,39 @@
-// The daily check (Fable N3, N4): paid orders with no order number and no refund after 10 minutes, started charges
-// that never resolved, and anything marked for attention. Logs one line per order with a short hash of its reference,
-// never names, addresses or the message, and returns the list for the cron's reply.
+// The daily check (Fable N3, N4, R4): paid orders with no order number and no refund after 10 minutes, started charges
+// that never resolved, and anything marked for attention. Each is settled from Stripe where it can be:
+//  - a started charge Stripe never took becomes declined;
+//  - a payment refunded in Stripe, or marked by a person in Stripe's dashboard with the metadata
+//    held_dear_resolved = mailed or refunded, becomes resolved;
+//  - a payment Stripe shows with a Handwrytten order number becomes resolved, mailed.
+// What's left is listed in the cron's reply and logged, one line each, by a short hash and Stripe's payment id:
+// never names, addresses or the message.
 import { needsAttention } from "./orders.js";
 
-export async function checkOrders(orders, searchByReference, now = Date.now()) {
+export async function checkOrders(orders, stripe, now = Date.now()) {
   const rows = needsAttention(await orders.all(), now);
-  const out = [];
+  const open = [];
+  const settled = [];
   for (const r of rows) {
-    let state = r.state;
-    if (state === "started" && !r.paymentId && searchByReference && r.reference) {
-      // A charge that never confirmed: by now Stripe's search has caught up.
-      try {
-        const s = await searchByReference(r.reference);
-        state = s.state === "none" ? "declined" : `started, Stripe says ${s.state}`;
-      } catch { /* leave it for a person */ }
+    try {
+      if (r.state === "started" && !r.paymentId) {
+        const s = await stripe.searchByReference(r.reference);
+        if (s.state === "none") { await orders.rewrite(r, { state: "declined" }); settled.push({ ref: r.ref, to: "declined" }); continue; }
+        await orders.rewrite(r, { state: "attention", why: `charge found by search: ${s.state}`, paymentId: s.paymentId ?? null });
+        r.paymentId = s.paymentId ?? null;
+        r.why = `charge found by search: ${s.state}`;
+      } else if (r.paymentId) {
+        const p = await stripe.paymentStanding(r.paymentId);
+        const resolution = p.resolved ?? (p.refunded ? "refunded" : p.orderNumber ? "mailed" : null);
+        if (resolution) {
+          await orders.rewrite(r, { state: "resolved", resolution, orderNumber: p.orderNumber ?? r.orderNumber ?? null });
+          settled.push({ ref: r.ref, to: `resolved, ${resolution}` });
+          continue;
+        }
+      }
+    } catch (e) {
+      r.why = `${r.why ?? ""} (check failed: ${e.message})`.trim();
     }
-    out.push({ ref: r.ref, state, why: r.why ?? null, updated: r.updated ?? r.created });
-    console.error("ATTENTION mailed card order:", r.ref, state, r.why ?? "");
+    open.push({ ref: r.ref, state: r.state, paymentId: r.paymentId ?? null, why: r.why ?? null, updated: r.updated ?? r.created });
+    console.error("ATTENTION mailed card order:", r.ref, r.state, r.paymentId ?? "", r.why ?? "");
   }
-  return out;
+  return { open, settled };
 }

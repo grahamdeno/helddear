@@ -100,6 +100,24 @@ export async function searchByReference(reference) {
   return { state: "charged", paymentId: pi.id, orderId: pi.metadata?.handwrytten_order_id || null };
 }
 
+/** One payment, with its charge, for the daily check (Fable R4): has it been refunded, or marked resolved by a person in
+ *  Stripe's dashboard (metadata held_dear_resolved = mailed or refunded)? */
+export async function paymentStanding(paymentIntentId) {
+  const id = String(paymentIntentId).replace(/[^A-Za-z0-9_]/g, "");
+  const r = await fetch(`${BASE}/payment_intents/${id}?expand[]=latest_charge`, {
+    headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY ?? ""}` },
+    signal: AbortSignal.timeout(LIMITS.other),
+  });
+  const pi = await r.json();
+  if (!r.ok) throw new Error(`Stripe ${r.status}`);
+  const charge = pi.latest_charge && typeof pi.latest_charge === "object" ? pi.latest_charge : null;
+  return {
+    refunded: Boolean(charge?.refunded) || pi.metadata?.refunded === "yes",
+    resolved: ["mailed", "refunded"].includes(pi.metadata?.held_dear_resolved) ? pi.metadata.held_dear_resolved : null,
+    orderNumber: pi.metadata?.handwrytten_order_id || null,
+  };
+}
+
 export function markRefunded(paymentIntentId) {
   return stripe(`/payment_intents/${paymentIntentId}`, { metadata: { refunded: "yes" } });
 }

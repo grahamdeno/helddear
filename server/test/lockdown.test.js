@@ -206,3 +206,41 @@ test("N7: no fingerprint, no charge", async () => {
   assert.equal(res.code, 402);
   assert.equal(calls.charged, 0);
 });
+
+test("R1: only a card error is declined; Stripe trouble keeps the order at started", async () => {
+  for (const e of [{ status: 500 }, { status: 503, type: "api_error" }, { message: "fetch failed" }, { status: 200, type: undefined }]) {
+    const { res, rec, calls } = await run({ charge: async () => { throw Object.assign(new Error("x"), e); } });
+    assert.equal(res.code, 409, JSON.stringify(e));
+    assert.equal(res.json.pending, true);
+    assert.equal(rec.state, "started");
+    assert.equal(calls.placed, 0);
+  }
+  const refused = await run({ charge: async () => { throw Object.assign(new Error("x"), { type: "card_error" }); } });
+  assert.equal(refused.res.code, 402);
+  assert.equal(refused.rec.state, "declined");
+});
+
+test("R1: a payment still processing is pending, not declined", async () => {
+  const { res, rec } = await run({ charge: async () => ({ id: "pi_1", status: "processing" }) });
+  assert.equal(res.code, 409);
+  assert.equal(rec.state, "started");
+});
+
+test("R2: already paid and the card can't be checked now: refunded, never left charged", async () => {
+  const { res, calls, rec } = await run({ pickerCards: async () => [{ id: 555, name: "Other", characters: 300 }] },
+                                        { state: "charged", paymentId: "pi_1" });
+  assert.equal(calls.refunded, 1);
+  assert.equal(calls.charged + calls.placed, 0);
+  assert.equal(res.json.refunded, true);
+  assert.equal(rec.state, "refunded");
+});
+
+test("R4: a resolved order isn't charged or mailed again", async () => {
+  const mailed = await run({}, { state: "resolved", resolution: "mailed", orderNumber: "777" });
+  assert.equal(mailed.res.code, 200);
+  assert.equal(mailed.res.json.orderId, "777");
+  const refunded = await run({}, { state: "resolved", resolution: "refunded" });
+  assert.equal(refunded.res.code, 409);
+  assert.equal(refunded.res.json.refunded, true);
+  for (const x of [mailed, refunded]) assert.equal(x.calls.charged + x.calls.placed + x.calls.tokens, 0);
+});
