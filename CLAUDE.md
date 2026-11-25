@@ -25,6 +25,7 @@ Anything below uploads a build or changes something live. Check this list before
 | Running `cloudkit-schema-test.yml` by hand | Changes the test container's (`iCloud.com.grahamdeno.helddear.schematest`) Development schema only; it refuses any other environment and the real container | Graham's go |
 | Deploying `server/` to the Vercel project helddear-mail (production, helddear-mail.vercel.app) | Changes the live server for mailed cards and family pages | Ship |
 | Merge to `main` touching `server/**` | Does not deploy on its own (checked Nov 21, 2026: PRs #11 to #29 merged with no new Vercel deployment). Deploying is a separate redeploy of helddear-mail | Ship (for the redeploy) |
+| Deploying a preview of helddear-mail from the `card-test` branch | The test copy of the server (helddear-mail-git-card-test-ground-truth7.vercel.app): Stripe test keys, nothing is ever mailed. Production is untouched | None (test only) |
 | Merge to `main` touching `site/**` or `.github/workflows/site.yml` | `site.yml` publishes helddear.tangomike.app (Cloudflare Pages project helddear-site): home, privacy, support | Graham's go for that change (first publish approved Nov 24, 2026) |
 | Changing helddear-mail environment variables (Handwrytten, Stripe, Blob keys; the switches `MAILED_CARDS=open` and `FAMILY_PAGES=on`, both off unless set) | Changes live secrets | Graham's go (secrets) |
 
@@ -88,8 +89,9 @@ SKU helddear001. iOS 26, iPhone only.
 ## Product rules that the code must keep
 - One decision or one tap per flow screen. Home and Person are browse screens.
 - Data stays on the phone. No network, analytics or third-party SDKs. Contacts read only, calendar write only.
-  **1.0 is server-free (plan B, Nov 24, 2026):** mailed cards and family pages are off until 1.1; the guard fails if
-  a build turns them on. The two server exceptions below apply from 1.1.
+  **1.0 (Nov 24, 2026):** mailed cards are back in, behind Fable's Dec 3 gate (if it isn't passed, remove
+  HELDDEAR_MAILED_CARDS from project.yml and testflight.yml and ship without them). Family pages stay off until 1.1;
+  the guard fails if a build turns them on.
   One exception (Nov 12, 2026): mailed cards. Only `Services/MailedCards.swift` talks to Held Dear's server
   (`server/`, Vercel project helddear-mail) at checkout. The server holds the Handwrytten and Stripe keys and
   places an order only after Stripe confirms the Apple Pay payment. `scripts/privacy_guard.py` enforces this in CI.
