@@ -215,7 +215,7 @@ struct MailCardFlow: View {
             ForEach(list) { c in
                 Button { card = c } label: {
                     VStack(spacing: 6) {
-                        AsyncImage(url: c.cover) { image in
+                        AsyncImage(url: c.safeCover) { image in
                             image.resizable().scaledToFit()
                         } placeholder: {
                             RoundedRectangle(cornerRadius: Brand.radiusSm).fill(Brand.faceFills[0]).overlay(ProgressView())
@@ -292,7 +292,7 @@ struct MailCardFlow: View {
             Card {
                 if let card {
                     HStack(spacing: 14) {
-                        AsyncImage(url: card.cover) { $0.resizable().scaledToFit() } placeholder: { Brand.faceFills[0] }
+                        AsyncImage(url: card.safeCover) { $0.resizable().scaledToFit() } placeholder: { Brand.faceFills[0] }
                             .frame(width: 64, height: 88)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         VStack(alignment: .leading, spacing: 4) {

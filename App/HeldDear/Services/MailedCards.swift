@@ -2,9 +2,10 @@ import Foundation
 import PassKit
 import SwiftUI
 
-// Mailed cards: the one place Held Dear talks to a server, and only when the user checks out.
-// The server (helddear-mail on Vercel) holds the Handwrytten and Stripe keys; the app never has them.
-// Sent for one order only: the chosen card, the message, the recipient's and the user's mailing
+// Mailed cards: Held Dear talks to its own server (helddear-mail on Vercel) only inside the mailed-card flow: to list
+// the cards and their pictures when the flow opens, and to place the order at checkout. Card pictures come through the
+// same server, never from Handwrytten directly (M6, Nov 24, 2026). The server holds the Handwrytten and Stripe keys; the
+// app never has them. Sent for one order only: the chosen card, the message, the recipient's and the user's mailing
 // addresses, and the Apple Pay payment token. Nothing else about the user's people leaves the phone.
 
 struct MailCard: Codable, Identifiable, Hashable {
@@ -15,6 +16,16 @@ struct MailCard: Codable, Identifiable, Hashable {
     var characters: Int
     /// Handwrytten's short description, for search (servers before Nov 22, 2026 don't send it).
     var description: String? = nil
+
+    /// The picture's address, only if it's on Held Dear's own server (M6). A path is resolved against the server; any
+    /// other host (an older server sent Handwrytten's) gives nil, so the picker shows a plain fill instead.
+    var safeCover: URL? { MailCard.onServer(cover) }
+    var safeInside: URL? { inside.flatMap(MailCard.onServer) }
+
+    static func onServer(_ url: URL) -> URL? {
+        if url.host == nil { return URL(string: url.relativeString, relativeTo: MailedCards.baseURL)?.absoluteURL }
+        return url.host == MailedCards.baseURL.host ? url : nil
+    }
 }
 
 struct MailAddress: Codable, Equatable {

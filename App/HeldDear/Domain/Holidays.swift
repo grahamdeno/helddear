@@ -155,8 +155,8 @@ enum PlanLimit {
 /// Features that talk to Held Dear's server. Switches are set when the app is built, never from the server (R4).
 enum AppFeatures {
     /// Mailed cards are off in 1.0 (Graham, Nov 24, 2026, plan B: back in 1.1 once the server review's fixes are
-    /// shipped). They come back only in builds made with HELDDEAR_MAILED_CARDS. Only MailedCards.swift talks to the
-    /// server, at checkout.
+    /// shipped). They come back only in builds made with HELDDEAR_MAILED_CARDS. Only the mailed-card flow talks to the
+    /// server: to list cards and their pictures when it opens, and to place the order at checkout.
     #if HELDDEAR_MAILED_CARDS
     static let mailedCards = true
     #else
