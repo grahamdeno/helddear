@@ -4,9 +4,8 @@ import SwiftUI
 
 /// UX-10, UX-12 and the 1.0 privacy line (Nov 24, 2026).
 final class UXFollowUpTests: XCTestCase {
-    func testPrivacyLineNamesNoServerIn1_0() {
-        XCTAssertTrue(AppFeatures.privacyLine.contains("no account and no server"))
-        XCTAssertFalse(AppFeatures.privacyLine.contains("mail"))
+    func testPrivacyLineMatchesTheBuild() {
+        XCTAssertEqual(AppFeatures.privacyLine.contains("mail"), AppFeatures.mailedCards)
     }
 
     func testMotionKeepsAnimationWhenReduceMotionIsOff() throws {

@@ -24,7 +24,7 @@ struct MailCard: Codable, Identifiable, Hashable {
 
     static func onServer(_ url: URL) -> URL? {
         if url.host == nil { return URL(string: url.relativeString, relativeTo: MailedCards.baseURL)?.absoluteURL }
-        return url.host == MailedCards.baseURL.host ? url : nil
+        return [MailedCards.liveURL.host, MailedCards.testURL.host].contains(url.host) ? url : nil
     }
 }
 
@@ -59,7 +59,12 @@ struct MailAddress: Codable, Equatable {
 }
 
 enum MailedCards {
-    static let baseURL = URL(string: "https://helddear-mail.vercel.app")!
+    static let liveURL = URL(string: "https://helddear-mail.vercel.app")!
+    /// The test copy of the server: Stripe test keys, nothing is ever mailed. Only TestFlight builds can choose it.
+    static let testURL = URL(string: "https://helddear-mail-git-card-test-ground-truth7.vercel.app")!
+    static let testServerKey = "useTestCardServer"
+    static var usesTestServer: Bool { AppFeatures.testFlightTools && UserDefaults.standard.bool(forKey: testServerKey) }
+    static var baseURL: URL { usesTestServer ? testURL : liveURL }
     static let merchantID = "merchant.com.grahamdeno.helddear"
     static let networks: [PKPaymentNetwork] = [.visa, .masterCard, .amex, .discover]
 
@@ -73,6 +78,8 @@ enum MailedCards {
         /// (Nov 22, 2026). Servers before then don't send them; the picker then shows the list as before.
         var sections: [Section]?
         var own: String?
+        /// The last day to order for Christmas, "2026-12-13" (servers before Nov 24, 2026 don't send it).
+        var christmasOrderBy: String?
     }
 
     struct Section: Decodable, Hashable {
@@ -137,7 +144,11 @@ enum MailedCards {
         var components = URLComponents(url: baseURL.appendingPathComponent("api/cards"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "occasion", value: occasion)]
         let (data, response) = try await URLSession.shared.data(from: components.url!)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 503 {
+            throw Failure(message: "Mailed cards are paused right now. Please try again later.")
+        }
+        guard code == 200 else {
             throw Failure(message: "Cards are unavailable right now. Try again in a little while.")
         }
         return try JSONDecoder().decode(Catalog.self, from: data)

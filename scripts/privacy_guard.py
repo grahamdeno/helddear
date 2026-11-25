@@ -43,6 +43,8 @@ PREVIEW_ALLOWED = {"App/HeldDear/Services/LinkPreviews.swift"}
 CONTACT_WRITE_ALLOWED = {"App/HeldDear/Services/ContactWriteBack.swift"}
 NETWORK_RULES = {"network request"}
 ALLOWED_HOST = "helddear-mail.vercel.app"
+# The test copy of the same server (Stripe test keys, nothing mailed), reachable only from TestFlight builds.
+TEST_HOST = "helddear-mail-git-card-test-ground-truth7.vercel.app"
 
 
 def scan(text, name="<text>"):
@@ -64,7 +66,7 @@ def scan(text, name="<text>"):
                 hits.append(f"{name}:{i}: {why}: {stripped}")
         if name in NETWORK_ALLOWED:
             for host in re.findall(r"https?://([A-Za-z0-9.-]+)", line):
-                if host != ALLOWED_HOST:
+                if host not in (ALLOWED_HOST, TEST_HOST):
                     hits.append(f"{name}:{i}: network to a host other than {ALLOWED_HOST}: {stripped}")
     return hits
 
@@ -114,12 +116,13 @@ def schema_test_hits(swift_files, project_yml):
     return hits
 
 
-SERVER_FLAGS = ("HELDDEAR_MAILED_CARDS", "HELDDEAR_FAMILY_PAGES")
+# Mailed cards came back into 1.0 (Graham, Nov 24, 2026, behind Fable's Dec 3 gate); family pages stay off until 1.1.
+SERVER_FLAGS = ("HELDDEAR_FAMILY_PAGES",)
 
 
 def server_flag_hits(files):
-    """1.0 is server-free (Graham, Nov 24, 2026, plan B): no build setting or workflow may turn on mailed cards or
-    family pages. `files` maps a path to its text (project.yml and the workflows)."""
+    """No build setting or workflow may turn on family pages in 1.0 (Graham, Nov 24, 2026). `files` maps a path to its
+    text (project.yml and the workflows)."""
     hits = []
     for name, text in files.items():
         for i, line in enumerate(text.splitlines(), 1):
@@ -128,7 +131,7 @@ def server_flag_hits(files):
                 continue
             for flag in SERVER_FLAGS:
                 if flag in stripped:
-                    hits.append(f"{name}:{i}: 1.0 must not turn on {flag} (server features are off until 1.1): {stripped}")
+                    hits.append(f"{name}:{i}: 1.0 must not turn on {flag} (family pages are off until 1.1): {stripped}")
     return hits
 
 
@@ -190,7 +193,7 @@ def selftest():
     assert schema_test_hits({"App/HeldDearSchemaTest/A.swift": "let a = 1\n"}, yml_ok), "a Schema Test file must be wrapped"
     assert schema_test_hits({}, yml_ok.replace("settings: x", "flags: SCHEMA_TEST")), "the real target may not set the flag"
     assert schema_test_hits({}, yml_ok.replace("settings: x", "sources: App/HeldDearSchemaTest")), "the real target may not list the folder"
-    assert server_flag_hits({"project.yml": "SWIFT_ACTIVE_COMPILATION_CONDITIONS: HELDDEAR_MAILED_CARDS"}), "1.0 stays server-free"
+    assert not server_flag_hits({"project.yml": "SWIFT_ACTIVE_COMPILATION_CONDITIONS: HELDDEAR_MAILED_CARDS"}), "mailed cards may be on"
     assert server_flag_hits({"t.yml": "x='$(inherited) HELDDEAR_FAMILY_PAGES'"}), "family pages stay off"
     assert not server_flag_hits({"t.yml": "# HELDDEAR_MAILED_CARDS comes back in 1.1"}), "comments may name the flag"
     assert not server_flag_hits({"t.yml": "x='$(inherited) HELDDEAR_TESTFLIGHT_TOOLS'"}), "other flags are fine"

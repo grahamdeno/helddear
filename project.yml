@@ -27,6 +27,8 @@ targets:
       base:
         PRODUCT_NAME: HeldDear
         PRODUCT_BUNDLE_IDENTIFIER: com.grahamdeno.helddear
+        # Mailed cards are back in 1.0 behind Fable's Dec 3 gate (Graham, Nov 24, 2026). Remove to ship without them.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) HELDDEAR_MAILED_CARDS"
         CODE_SIGN_ENTITLEMENTS: Config/HeldDear.entitlements
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Config/Info.plist
