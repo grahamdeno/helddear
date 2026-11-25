@@ -37,6 +37,8 @@ struct MailCardFlow: View {
     @State private var keepAddress = true
     @State private var sender = MailAddress.saved ?? MailAddress()
     @State private var paying = false
+    /// The order number for the done screen, so the person has it if they need help (design review, Nov 25, 2026).
+    @State private var orderNumber: String?
     @State private var checkout = ApplePayCheckout()
     @State private var reference = UUID().uuidString
 
@@ -78,14 +80,14 @@ struct MailCardFlow: View {
     private var intro: some View {
         FlowScreen(onClose: close) {
             Question(tag: "Mailed for you · \(price)", title: "A real card, in the mail",
-                     subtitle: "You choose a paper card and write the words. It arrives at \(name.isEmpty ? "their" : name + "'s") door looking handwritten, because it is: written in pen.", style: .title)
+                     subtitle: "You choose a paper card and write the words. It arrives at \(name.isEmpty ? "the" : name + "'s") door looking handwritten, because it is: written in pen.", style: .title)
             HandwrittenSample(message: sampleMessage, signature: wishes.isEmpty ? "Love, you" : wishes)
                 .padding(.vertical, Brand.space2)
             VStack(alignment: .leading, spacing: Brand.space3) {
                 introStep(1, "Pick a card", "Real folded cards from Handwrytten, the company that writes and mails them.")
                 introStep(2, "Write your message", "Your words, as long as the card allows.")
                 introStep(3, "It's written in real pen", "A writing machine holds a ballpoint pen and writes your message and the envelope in a handwriting style.")
-                introStep(4, "Stamped and mailed", "First-class mail with your return address. Most cards arrive in 2 to 7 business days.")
+                introStep(4, "Stamped and mailed", "First-class mail, with your return address on the envelope.")
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(MailArrival.arrivalLine(orderedOn: Date())).textStyle(.bodyStrong)
@@ -266,7 +268,7 @@ struct MailCardFlow: View {
                     }
                 Text("\(max(0, limit - message.count - wishes.count)) characters left").textStyle(.caption, color: Brand.inkMuted)
             }
-            LineField(label: "Signed", text: $wishes, placeholder: "Love, Graham", showsDictation: false)
+            LineField(label: "Signed", text: $wishes, placeholder: sender.firstName.isEmpty ? "Love, me" : "Love, \(sender.firstName)", showsDictation: false)
         } footer: {
             PrimaryButton(title: "Next") { step = .recipient }
                 .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -316,8 +318,18 @@ struct MailCardFlow: View {
             }
             ContextLine(text: "To: \(recipient.firstName) \(recipient.lastName), \(recipient.oneLine)")
             ContextLine(text: "From: \(sender.firstName) \(sender.lastName), \(sender.oneLine)")
+            // Price, arrival and the terms are all on this screen before Apple Pay opens (design review, Nov 25, 2026).
+            VStack(alignment: .leading, spacing: 2) {
+                Text(MailArrival.arrivalLine(orderedOn: Date())).textStyle(.bodyStrong)
+                if let line = MailArrival.christmasLine(today: Date(), orderBy: MailArrival.day(fromISO: catalog?.christmasOrderBy)) {
+                    Text(line).textStyle(.callout, color: Brand.action)
+                }
+            }
+            .accessibilityElement(children: .combine)
             Text("To mail it, Held Dear sends this card's message and these two addresses to Handwrytten. Nothing else leaves your iPhone.")
                 .textStyle(.caption, color: Brand.inkMuted)
+            Link("Terms of sale and refunds", destination: URL(string: "https://helddear.tangomike.app/terms")!)
+                .font(.callout).foregroundStyle(Brand.action).frame(minHeight: 44)
             if catalog?.testMode == true {
                 Text("Test mode: nothing is charged or mailed.").textStyle(.caption, color: Brand.action)
             }
@@ -338,8 +350,15 @@ struct MailCardFlow: View {
     private func done(_ mailing: String) -> some View {
         FlowScreen(onClose: close) {
             CirclesMark(size: 72).padding(.top, 80)
-            Question(tag: "Done", title: "\(name)'s card is on its way",
+            Question(tag: "Done", title: name.isEmpty ? "The card is on its way" : "\(name)'s card is on its way",
                      subtitle: "\(mailing). Written in pen, with your return address.")
+            if let orderNumber {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Order \(orderNumber)").textStyle(.bodyStrong)
+                    Text("Keep this if you need help: support@tangomike.app").textStyle(.callout, color: Brand.inkMuted)
+                }
+                .accessibilityElement(children: .combine)
+            }
         } footer: {
             PrimaryButton(title: "OK", action: close)
         }
@@ -397,6 +416,7 @@ struct MailCardFlow: View {
             switch outcome {
             case .some(.success(let result)):
                 context.onMailed(card.name)
+                orderNumber = result.orderId
                 step = .done(result.mailing ?? "Mailing within 3 business days")
             case .some(.failure(let error)):
                 // Keep the same reference unless the order is finished (nothing charged, or refunded), so a retry

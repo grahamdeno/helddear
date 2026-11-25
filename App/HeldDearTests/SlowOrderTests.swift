@@ -5,7 +5,7 @@ import XCTest
 final class SlowOrderTests: XCTestCase {
     func testPaidAndPlacedCountsAsDone() throws {
         let r = try MailedCards.slowReplyOutcome(.charged(orderId: 777)).get()
-        XCTAssertEqual(r.orderId, 777)
+        XCTAssertEqual(r.orderId, "777")
     }
 
     func testPaidButNotYetPlacedNeverSaysNotCharged() {
@@ -25,5 +25,12 @@ final class SlowOrderTests: XCTestCase {
         guard case .failure(let a) = MailedCards.slowReplyOutcome(.none), case .failure(let b) = MailedCards.slowReplyOutcome(.refunded) else { return XCTFail() }
         XCTAssertTrue(a.startOver && b.startOver)
         XCTAssertTrue(a.message.contains("weren't charged"))
+    }
+
+    func testOrderNumberReadsAsNumberOrText() throws {
+        let live = try JSONDecoder().decode(MailedCards.OrderResult.self, from: Data(#"{"orderId": 777, "mailing": "Mailing within 3 business days"}"#.utf8))
+        XCTAssertEqual(live.orderId, "777")
+        let test = try JSONDecoder().decode(MailedCards.OrderResult.self, from: Data(#"{"orderId": "test-abc12345", "test": true}"#.utf8))
+        XCTAssertEqual(test.orderId, "test-abc12345")
     }
 }

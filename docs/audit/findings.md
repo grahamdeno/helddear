@@ -90,3 +90,14 @@ largest text) and the Home header keeps + Add and Everyone beside Coming up.
 | W-2, W-3 | 2 | Person, Details | Audit flags contrast on "+ Add to Birthday", "1 day · inner ring reminders" and the small "days"; the colours measure 5.3:1 and up | Left as is; checked by eye in the screenshots |
 | B-1 | 3 | Mail a card (Graham, build 1055) | "Choose something else" did nothing when the card flow was opened from a plan | It closes the flow there |
 | B-2 | 2 | Mail a card (Graham, build 1055) | "Paused" in a test build gave no hint | Test builds say to turn on Test card server |
+
+### Mailed card screens, design review (Opus, Nov 25, 2026)
+
+| ID | Rating | Screen | Finding | Fix |
+|---|---|---|---|---|
+| D-1 | 3 | How it works | Step 4 said "arrive in 2 to 7 business days" while the line below gives dated arrival (mailing 1 to 3 business days, then USPS 2 to 7 days) | Step 4 no longer gives a time; the dated line is the one answer |
+| D-2 | 3 | Check and pay | Arrival and the terms were only on the first screen, which repeat buyers skip | The arrival estimate, the Christmas line and the terms link sit above Apple Pay |
+| D-3 | 3 | Done | No order number to quote for help or a refund | "Order 123", with the support address |
+| D-4 | 3 | Message | The signature placeholder read "Love, Graham" for every user | Uses the person's own first name, or "Love, me" |
+| D-5 | 2 | How it works, Done | "their door" with no person, and "'s card" with an empty name | Neutral wording when there's no name |
+| D-6 | 4 | Paying, test server | A test order's number ("test-…") couldn't be read as a number, so a paid test order would have shown "being placed" instead of done | The order number is read as a number or text |

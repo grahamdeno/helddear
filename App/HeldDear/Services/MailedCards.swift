@@ -88,11 +88,27 @@ enum MailedCards {
     }
 
     struct OrderResult: Decodable {
-        var orderId: Int?
+        /// Handwrytten's order number, or "test-…" from the test server; either way shown to the person as text.
+        var orderId: String?
         var mailing: String?
         var error: String?
         /// True when the server refunded this order; a new card then needs a new reference.
         var refunded: Bool?
+
+        init(orderId: String? = nil, mailing: String? = nil, error: String? = nil, refunded: Bool? = nil) {
+            self.orderId = orderId; self.mailing = mailing; self.error = error; self.refunded = refunded
+        }
+
+        enum CodingKeys: String, CodingKey { case orderId, mailing, error, refunded }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let n = try? c.decodeIfPresent(Int.self, forKey: .orderId) { orderId = String(n) }
+            else { orderId = try? c.decodeIfPresent(String.self, forKey: .orderId) }
+            mailing = try? c.decodeIfPresent(String.self, forKey: .mailing)
+            error = try? c.decodeIfPresent(String.self, forKey: .error)
+            refunded = try? c.decodeIfPresent(Bool.self, forKey: .refunded)
+        }
     }
 
     struct Failure: LocalizedError {
@@ -109,7 +125,7 @@ enum MailedCards {
     static func slowReplyOutcome(_ standing: Standing) -> Result<OrderResult, Failure> {
         switch standing {
         case .charged(let id?):
-            return .success(OrderResult(orderId: id, mailing: "Mailing within 3 business days"))
+            return .success(OrderResult(orderId: String(id), mailing: "Mailing within 3 business days"))
         case .charged(nil):
             return .failure(Failure(message: "Your payment went through and the card is being placed. Check again in a minute; you won't be charged twice."))
         case .refunded:
