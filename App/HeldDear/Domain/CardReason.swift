@@ -40,17 +40,26 @@ enum CardReason: String, CaseIterable, Identifiable {
     /// shows its fallback designs.
     var serverKey: String { rawValue }
 
+    /// "just-because", "get-well": the kind of card, in a sentence.
+    var kind: String {
+        switch self {
+        case .justBecause: "just-because"
+        case .getWell: "get-well"
+        case .thankYou: "thank-you"
+        case .thinkingOfYou: "thinking-of-you"
+        case .congratulations: "congratulations"
+        case .sympathy: "sympathy"
+        }
+    }
+
     /// The yearly record's line: "Get-well card, Nov 21".
     func recordLine(on date: Date) -> String {
-        let what: String
-        switch self {
-        case .justBecause: what = "Just-because card"
-        case .getWell: what = "Get-well card"
-        case .thankYou: what = "Thank-you card"
-        case .thinkingOfYou: what = "Thinking-of-you card"
-        case .congratulations: what = "Congratulations card"
-        case .sympathy: what = "Sympathy card"
-        }
-        return "\(what), \(date.formatted(.dateTime.month(.abbreviated).day()))"
+        let what = kind.prefix(1).uppercased() + kind.dropFirst()
+        return "\(what) card, \(date.formatted(.dateTime.month(.abbreviated).day()))"
+    }
+
+    /// A mailed one: "Handwritten get-well card, mailed Nov 21".
+    func mailedRecordLine(on date: Date) -> String {
+        "Handwritten \(kind) card, mailed \(date.formatted(.dateTime.month(.abbreviated).day()))"
     }
 }

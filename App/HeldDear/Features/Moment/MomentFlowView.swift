@@ -36,7 +36,7 @@ struct MomentFlowView: View {
                 MailCardFlow(context: MailContext(person: moment.person, occasionKey: MailContext.occasionKey(for: moment.type),
                                                   opening: moment.type.cardOpening,
                                                   greeting: moment.type.greeting(name: DisplayName.plain(moment.person?.name ?? "")),
-                                                  onMailed: { model.mailedCard(moment, cardName: $0) }),
+                                                  onMailed: { model.mailedCard(moment, record: $0) }),
                              go: go, close: close)
             case .dayOf: DayOfStep(moment: moment, go: go, close: close)
             case .photo: PhotoStep(moment: moment, go: go, close: close)
@@ -136,7 +136,7 @@ struct ChooseStep: View {
                     PlanTile(title: wish.text, caption: "Saved idea") { pick(.gift, wish: wish) }
                 }
                 if days >= 6 && AppFeatures.mailedCards {
-                    PlanTile(title: "Mail a real card", caption: "Pen-written, mailed for you · $6.99", filled: wishes.isEmpty) { go(.mailCard) }
+                    PlanTile(title: "Mail a real card", caption: "Pen-written, mailed for you · \(MailedCards.displayPrice)", filled: wishes.isEmpty) { go(.mailCard) }
                 }
                 PlanTile(title: "Find a gift", caption: "Ideas for \(name), and your shelf") { model.route = .ideas(moment.id) }
                 PlanTile(title: "Call \(name)", caption: "A reminder that morning") { pick(.call) }

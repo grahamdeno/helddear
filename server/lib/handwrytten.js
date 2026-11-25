@@ -1,23 +1,30 @@
 // Handwrytten API (https://api.handwrytten.com/v2). The key lives only in Vercel env HANDWRYTTEN_API_KEY.
+import { LIMITS, within } from "./timeout.js";
+import { isLiveKey } from "./stripe.js";
+
 const BASE = "https://api.handwrytten.com/v2";
 
-export async function hw(path, { method = "GET", body } = {}) {
-  const r = await fetch(BASE + path, {
-    method,
-    headers: {
-      Authorization: process.env.HANDWRYTTEN_API_KEY ?? "",
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
+export async function hw(path, { method = "GET", body, ms = LIMITS.other } = {}) {
+  return within(ms, "Handwrytten", async (signal) => {
+    const r = await fetch(BASE + path, {
+      method,
+      headers: {
+        Authorization: process.env.HANDWRYTTEN_API_KEY ?? "",
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok || json.status === "error" || (json.httpCode && json.httpCode >= 400)) {
+      // Only the status codes, never Handwrytten's message: it can repeat an address or the card text (Fable N8).
+      const err = new Error(`Handwrytten ${r.status}${json.httpCode ? ` ${json.httpCode}` : ""}`);
+      err.status = r.status;
+      throw err;
+    }
+    return json;
   });
-  const json = await r.json().catch(() => ({}));
-  if (!r.ok || json.status === "error" || (json.httpCode && json.httpCode >= 400)) {
-    const err = new Error(json.message || `Handwrytten ${r.status}`);
-    err.status = r.status;
-    throw err;
-  }
-  return json;
 }
 
 export const pickList = (json, ...keys) => {
@@ -193,6 +200,24 @@ export async function listCards(occasion = "birthday") {
     .slice(0, 60);
 }
 
+// Every card the app's picker can show for an occasion: its own, "more", and every category (Fable N5). Kept for
+// ten minutes in a warm function, so an order doesn't fetch every category again.
+const pickerCache = new Map();
+export async function pickerCards(occasion = "birthday", now = Date.now()) {
+  const hit = pickerCache.get(occasion);
+  if (hit && now - hit.at < 600000) return hit.cards;
+  const own = await listCards(occasion);
+  const [more, sections] = await Promise.all([
+    listMoreCards(occasion, own.map((c) => c.id)).catch(() => []),
+    listSections().catch(() => []), // the category menu shows every category, sympathy included
+  ]);
+  const byId = new Map();
+  for (const c of [...own, ...more, ...sections.flatMap((x) => x.cards)]) if (!byId.has(c.id)) byId.set(c.id, c);
+  const cards = [...byId.values()];
+  pickerCache.set(occasion, { at: now, cards });
+  return cards;
+}
+
 export async function fontLabel() {
   if (process.env.HANDWRYTTEN_FONT) return process.env.HANDWRYTTEN_FONT;
   try {
@@ -204,9 +229,13 @@ export async function fontLabel() {
 }
 
 /** Places one card, pen-written and mailed with the sender's return address. Returns Handwrytten's order id. */
-export async function placeOrder(o) {
+export async function placeOrder(o, key = process.env.STRIPE_SECRET_KEY) {
+  // A second lock beside order.js's test-mode check (Fable N6): the test server holds Handwrytten's key so it can list
+  // cards, but no order is ever sent unless payments are live.
+  if (!isLiveKey(key)) throw new Error("Handwrytten orders are only placed with live payments");
   const json = await hw("/orders/singleStepOrder", {
     method: "POST",
+    ms: LIMITS.place,
     body: {
       font_label: await fontLabel(),
       card_id: o.cardId,

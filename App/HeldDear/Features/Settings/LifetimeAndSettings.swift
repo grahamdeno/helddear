@@ -33,11 +33,12 @@ struct LifetimeView: View {
                             .textStyle(.body, color: Brand.ink.opacity(0.85))
                     }
                     VStack(alignment: .leading, spacing: 18) {
+                        // Only what Lifetime really unlocks (listing review, Nov 25, 2026): ideas on the phone are free.
+                        benefit("person.3", "Plans for everyone, not just three people")
+                        benefit("calendar.badge.plus", "Anniversaries and life moments, not just birthdays")
                         benefit("rectangle.portrait.on.rectangle.portrait", "Every card design, in your own words")
-                        benefit("lock.iphone", "A countdown on your Lock Screen")
-                        benefit("clock.arrow.circlepath", "1 year ago, and a yearly keepsake to share")
-                        benefit("calendar.badge.plus", "Anniversaries, holidays and life moments, not just birthdays")
-                        benefit("sparkles", "Gift ideas and card words, written on your iPhone")
+                        benefit("lock.iphone", "Home Screen and Lock Screen widgets")
+                        benefit("clock.arrow.circlepath", "Every past year, and a yearly keepsake to share")
                         benefit("photo.on.rectangle", "Every year of birthday photos, from your library")
                     }
                     .padding(Brand.space4 + 4)
@@ -129,6 +130,9 @@ struct SettingsView: View {
     @State private var yourPhotoFile = YouProfile.photoFile
     @State private var editingBirthday = false
     @State private var addingAnniversary = false
+    @State private var editingReturnAddress = false
+    @State private var returnAddress = MailAddress.saved
+    @State private var mailedOrders = MailedOrders.all()
     @State private var importNote: String?
     @State private var pendingImport: URL?
 
@@ -152,6 +156,12 @@ struct SettingsView: View {
                         YouDivider()
                         NavigationLink { subpage("Your cards") { cardsPage } } label: {
                             YouRowLabel(icon: "rectangle.stack", title: "Your cards", detail: "\(savedCards.count)")
+                        }
+                    }
+                    if AppFeatures.mailedCards && !mailedOrders.isEmpty {
+                        YouDivider()
+                        NavigationLink { subpage("Mailed cards") { ordersPage } } label: {
+                            YouRowLabel(icon: "envelope", title: "Mailed cards", detail: "\(mailedOrders.count)")
                         }
                     }
                 }
@@ -205,11 +215,13 @@ struct SettingsView: View {
             .padding(.vertical, 8)
         }
         .background(Brand.page.ignoresSafeArea())
+        .onAppear { mailedOrders = MailedOrders.all(); returnAddress = MailAddress.saved }
         .onChange(of: initialsOnly) { _, _ in model.writeSnapshots() }
         .onChange(of: widgetFaces) { _, _ in WidgetCenter.shared.reloadAllTimelines() }
         .onChange(of: keepInICloud) { _, on in ICloudSync.isOn = on }
         .sheet(isPresented: $showLifetime) { LifetimeView() }
         .sheet(isPresented: $editingBirthday) { YourBirthdayEditor() }
+        .sheet(isPresented: $editingReturnAddress, onDismiss: { returnAddress = MailAddress.saved }) { ReturnAddressEditor() }
         .sheet(isPresented: $addingAnniversary) { YourAnniversaryFlow().environmentObject(model) }
         .onChange(of: yourPhotoItem) { _, item in
             guard let item else { return }
@@ -349,6 +361,37 @@ struct SettingsView: View {
 
     // MARK: Subpages
 
+    /// Every mailed card ordered on this iPhone, newest first, with its order number to give support (Nov 25, 2026).
+    @ViewBuilder private var ordersPage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(mailedOrders) { o in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(o.firstName.isEmpty ? o.cardName : "\(o.firstName): \(o.cardName)").textStyle(.bodyStrong)
+                        Spacer()
+                        if o.test { Text("Test").textStyle(.caption, color: Brand.action) }
+                    }
+                    Text(o.orderedOn.formatted(date: .abbreviated, time: .omitted)).textStyle(.callout, color: Brand.inkMuted)
+                    HStack {
+                        Text("Order \(o.orderNumber)").textStyle(.callout).textSelection(.enabled).lineLimit(2)
+                        Spacer()
+                        Button("Copy") { UIPasteboard.general.string = o.orderNumber }
+                            .font(.callout).foregroundStyle(Brand.action).frame(minWidth: 44, minHeight: 44)
+                            .accessibilityLabel("Copy order number")
+                    }
+                }
+                .padding(.vertical, Brand.space3)
+                Divider()
+            }
+            Text("For help with an order, write to support@tangomike.app with its order number.")
+                .textStyle(.caption, color: Brand.inkMuted).padding(.top, Brand.space3)
+            if mailedOrders.contains(where: \.test) {
+                TextLink(title: "Remove test orders") { MailedOrders.removeTests(); mailedOrders = MailedOrders.all() }
+                    .padding(.leading, -8)
+            }
+        }
+    }
+
     @ViewBuilder private var profilePage: some View {
         VStack(alignment: .leading, spacing: Brand.space2) {
             PhotosPicker(selection: $yourPhotoItem, matching: .images) {
@@ -374,6 +417,14 @@ struct SettingsView: View {
                 .frame(minHeight: 52)
                 .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
             Text("Shown in the circle on Home.").textStyle(.caption, color: Brand.inkMuted)
+        }
+        if AppFeatures.mailedCards {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Mailed cards")
+                OptionRow(title: returnAddress?.isComplete == true ? "Your return address" : "Add your return address",
+                          caption: returnAddress.flatMap { $0.isComplete ? $0.oneLine : nil }
+                            ?? "So you don't type it for every card. Kept on this iPhone.") { editingReturnAddress = true }
+            }
         }
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Your days")
@@ -742,6 +793,31 @@ struct YourBirthdayEditor: View {
             var c = DateComponents(); c.month = b.month; c.day = b.day; c.year = b.year ?? 2000
             date = Calendar.current.date(from: c) ?? Date()
             knowsYear = b.year != nil
+        }
+    }
+}
+
+/// The return address for mailed cards, set ahead of time (Graham, Nov 25, 2026). Kept on this iPhone only; a mailed
+/// card sends it to Handwrytten for the envelope.
+struct ReturnAddressEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var address = MailAddress.saved ?? MailAddress()
+    private let had = MailAddress.saved != nil
+
+    var body: some View {
+        FlowScreen(onClose: { dismiss() }) {
+            Question(title: "Your return address", subtitle: "It goes on the envelope of every card you mail. Kept on this iPhone.",
+                     style: .title)
+            AddressForm(address: $address)
+        } footer: {
+            PrimaryButton(title: "Save") {
+                MailAddress.saved = address
+                dismiss()
+            }
+            .disabled(!address.isComplete)
+            if had {
+                TextLink(title: "Remove your return address") { MailAddress.saved = nil; dismiss() }
+            }
         }
     }
 }

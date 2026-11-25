@@ -35,7 +35,7 @@ struct ReasonCardFlow: View {
             case .mail:
                 MailCardFlow(context: MailContext(person: person, occasionKey: reason.serverKey, opening: reason.opening,
                                                   greeting: reason.greeting(name: name),
-                                                  onMailed: { _ in model.recordCard(person, reason: reason) }),
+                                                  onMailed: { model.recordMailedCard(person, reason: reason, record: $0) }),
                              close: close)
             case .sent: sentStep
             }
