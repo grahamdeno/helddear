@@ -36,6 +36,10 @@ struct MailCardFlow: View {
     @State private var fromContacts = false
     @State private var keepAddress = true
     @State private var sender = MailAddress.saved ?? MailAddress()
+    /// A complete saved return address skips its step; the review screen has a link to change it (Graham, Nov 25, 2026).
+    private let hadReturnAddress = MailAddress.saved?.isComplete == true
+    /// The card opened full screen.
+    @State private var viewing: MailCard?
     @State private var paying = false
     /// The order number for the done screen, so the person has it if they need help (design review, Nov 25, 2026).
     @State private var orderNumber: String?
@@ -55,8 +59,9 @@ struct MailCardFlow: View {
             case .loading: loading
             case .pick: pick
             case .message: messageStep
-            case .recipient: addressStep(title: "Where does it go?", subtitle: "\(name)'s mailing address.", address: $recipient, next: .sender)
-            case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept for next time.", address: $sender, next: .review)
+            case .recipient: addressStep(title: "Where does it go?", subtitle: "\(name)'s mailing address.", address: $recipient,
+                                         next: hadReturnAddress ? .review : .sender, isRecipient: true)
+            case .sender: addressStep(title: "Your return address", subtitle: "It goes on the envelope. Kept for next time.", address: $sender, next: .review, isRecipient: false)
             case .review: review
             case .done(let mailing): done(mailing)
             case .failed(let why): failed(why)
@@ -64,6 +69,7 @@ struct MailCardFlow: View {
         }
         .animation(Motion.animation(.easeOut(duration: 0.22)), value: step)
         .task { await load() }
+        .fullScreenCover(item: $viewing) { c in CardViewer(card: c) { card = c } }
     }
 
     // MARK: Steps
@@ -181,6 +187,10 @@ struct MailCardFlow: View {
                 cardGrid(more)
             }
         } footer: {
+            if let card {
+                TextLink(title: "See \(card.name.trimmingCharacters(in: .whitespaces)) larger") { viewing = card }
+                    .frame(maxWidth: .infinity)
+            }
             PrimaryButton(title: card.map { "Use \($0.name)" } ?? "Use this card") {
                 if card == nil { card = shown.first ?? catalog?.cards.first }
                 step = .message
@@ -225,15 +235,19 @@ struct MailCardFlow: View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: Brand.space3), GridItem(.flexible(), spacing: Brand.space3)],
                   spacing: Brand.space3) {
             ForEach(list) { c in
-                Button { card = c } label: {
+                // First tap picks the card; a tap on the picked card opens it full screen (Graham, Nov 25, 2026).
+                Button { if card?.id == c.id { viewing = c } else { card = c } } label: {
                     VStack(spacing: 6) {
-                        AsyncImage(url: c.safeCover) { image in
-                            image.resizable().scaledToFit()
-                        } placeholder: {
-                            RoundedRectangle(cornerRadius: Brand.radiusSm).fill(Brand.faceFills[0]).overlay(ProgressView())
+                        AsyncImage(url: c.safeCover) { phase in
+                            switch phase {
+                            case .success(let image): image.resizable().scaledToFit().padding(Brand.space2)
+                            case .failure: CardPictureMissing()
+                            default: ProgressView()
+                            }
                         }
                         .frame(height: 170)
                         .frame(maxWidth: .infinity)
+                        .background(Brand.card)
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: Brand.radiusSm, style: .continuous)
@@ -246,6 +260,8 @@ struct MailCardFlow: View {
                 .buttonStyle(PressStyle())
                 .accessibilityLabel(c.name)
                 .accessibilityAddTraits(card?.id == c.id ? .isSelected : [])
+                .accessibilityAction(named: "See it larger") { viewing = c }
+                .contextMenu { Button("See it larger", systemImage: "arrow.up.left.and.arrow.down.right") { viewing = c } }
             }
         }
     }
@@ -275,11 +291,11 @@ struct MailCardFlow: View {
         }
     }
 
-    private func addressStep(title: String, subtitle: String, address: Binding<MailAddress>, next: Step) -> some View {
+    private func addressStep(title: String, subtitle: String, address: Binding<MailAddress>, next: Step, isRecipient: Bool) -> some View {
         FlowScreen(onClose: close) {
             Question(title: title, subtitle: subtitle, style: .title)
             AddressForm(address: address)
-            if next == .sender, !fromContacts, context.person != nil {
+            if isRecipient, !fromContacts, context.person != nil {
                 Toggle(isOn: $keepAddress) {
                     Text("Keep this address for \(name) on this iPhone").textStyle(.body)
                 }
@@ -287,8 +303,8 @@ struct MailCardFlow: View {
             }
         } footer: {
             PrimaryButton(title: "Next") {
-                if next == .review { MailAddress.saved = sender }
-                if next == .sender, !fromContacts, keepAddress, let person = context.person {
+                if !isRecipient { MailAddress.saved = sender }
+                if isRecipient, !fromContacts, keepAddress, let person = context.person {
                     person.mailingAddress = recipient
                     try? person.managedObjectContext?.save()
                 }
@@ -318,6 +334,8 @@ struct MailCardFlow: View {
             }
             ContextLine(text: "To: \(recipient.firstName) \(recipient.lastName), \(recipient.oneLine)")
             ContextLine(text: "From: \(sender.firstName) \(sender.lastName), \(sender.oneLine)")
+            TextLink(title: "Change your return address") { step = .sender }
+                .padding(.leading, -8)
             // Price, arrival and the terms are all on this screen before Apple Pay opens (design review, Nov 25, 2026).
             VStack(alignment: .leading, spacing: 2) {
                 Text(MailArrival.arrivalLine(orderedOn: Date())).textStyle(.bodyStrong)
@@ -350,12 +368,15 @@ struct MailCardFlow: View {
     private func done(_ mailing: String) -> some View {
         FlowScreen(onClose: close) {
             CirclesMark(size: 72).padding(.top, 80)
-            Question(tag: "Done", title: name.isEmpty ? "The card is on its way" : "\(name)'s card is on its way",
-                     subtitle: "\(mailing). Written in pen, with your return address.")
+            // A test order says so in the title too, so it never reads as mailed (build 1057, Nov 25, 2026).
+            let test = catalog?.testMode == true
+            Question(tag: test ? "Test order" : "Done",
+                     title: test ? "Test order placed" : (name.isEmpty ? "The card is on its way" : "\(name)'s card is on its way"),
+                     subtitle: test ? "Nothing was charged or mailed." : "\(mailing). Written in pen, with your return address.")
             if let orderNumber {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Order \(orderNumber)").textStyle(.bodyStrong)
-                    Text("Keep this if you need help: support@tangomike.app").textStyle(.callout, color: Brand.inkMuted)
+                    Text("It's kept in You, under Mailed cards. For help: support@tangomike.app").textStyle(.callout, color: Brand.inkMuted)
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -417,6 +438,10 @@ struct MailCardFlow: View {
             case .some(.success(let result)):
                 context.onMailed(card.name)
                 orderNumber = result.orderId
+                if let number = result.orderId {
+                    MailedOrders.add(MailedOrder(id: ref, orderNumber: number, firstName: name, cardName: card.name,
+                                                 orderedOn: Date(), mailing: result.mailing ?? "", test: catalog.testMode == true))
+                }
                 step = .done(result.mailing ?? "Mailing within 3 business days")
             case .some(.failure(let error)):
                 // Keep the same reference unless the order is finished (nothing charged, or refunded), so a retry
@@ -494,5 +519,98 @@ struct HandwrittenSample: View {
         .padding(.bottom, 18)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("An example card, handwritten in blue ink: \(message) \(signature)")
+    }
+}
+
+/// A card picture that didn't load: a plain card shape, so the grid never spins forever (Nov 25, 2026).
+struct CardPictureMissing: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "envelope").font(.system(size: 24, weight: .light))
+            Text("Picture didn't load").font(.caption)
+        }
+        .foregroundStyle(Brand.inkMuted)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A mailed card opened full screen: the front and, when Handwrytten has one, the inside. Pinch or double-tap to
+/// zoom, drag to look around (Graham, Nov 25, 2026). The pictures come from Held Dear's server, like the grid's.
+struct CardViewer: View {
+    @Environment(\.dismiss) private var dismiss
+    let card: MailCard
+    var onUse: () -> Void
+
+    private var title: String { card.name.trimmingCharacters(in: .whitespaces) }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if card.safeInside != nil {
+                TabView {
+                    front
+                    inside
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+            } else {
+                front
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            Button { dismiss() } label: {
+                Image(systemName: "xmark").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white.opacity(0.15), in: Circle())
+            }
+            .accessibilityLabel("Close")
+            .padding(.leading, Brand.space4).padding(.top, Brand.space2)
+        }
+        .overlay(alignment: .top) {
+            Text(title).font(.callout.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+                .padding(.horizontal, 64)
+                .padding(.top, Brand.space4)
+                .accessibilityHidden(true)
+        }
+        .overlay(alignment: .bottom) {
+            Button {
+                onUse()
+                dismiss()
+            } label: {
+                Text("Use \(title)")
+                    .font(.body.weight(.semibold)).foregroundStyle(.black)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, minHeight: 54)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+            .padding(.horizontal, Brand.space5)
+            .padding(.bottom, card.safeInside != nil ? Brand.space6 : Brand.space4)
+        }
+    }
+
+    private var front: some View {
+        Zoomable(label: "Front of \(title)") {
+            AsyncImage(url: card.safeCover) { phase in page(phase) }
+        }
+    }
+
+    private var inside: some View {
+        Zoomable(label: "Inside of \(title)") {
+            AsyncImage(url: card.safeInside) { phase in page(phase) }
+        }
+    }
+
+    @ViewBuilder private func page(_ phase: AsyncImagePhase) -> some View {
+        switch phase {
+        case .success(let image): image.resizable().scaledToFit().padding(.vertical, 72)
+        case .failure:
+            VStack(spacing: Brand.space2) {
+                Image(systemName: "envelope").font(.system(size: 32, weight: .light))
+                Text("This picture didn't load. Close and try again.").font(.callout)
+            }
+            .foregroundStyle(.white.opacity(0.8))
+        default: ProgressView().tint(.white)
+        }
     }
 }
