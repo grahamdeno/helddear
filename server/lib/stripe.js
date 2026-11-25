@@ -65,3 +65,26 @@ export function refund(paymentIntentId, reference) {
 export function tagOrder(paymentIntentId, orderId) {
   return stripe(`/payment_intents/${paymentIntentId}`, { metadata: { handwrytten_order_id: orderId } });
 }
+
+/**
+ * Where an order stands, found by the app's reference (M1, Nov 24, 2026): "none" (never charged), "charged" (paid,
+ * with the Handwrytten order number once placed), or "refunded". Used after a slow reply and before any retry.
+ */
+export async function findByReference(reference) {
+  const q = encodeURIComponent(`metadata['reference']:'${String(reference).replace(/[^A-Za-z0-9-]/g, "")}'`);
+  const r = await fetch(`${BASE}/payment_intents/search?query=${q}&limit=5`, {
+    headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY ?? ""}` },
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json?.error?.message || `Stripe ${r.status}`);
+  const pi = (json.data ?? []).find((p) => p.status === "succeeded");
+  if (!pi) return { state: "none" };
+  const refunded = (pi.amount_received ?? 0) > 0 && pi.latest_charge && typeof pi.latest_charge === "object"
+    ? pi.latest_charge.refunded : false;
+  if (refunded || pi.metadata?.refunded === "yes") return { state: "refunded", paymentId: pi.id };
+  return { state: "charged", paymentId: pi.id, orderId: pi.metadata?.handwrytten_order_id || null };
+}
+
+export function markRefunded(paymentIntentId) {
+  return stripe(`/payment_intents/${paymentIntentId}`, { metadata: { refunded: "yes" } });
+}
