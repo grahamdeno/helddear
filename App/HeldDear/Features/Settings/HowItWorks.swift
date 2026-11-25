@@ -36,6 +36,9 @@ struct HowItWorksView: View {
         ]),
         Section(id: "Your data", icon: "lock", lines: [
             "Everything stays on your iPhone, and in your own iCloud if you turn it on.",
+        ] + (AppFeatures.mailedCards
+            ? ["A card you mail is the one exception: its message and both addresses go to Handwrytten to mail it."]
+            : []) + [
             "To remove everything, go to You, then Export and import, then Delete all my data.",
         ]),
     ]

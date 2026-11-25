@@ -60,6 +60,9 @@ struct MailAddress: Codable, Equatable {
 
 enum MailedCards {
     static let liveURL = URL(string: "https://helddear-mail.vercel.app")!
+    /// The price shown before the card flow opens; the server's catalog (retailCents, default 799) sets the charge.
+    /// Approved Nov 24, 2026. Change both together.
+    static let displayPrice = "$7.99"
     /// The test copy of the server: Stripe test keys, nothing is ever mailed. Only TestFlight builds can choose it.
     static let testURL = URL(string: "https://helddear-mail-git-card-test-ground-truth7.vercel.app")!
     static let testServerKey = "useTestCardServer"

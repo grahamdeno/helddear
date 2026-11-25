@@ -334,7 +334,7 @@ struct ArrivalStep: View {
         } footer: {
             PrimaryButton(title: "Done") { model.route = nil }
             if OccasionDates.daysBetween(Date(), moment.dueDate) >= 6 && AppFeatures.mailedCards {
-                TextLink(title: "Add a card, mailed in pen · $6.99") { model.route = .moment(moment.id, .mailCard) }
+                TextLink(title: "Add a card, mailed in pen · \(MailedCards.displayPrice)") { model.route = .moment(moment.id, .mailCard) }
             }
         }
     }

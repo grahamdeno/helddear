@@ -33,11 +33,12 @@ struct LifetimeView: View {
                             .textStyle(.body, color: Brand.ink.opacity(0.85))
                     }
                     VStack(alignment: .leading, spacing: 18) {
+                        // Only what Lifetime really unlocks (listing review, Nov 25, 2026): ideas on the phone are free.
+                        benefit("person.3", "Plans for everyone, not just three people")
+                        benefit("calendar.badge.plus", "Anniversaries and life moments, not just birthdays")
                         benefit("rectangle.portrait.on.rectangle.portrait", "Every card design, in your own words")
-                        benefit("lock.iphone", "A countdown on your Lock Screen")
-                        benefit("clock.arrow.circlepath", "1 year ago, and a yearly keepsake to share")
-                        benefit("calendar.badge.plus", "Anniversaries, holidays and life moments, not just birthdays")
-                        benefit("sparkles", "Gift ideas and card words, written on your iPhone")
+                        benefit("lock.iphone", "Home Screen and Lock Screen widgets")
+                        benefit("clock.arrow.circlepath", "Every past year, and a yearly keepsake to share")
                         benefit("photo.on.rectangle", "Every year of birthday photos, from your library")
                     }
                     .padding(Brand.space4 + 4)
