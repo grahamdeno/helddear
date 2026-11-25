@@ -10,6 +10,6 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@vercel/blob": "^1.1.1"
+    "@vercel/blob": "1.1.1"
   }
 }
