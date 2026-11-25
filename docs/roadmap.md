@@ -144,6 +144,8 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
     and show it so that the record means something later. Given a placed order, then the year shows "Handwritten
     [kind] card, mailed [date]", the message as its line, and the card's front as its picture; no row repeats the
     same words twice.
+- **App Store listing approved (Graham, Nov 25, 2026):** docs/app-store-listing.md. Subtitle "Birthday and holiday
+  planner"; written after an independent review of what 1.0 does.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
