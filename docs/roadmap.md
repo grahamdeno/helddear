@@ -153,6 +153,8 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   for the daily limit). A 300-per-minute limit on card pictures (/_vercel/image) is approved.
 - **App Store listing approved (Graham, Nov 25, 2026):** docs/app-store-listing.md. Subtitle "Birthday and holiday
   planner"; written after an independent review of what 1.0 does.
+- **Mailed cards review (Nov 25, 2026):** Fable passed PR #152 at 42c15f8 (findings N1 to N11, re-check R1 to R5);
+  merged on Graham's go. Production still runs the old server until Graham's ship go for the redeploy.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
@@ -298,6 +300,13 @@ budgets, group gifts from several givers.
 8. Stage 6 prep and the Fable go-live assessment.
 
 ## Small follow-ups
+
+- **L1 (Fable, low, Nov 25, 2026):** a Stripe 400 with type invalid_request_error should read as declined
+  (server/api/order.js, the charge catch). Today it reads as "still being confirmed" and the daily check settles it.
+- **L2 (Fable, low):** the daily report sits at a fixed public path, reports/<mode>/order-check.json
+  (server/api/cleanup.js). It holds short hashes and Stripe payment ids only; move it under a random path.
+- **L3 (Fable, low):** the order check doesn't run without CRON_SECRET. Set in Production Nov 25, 2026; takes effect at
+  the next production redeploy.
 
 - Set the repo's default branch to `main`: done Nov 23, 2026 (Grok, on Graham's go).
 - **Requirement R2 (approved Nov 24, 2026; from Fable's schema review): test sharing in the test container before it
