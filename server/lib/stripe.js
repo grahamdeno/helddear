@@ -42,7 +42,7 @@ export function tokenFromApplePay({ paymentData, transactionIdentifier, network,
 }
 
 /** Charges the fixed card price. The amount is set here, never by the app. */
-export function charge({ tokenId, amount, reference, description }) {
+export function charge({ tokenId, amount, reference, description, cardPrint }) {
   return stripe(
     "/payment_intents",
     {
@@ -52,7 +52,7 @@ export function charge({ tokenId, amount, reference, description }) {
       payment_method_types: ["card"],
       payment_method_data: { type: "card", card: { token: tokenId } },
       description,
-      metadata: { reference, product: "held-dear-mailed-card" },
+      metadata: { reference, product: "held-dear-mailed-card", ...(cardPrint ? { card_print: cardPrint } : {}) },
     },
     `charge-${reference}`,
   );
@@ -87,4 +87,17 @@ export async function findByReference(reference) {
 
 export function markRefunded(paymentIntentId) {
   return stripe(`/payment_intents/${paymentIntentId}`, { metadata: { refunded: "yes" } });
+}
+
+/** How many cards this payment card paid for in the last 24 hours (M8), from the card's Stripe fingerprint. */
+export async function cardsToday(cardPrint) {
+  if (!cardPrint) return 0;
+  const since = Math.floor(Date.now() / 1000) - 86400;
+  const q = encodeURIComponent(`metadata['card_print']:'${String(cardPrint).replace(/[^A-Za-z0-9]/g, "")}' AND status:'succeeded' AND created>${since}`);
+  const r = await fetch(`${BASE}/payment_intents/search?query=${q}&limit=20`, {
+    headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY ?? ""}` },
+  });
+  const json = await r.json();
+  if (!r.ok) throw new Error(json?.error?.message || `Stripe ${r.status}`);
+  return (json.data ?? []).length;
 }

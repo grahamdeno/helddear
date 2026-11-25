@@ -41,7 +41,7 @@ function deps(over = {}) {
     calls,
     d: {
       listCards: async () => [{ id: 101, name: "Balloons", characters: 120 }],
-      tokenFromApplePay: async () => ({ id: "tok_1" }),
+      tokenFromApplePay: async () => ({ id: "tok_1", card: { fingerprint: "fpA" } }),
       charge: async () => { calls.charged++; return { id: "pi_1", status: "succeeded" }; },
       refund: async () => { calls.refunded++; },
       tagOrder: async () => {},
@@ -49,6 +49,7 @@ function deps(over = {}) {
       isTestMode: () => false,
       pausedReply: () => null,
       findByReference: async () => ({ state: "none" }),
+      cardsToday: async () => 0,
       markRefunded: async () => {},
       ...over,
     },
@@ -112,5 +113,21 @@ test("M1: if payments can't be checked, nothing is charged", async () => {
   const res = fakeRes();
   await handle({ method: "POST", body }, res, d);
   assert.equal(res.code, 502);
+  assert.equal(calls.charged, 0);
+});
+
+test("M8: a threatening message is refused before any charge", async () => {
+  const { d, calls } = deps();
+  const res = fakeRes();
+  await handle({ method: "POST", body: { ...body, message: "I know where you live." } }, res, d);
+  assert.equal(res.code, 400);
+  assert.equal(calls.charged, 0);
+});
+
+test("M8: one payment card can send ten cards a day", async () => {
+  const { d, calls } = deps({ cardsToday: async () => 10 });
+  const res = fakeRes();
+  await handle({ method: "POST", body }, res, d);
+  assert.equal(res.code, 429);
   assert.equal(calls.charged, 0);
 });

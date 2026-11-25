@@ -190,7 +190,7 @@ enum MailedCards {
         if let result = try? JSONDecoder().decode(OrderResult.self, from: data) {
             if code == 200 { return result }
             // 402 and 400 mean nothing was charged; a refund means this reference is finished.
-            let startOver = result.refunded == true || code == 402 || code == 400 || code == 503
+            let startOver = result.refunded == true || code == 402 || code == 400 || code == 429 || code == 503
             throw Failure(message: result.error ?? "Something went wrong.", startOver: startOver)
         }
         // A reply we can't read: ask the server rather than guess.
