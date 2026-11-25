@@ -122,6 +122,7 @@ struct SettingsView: View {
     @State private var erasing = false
     @State private var eraseNote: String?
     @State private var keepInICloud = ICloudSync.isOn
+    @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
     @ObservedObject private var iCloudStatus = ICloudSync.Status.shared
     @State private var yourPhotoItem: PhotosPickerItem?
     @State private var couplePick: PhotosPickerItem?
@@ -164,6 +165,15 @@ struct SettingsView: View {
                     }
                 }
                 group("On this iPhone") {
+                    Menu {
+                        Picker("Appearance", selection: $appearance) {
+                            ForEach(Appearance.allCases) { a in Text(a.title).tag(a.rawValue) }
+                        }
+                    } label: {
+                        YouRowLabel(icon: "circle.lefthalf.filled", title: "Appearance", detail: Appearance.from(appearance).title)
+                    }
+                    .accessibilityHint("Light, dark, or match your iPhone")
+                    YouDivider()
                     YouRow(icon: "bell", title: "Alerts", detail: model.notificationsAllowed ? "On" : "Off", caption: nil) {
                         if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
                     }

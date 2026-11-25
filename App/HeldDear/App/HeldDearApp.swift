@@ -18,6 +18,7 @@ struct HeldDearApp: App {
         return model
     }()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
 
     init() {
         #if DEBUG
@@ -34,6 +35,7 @@ struct HeldDearApp: App {
                 .environmentObject(model)
                 .onOpenURL { model.openURL($0) }
                 .task { await model.refresh() }
+                .preferredColorScheme(Appearance.from(appearance).colorScheme)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
