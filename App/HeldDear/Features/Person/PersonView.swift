@@ -1166,7 +1166,7 @@ struct PortraitEditor: View {
             Question(title: "What does \(DisplayName.plain(person.name)) love?",
                      subtitle: "Your words, kept on this iPhone. Held Dear uses them for ideas and card words.")
             LineField(label: "Loves, separated by commas", text: $loves, placeholder: "Gardening, dark chocolate, the Cubs")
-            LineField(label: "Sizes", text: $sizes, placeholder: "M tops, 8.5 shoes", showsDictation: false)
+            LineField(label: "Sizes", text: $sizes, placeholder: "M tops, 8.5 shoes")
             LineField(label: "Good to know", text: $note, placeholder: "Allergic to lilies")
         } footer: {
             PrimaryButton(title: "Save") {
@@ -1357,7 +1357,7 @@ struct AddOccasionView: View {
         FlowScreen(onClose: { type = nil }) {
             Question(title: t == .event ? "What's the day?" : (t.kind == .once ? "When is \(t.subject(name: person.name))?" : "When is it?"))
             if t == .event {
-                LineField(label: "What is it?", text: $partner, placeholder: "Ballet recital", showsDictation: true)
+                LineField(label: "What is it?", text: $partner, placeholder: "Ballet recital")
             }
             DatePicker(t.label, selection: $date, displayedComponents: .date)
                 .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
@@ -1801,8 +1801,8 @@ struct NameEditor: View {
             Question(title: "\(DisplayName.plain(person.name))'s name",
                      subtitle: person.contactID == nil ? "How Held Dear shows it." : "How Held Dear shows it. Changing it here leaves the contact as it is.",
                      style: .title)
-            LineField(label: "What you call them", text: $short, placeholder: "Meredith", showsDictation: false)
-            LineField(label: "Full name (optional)", text: $full, placeholder: "Meredith Smith", showsDictation: false)
+            LineField(label: "What you call them", text: $short, placeholder: "Sam")
+            LineField(label: "Full name (optional)", text: $full, placeholder: "Samantha Lee")
             Text("The first name is used in reminders and messages; the full name shows on their page and cards.")
                 .textStyle(.caption, color: Brand.inkMuted)
         } footer: {

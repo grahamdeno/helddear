@@ -197,7 +197,7 @@ struct AddBirthdayView: View {
         let trimmed = eventName.trimmingCharacters(in: .whitespacesAndNewlines)
         return FlowScreen(onClose: { namingEvent = false }) {
             Question(title: "What's the day?", subtitle: "A name is enough, like Ballet recital.")
-            LineField(label: "What is it?", text: $eventName, placeholder: "Ballet recital", showsDictation: true)
+            LineField(label: "What is it?", text: $eventName, placeholder: "Ballet recital")
         } footer: {
             PrimaryButton(title: "Next") { addFirst(.event, p, contact: contact, eventName: trimmed) }
                 .disabled(trimmed.isEmpty)

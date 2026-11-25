@@ -128,7 +128,7 @@ struct FamilyPageFlow: View {
         FlowScreen(onClose: { dismiss() }) {
             Question(title: "Gather notes for \(person.name)?",
                      subtitle: "Held Dear makes a private page. Family adds notes from a link, with no app or account. On the day, you send \(person.name) the page.")
-            LineField(label: "Your name, as family knows you", text: $fromName, placeholder: "Graham", showsDictation: false)
+            LineField(label: "Your name, as family knows you", text: $fromName, placeholder: "Your first name")
             LineField(label: "A line for family (optional)", text: $line,
                       placeholder: "Write a note for \(person.name) by \(OccasionDates.shortDate(OccasionDates.adding(days: -1, to: moment.dueDate)))")
             if photo != nil {

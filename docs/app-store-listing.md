@@ -24,7 +24,7 @@ HOLIDAYS ON ONE PAGE
 Christmas shows once on your year, not once per person, with everyone's plan on one page. Set up a tradition once, like an ornament for each child, and it comes back every year. Add your own holidays, such as Hanukkah, Lunar New Year or Diwali.
 
 IDEAS WHEN THEY COME TO YOU
-Save a gift idea by typing, by voice, or by sharing a link from any app. It waits on the person's page until the day. With Apple Intelligence, Held Dear can suggest gifts and write card lines on your iPhone.
+Save a gift idea by typing, or by sharing a link from any app. It waits on the person's page until the day. With Apple Intelligence, Held Dear can suggest gifts and write card lines on your iPhone.
 
 CARDS
 Make a card from your own photos to text or post, still or moving. Or mail a real paper card: pick a design, write your message, and it's written in pen, stamped and mailed for you. $7.99 per card with Apple Pay, to US addresses.

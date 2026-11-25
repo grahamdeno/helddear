@@ -35,9 +35,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Held Dear
         INFOPLIST_KEY_NSContactsUsageDescription: "Held Dear looks for birthdays, phone numbers and addresses already in your contacts, and adds a birthday to a contact only when you tap Add to Contacts. Nothing leaves your iPhone."
         INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription: "Held Dear adds a dinner date you choose to your calendar. It never reads your calendar."
-        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Held Dear turns what you say into text on this iPhone, so you can add a birthday or a wish by voice."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Held Dear finds photos from past birthdays in your library, on this iPhone, so you can see the years and use one on a card."
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Held Dear listens only after you tap the microphone button, to add a birthday or a wish by voice."
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -74,9 +72,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Schema Test
         INFOPLIST_KEY_NSContactsUsageDescription: "Schema Test never reads contacts. This text is here because the shared app code can."
         INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription: "Schema Test never writes to your calendar. This text is here because the shared app code can."
-        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Schema Test never listens. This text is here because the shared app code can."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Schema Test never reads your photos. This text is here because the shared app code can."
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Schema Test never listens. This text is here because the shared app code can."
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

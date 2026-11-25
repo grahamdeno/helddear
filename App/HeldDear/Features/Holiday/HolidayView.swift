@@ -295,7 +295,7 @@ struct TraditionEditor: View {
             Question(title: isNew ? "A \(ref.label) tradition" : tradition.name,
                      subtitle: "It goes into each chosen person's plan every year, starting this \(ref.label), each with its own steps.",
                      style: .title)
-            LineField(label: "What is it?", text: $tradition.name, placeholder: "Ornament", showsDictation: false)
+            LineField(label: "What is it?", text: $tradition.name, placeholder: "Ornament")
             Eyebrow(text: "Who gets it").padding(.top, Brand.space3)
             VStack(spacing: 0) {
                 if people.isEmpty {
