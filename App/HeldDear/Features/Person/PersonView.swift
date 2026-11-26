@@ -193,12 +193,6 @@ struct PersonView: View {
                     if let offer = model.combineOffer(for: person) {
                         CombineAnniversaryCard(keep: offer.keep, drop: offer.drop)
                     }
-                    if let next = model.nextMoment(for: person) {
-                        FamilyInSuggestion(person: person, moment: next) { followUp in
-                            familyAsk = FamilyAsk(moment: next, followUp: followUp)
-                        }
-                        .id(familyToggle)
-                    }
                     if !moments.isEmpty {
                         PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }),
                                        addTitle: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
@@ -207,6 +201,13 @@ struct PersonView: View {
                     }
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
+                    }
+                    // U12 (first-use audit, Nov 25, 2026): the family ask comes after the plan, not before it.
+                    if let next = model.nextMoment(for: person) {
+                        FamilyInSuggestion(person: person, moment: next) { followUp in
+                            familyAsk = FamilyAsk(moment: next, followUp: followUp)
+                        }
+                        .id(familyToggle)
                     }
                     // Four doors, one tap each, instead of every section stacked (Graham, Nov 22, 2026).
                     partTiles
