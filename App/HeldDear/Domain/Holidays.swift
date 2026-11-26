@@ -150,6 +150,15 @@ enum PlanLimit {
     static func allows(personID: UUID, plannedPeople: Set<UUID>, hasLifetime: Bool) -> Bool {
         hasLifetime || plannedPeople.contains(personID) || plannedPeople.count < freePeople
     }
+
+    /// U4 (first-use audit, Nov 25, 2026): when the limit opens Lifetime, say who already has the free plans.
+    /// "Plans for three people are free. Yours are Ada, Ben and Cora. Lifetime adds plans for everyone."
+    static func limitLine(names: [String]) -> String? {
+        let n = names.filter { !$0.isEmpty }.sorted()
+        guard !n.isEmpty else { return nil }
+        let list = n.count == 1 ? n[0] : n.dropLast().joined(separator: ", ") + " and " + n.last!
+        return "Plans for three people are free. Yours \(n.count == 1 ? "is" : "are") \(list). Lifetime adds plans for everyone."
+    }
 }
 
 /// Features that talk to Held Dear's server. Switches are set when the app is built, never from the server (R4).

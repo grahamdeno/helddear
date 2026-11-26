@@ -9,6 +9,8 @@ import WidgetKit
 struct LifetimeView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var purchases = Purchases.shared
+    /// Shown when the free plan limit opened this screen: who already has the three free plans (U4).
+    var limitLine: String? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,6 +31,10 @@ struct LifetimeView: View {
                             .multilineTextAlignment(.center)
                     } else {
                         Text("Held Dear Lifetime").textStyle(.display)
+                        if let limitLine {
+                            Text(limitLine).textStyle(.bodyStrong)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         Text("Everything that keeps you from missing anyone stays free. Lifetime adds more ways to make it personal.")
                             .textStyle(.body, color: Brand.ink.opacity(0.85))
                     }

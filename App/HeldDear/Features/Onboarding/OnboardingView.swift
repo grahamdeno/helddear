@@ -235,8 +235,11 @@ struct NotificationsSetupView: View {
             }
             TextLink(title: "Not now") { showDeniedNote = true }
         }
-        .alert("Without alerts, check the widget or Home", isPresented: $showDeniedNote) {
+        // U1 (first-use audit, Nov 25, 2026): say what to do instead, and where to turn alerts on later.
+        .alert("Without alerts, open Held Dear to see who's coming up.", isPresented: $showDeniedNote) {
             Button("OK", action: onDone)
+        } message: {
+            Text("You can turn alerts on later in You, under Alerts.")
         }
     }
 

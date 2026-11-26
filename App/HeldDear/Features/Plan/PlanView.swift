@@ -451,7 +451,10 @@ private struct PartScreen: View {
                     }
                 }
         }
-        .sheet(isPresented: $showLifetime) { LifetimeView() }
+        .sheet(isPresented: $showLifetime) {
+            LifetimeView(limitLine: PlanLimit.limitLine(names: model.plannedPeople().compactMap { model.person($0) }
+                .map { DisplayName.plain($0.name) }))
+        }
         .sheet(item: $editingOrder) { field in orderEditor(field).presentationDetents([.medium]) }
         .confirmationDialog("Remove \(placeToForget?.name ?? "this place") from your places?",
                             isPresented: Binding(get: { placeToForget != nil }, set: { if !$0 { placeToForget = nil } }),
@@ -1189,7 +1192,7 @@ private struct CardChoice: View {
             VStack(spacing: 0) {
                 if AppFeatures.mailedCards && daysLeft >= 6 {
                     OptionRow(title: "Mail a handwritten card",
-                              caption: "Written in pen by a real hand and mailed for you. Pick the card, write the message, pay with Apple Pay.") {
+                              caption: "Written in real pen and mailed for you. Pick the card, write the message, pay with Apple Pay.") {
                         mailing = true
                     }
                 }
