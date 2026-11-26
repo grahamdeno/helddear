@@ -257,7 +257,9 @@ struct FeaturedView: View {
         let missed = state.status == .missed
 
         FeaturedSlots(
-            eyebrow: missed ? "Yesterday" : moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day()),
+            // U10 (first-use audit, Nov 25, 2026): say what the date is for, so it never reads as today's date.
+            eyebrow: missed ? "Yesterday"
+                : "\(moment.label) · \(moment.dueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))",
             title: displayName, open: openPerson, openHint: "Opens \(name)'s page",
             subline: subline(days: days, missed: missed),
             progress: progress, status: statusLine(act: act, name: name)
