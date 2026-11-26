@@ -156,6 +156,10 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
 - **Mailed cards review (Nov 25, 2026):** Fable passed PR #152 at 42c15f8 (findings N1 to N11, re-check R1 to R5);
   merged on Graham's go. Server shipped to production at cd2602f on Graham's ship go, Nov 25, 2026
   (dpl_9uTEnEPZj4vv3v4pySoXUG3acLTG); MAILED_CARDS stays unset, so cards answer "paused" until Graham's go.
+- **First-use audit decisions (Graham, Nov 25, 2026):** U6, mailed cards ship in 1.0, after two real orders to
+  Graham's address (one mailed, one forced to fail and refunded); if either fails, they're switched off. U7, every new
+  plan is the plan in parts, starting with three suggested parts; Home's plan buttons and alert taps open it. U8 to U10
+  and U12 approved one by one. U13 to U16 go to 1.1.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
