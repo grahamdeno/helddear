@@ -316,7 +316,7 @@ struct FeaturedView: View {
         switch act {
         case .allSet:
             SecondaryButton(title: "Change the plan") {
-                model.route = state.isPlanMoment ? .plan(moment.id) : .moment(moment.id, .choose)
+                if state.isPlanMoment { model.route = .plan(moment.id) } else { model.startPlan(moment) }
             }
         case .openPlan:
             let nudge = moment.planNudge
@@ -331,7 +331,7 @@ struct FeaturedView: View {
             // U2 (first-use audit, Nov 25, 2026): no ideas saved and no suggestions on this iPhone, so the ideas page
             // would be empty. Start the plan instead.
             PrimaryButton(title: moment.type == .birthday ? "Plan \(name)'s birthday" : "Plan \(name)'s day") {
-                model.route = .moment(moment.id, .choose)
+                model.startPlan(moment)
             }
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
             PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
@@ -428,7 +428,7 @@ struct FeaturedView: View {
         case .dayOfCall:
             if !model.startCall(moment) { model.route = .moment(moment.id, .photo) }
         case .dayOfMessage: model.route = .moment(moment.id, model.phone(for: moment.person) == nil ? .dayOf : .photo)
-        case .pick: model.route = .moment(moment.id, .choose)
+        case .pick: model.startPlan(moment)
         case .saveWish: model.route = .addWish(moment.person?.id)
         case .openPlan: model.route = .plan(moment.id)
         default: model.route = .moment(moment.id, .nextStep)

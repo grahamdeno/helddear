@@ -11,4 +11,11 @@ final class FirstUseFixesTests: XCTestCase {
         XCTAssertNil(PlanLimit.limitLine(names: []))
         XCTAssertNil(PlanLimit.limitLine(names: [""]))
     }
+
+    func testU7NewPlansStartWithThreeParts() {
+        XCTAssertEqual(PartSuggestions.starter(for: .birthday, relationship: nil).map(\.title), ["Gift", "Card", "Cake"])
+        XCTAssertEqual(PartSuggestions.starter(for: .birthday, relationship: "Wife").map(\.title), ["Gift", "Card", "Cake"])
+        XCTAssertEqual(PartSuggestions.starter(for: .christmas, relationship: nil).map(\.title), ["Gift", "Stocking", "From Santa"])
+        XCTAssertEqual(PartSuggestions.starter(for: .event, relationship: nil).count, 3)
+    }
 }

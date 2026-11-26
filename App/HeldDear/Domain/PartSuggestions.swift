@@ -46,6 +46,12 @@ enum PartSuggestions {
         return [make("Gift", .gift), make("Card", .card), make("Cake", .cake), make("The day", .theDay)]
     }
 
+    /// U7 (first-use audit, Graham approved Nov 25, 2026): a new plan opens with the first three suggestions, so it's
+    /// never blank. Removing a part is one tap.
+    static func starter(for occasion: OccasionType, relationship: String?) -> [Suggestion] {
+        Array(suggestions(for: occasion, relationship: relationship).prefix(3))
+    }
+
     /// What a person's plan starts with when they join a shared holiday (roadmap 1.6), by relationship.
     /// Christmas: partner Gift, Stocking, Card, Gift from the kids; child two Gifts and a Stocking; parent or
     /// grandparent Gift, Card; sibling or in-law Gift; teacher, coach, neighbor or friend a card; unknown Gift, Card.
