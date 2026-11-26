@@ -1,0 +1,5 @@
+Query chain:
+ →Find: Target Application 'com.grahamdeno.helddear'
+  ↪︎Find: Descendants matching type Cell
+    ↪︎Find: Elements matching predicate 'label == "See ideas for Ada" OR label BEGINSWITH "See ideas for Ada,"'
+      ↪︎Find: First Match
