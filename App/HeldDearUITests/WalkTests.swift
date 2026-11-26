@@ -63,6 +63,9 @@ final class WalkTests: XCTestCase {
     func testWalkMainScreens() {
         app.launch()
         record("Home")
+        // The ideas page from Home's main button (first-use audit, Nov 25, 2026). Simulators have no Apple
+        // Intelligence, so this is the page without suggestions.
+        if tap("See ideas for Ada", screen: "Ideas from Home") { record("Ideas, no Apple Intelligence"); back() }
 
         if tap("Settings", screen: "You and Settings") {
             record("You and Settings")

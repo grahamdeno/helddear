@@ -199,6 +199,14 @@ struct PersonView: View {
                             if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
                         }
                     }
+                    // First-use tips (story 4.1): one at most. The third free plan first, then what a plan is, then
+                    // reminders on a later visit.
+                    TipLine(FirstUseTips.pick([
+                        (.planLimit, !purchases.hasLifetime && model.plannedPeople().count == PlanLimit.freePeople
+                            && model.plannedPeople().contains(person.id)),
+                        (.plan, !(selected?.planParts.isEmpty ?? true)),
+                        (.rings, true),
+                    ]))
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
                     }

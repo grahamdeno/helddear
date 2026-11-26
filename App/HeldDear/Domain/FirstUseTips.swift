@@ -2,23 +2,33 @@ import Foundation
 
 /// One-time tips: a single short line the first time someone reaches a new part of the app, then never again
 /// (Graham, Nov 25, 2026: one thing at a time, only when it's needed). Kept on this iPhone. Plain rules, unit tested.
+/// Rules (Fable's first-use audit): never two tips on one screen, and none during setup or in the Apple Pay flow.
 enum FirstUseTip: String, CaseIterable {
-    case home, plan, holiday, ideas, cardPicker, shareIdeas, widgets, rings
+    case home, plan, holiday, ideas, shareIdeas, widgets, rings, planLimit
 
-    /// Wording waits for Graham's read-back and the first-use audit; these are the drafts.
+    /// Wording approved by Graham one by one, Nov 25, 2026.
     var line: String {
         switch self {
-        case .home: "Your year, left to right. Tap a name to open that person's page."
-        case .plan: "A plan is the day in a few parts. Tap a part to say who's doing it."
-        case .holiday: "Everyone's plan for this day, on one page. Tap a name to start that plan."
-        case .ideas: "Save an idea when it comes to you. It waits on the person's page until the day."
-        case .cardPicker: "Tap a card to pick it. Tap it again to see it up close."
-        // Shown after the first idea is saved by hand: the share sheet can't be found from inside the app.
-        case .shareIdeas: "Next time, share a link from Safari or any shop's app straight to Held Dear."
-        // Shown after the first plan is done, with Lifetime.
-        case .widgets: "Add Held Dear to your Home Screen or Lock Screen to see who's coming up."
-        // Shown on the first person's page.
-        case .rings: "Your closest people get a 3-week heads-up. Change it under Reminders on this page."
+        case .home: "The big name is whose day comes next. Tap it for the full page, or swipe to see who's after."
+        case .plan: "A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands."
+        case .holiday: "Everyone you're planning for, on one page. Tap a name to open that plan."
+        case .ideas: "Save an idea whenever one comes to you. It's on the person's page when the day gets close."
+        case .shareIdeas: "Next time, share a link from Safari or a shop's app. If Held Dear isn't in the row, tap More."
+        case .widgets: "Add a Held Dear widget to your Home Screen or Lock Screen to see who's coming up."
+        case .rings: "The people you picked get a 3-week heads-up. Change it under Reminders on this page."
+        case .planLimit: "This is the third of three free plans. Lifetime adds plans for everyone."
+        }
+    }
+
+    /// The two tips about things outside Held Dear carry a small drawn picture (Graham, Nov 25, 2026).
+    var hasPicture: Bool { self == .shareIdeas || self == .widgets }
+
+    /// What VoiceOver reads for the picture.
+    var pictureSteps: String? {
+        switch self {
+        case .shareIdeas: "In Safari or a shop's app, tap Share, then Held Dear. If it isn't there, tap More."
+        case .widgets: "Press and hold your Home Screen, tap the plus button, then find Held Dear."
+        default: nil
         }
     }
 }
@@ -37,5 +47,10 @@ enum FirstUseTips {
     /// For You > How Held Dear works: show every tip again.
     static func resetAll(_ defaults: UserDefaults = .standard) {
         for t in FirstUseTip.allCases { defaults.removeObject(forKey: prefix + t.rawValue) }
+    }
+
+    /// One screen's tip: the first of `candidates` that is due and not yet seen, so a screen never shows two.
+    static func pick(_ candidates: [(FirstUseTip, Bool)], _ defaults: UserDefaults = .standard) -> FirstUseTip? {
+        candidates.first { $0.1 && shouldShow($0.0, defaults) }?.0
     }
 }

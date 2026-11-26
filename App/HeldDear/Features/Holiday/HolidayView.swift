@@ -70,6 +70,7 @@ struct HolidayView: View {
                 .lineLimit(3).minimumScaleFactor(0.8)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
+            TipLine(FirstUseTips.pick([(.holiday, true)]))
             VStack(alignment: .leading, spacing: Brand.space2) {
                 Text(Holidays.subline(daysLeft: days, people: rows.count))
                     .font(Brand.serif(20, relativeTo: .body)).foregroundStyle(Brand.inkSoft)

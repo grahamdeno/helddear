@@ -30,10 +30,24 @@ final class FirstUseTipsTests: XCTestCase {
 
     func testEveryTipIsOneShortSentenceWithNoPronounsForPeople() {
         for tip in FirstUseTip.allCases {
-            XCTAssertLessThanOrEqual(tip.line.count, 90, tip.rawValue)
+            XCTAssertLessThanOrEqual(tip.line.count, 110, tip.rawValue)
             for w in [" he ", " she ", " his ", " her ", " they ", " them ", " their "] {
                 XCTAssertFalse(" \(tip.line.lowercased()) ".contains(w), "\(tip.rawValue): \(w)")
             }
         }
+    }
+
+    func testAScreenShowsOneTipAtMost() {
+        XCTAssertEqual(FirstUseTips.pick([(.planLimit, true), (.plan, true)], defaults), .planLimit)
+        FirstUseTips.markSeen(.planLimit, defaults)
+        XCTAssertEqual(FirstUseTips.pick([(.planLimit, true), (.plan, true)], defaults), .plan)
+        XCTAssertEqual(FirstUseTips.pick([(.planLimit, false), (.plan, true)], defaults), .plan)
+        FirstUseTips.markSeen(.plan, defaults)
+        XCTAssertNil(FirstUseTips.pick([(.planLimit, true), (.plan, true)], defaults))
+    }
+
+    func testOnlyTheOutsideTipsHavePictures() {
+        XCTAssertEqual(FirstUseTip.allCases.filter(\.hasPicture), [.shareIdeas, .widgets])
+        XCTAssertTrue(FirstUseTip.allCases.filter(\.hasPicture).allSatisfy { $0.pictureSteps != nil })
     }
 }

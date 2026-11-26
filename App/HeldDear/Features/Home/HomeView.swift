@@ -69,6 +69,12 @@ struct HomeView: View {
                 .padding(.top, -40)
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
+                // First-use tips (story 4.1): Home's line first; widgets once a Lifetime plan is done.
+                TipLine(FirstUseTips.pick([
+                    (.home, true),
+                    (.widgets, Purchases.shared.hasLifetime && model.allPeople().contains { !$0.ledger.isEmpty }),
+                ]))
+                .padding(.horizontal, Brand.space5)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
                             selectedID: featured.id, now: now, seasons: model.seasons(now: now),
