@@ -160,6 +160,11 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   Graham's address (one mailed, one forced to fail and refunded); if either fails, they're switched off. U7, every new
   plan is the plan in parts, starting with three suggested parts; Home's plan buttons and alert taps open it. U8 to U10
   and U12 approved one by one. U13 to U16 go to 1.1.
+- **First-use work added to 1.0 (Graham, Nov 25, 2026):** 1.0 isn't frozen yet. A first-use audit (Fable) walks the
+  app as a new person through the first week and ranks where people could stall; its fixes may add features. Story 4.1,
+  one-time tips: the first time someone reaches a new part (Home, a plan, a holiday page, ideas, the card picker), one
+  short line and "Got it", shown once, kept on this iPhone. Tip wording waits for the audit and Graham's read-back.
+  Submit moves to about Dec 11 to 12.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
@@ -305,6 +310,10 @@ budgets, group gifts from several givers.
 8. Stage 6 prep and the Fable go-live assessment.
 
 ## Small follow-ups
+
+- **Flaky store test (Nov 25, 2026):** DataFoundationTests.testS3_aFailedCopyLeavesNothingAndIsTriedAgain compares the
+  old store's file bytes; SQLite sometimes rewrites the header, so it failed once on PR #155 and passed on a rerun.
+  Compare the old store's rows instead. Store tests are always reviewed (Fable).
 
 - **L1 (Fable, low, Nov 25, 2026):** a Stripe 400 with type invalid_request_error should read as declined
   (server/api/order.js, the charge catch). Today it reads as "still being confirmed" and the daily check settles it.
