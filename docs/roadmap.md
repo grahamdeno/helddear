@@ -311,6 +311,10 @@ budgets, group gifts from several givers.
 
 ## Small follow-ups
 
+- **For 1.1, from the first-use audit (Fable, Nov 25, 2026):** U13, rename the "Share day" label to say what it does.
+  U14, sharing from other apps is hard to find (the share-ideas tip covers it for 1.0; revisit). U15, a clearer line in
+  How Held Dear works (HowItWorks.swift). U16, as listed in Fable's audit report of Nov 25, 2026.
+
 - **Flaky store test (Nov 25, 2026):** DataFoundationTests.testS3_aFailedCopyLeavesNothingAndIsTriedAgain compares the
   old store's file bytes; SQLite sometimes rewrites the header, so it failed once on PR #155 and passed on a rerun.
   Compare the old store's rows instead. Store tests are always reviewed (Fable).

@@ -49,7 +49,9 @@ enum PartSuggestions {
     /// U7 (first-use audit, Graham approved Nov 25, 2026): a new plan opens with the first three suggestions, so it's
     /// never blank. Removing a part is one tap.
     static func starter(for occasion: OccasionType, relationship: String?) -> [Suggestion] {
-        Array(suggestions(for: occasion, relationship: relationship).prefix(3))
+        // V4 (Fable re-check, Nov 26, 2026): a holiday starts with the holiday's own parts, by relationship.
+        if occasion.kind == .holiday { return holidayStart(for: occasion, relationship: relationship) }
+        return Array(suggestions(for: occasion, relationship: relationship).prefix(3))
     }
 
     /// What a person's plan starts with when they join a shared holiday (roadmap 1.6), by relationship.

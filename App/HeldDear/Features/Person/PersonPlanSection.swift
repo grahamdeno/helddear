@@ -34,13 +34,24 @@ struct PersonPlanSection: View {
         }
     }
 
+    /// "Plan Ada's birthday", or "Plan Ada's day" for anything else.
+    static func startTitle(name: String, isBirthday: Bool) -> String {
+        let n = name.isEmpty ? "the" : "\(name)'s"
+        return isBirthday ? "Plan \(n) birthday" : "Plan \(n) day"
+    }
+
     var body: some View {
         let _ = model.revision
         let items = self.items
         let nudge = moment.planNudge
         VStack(alignment: .leading, spacing: Brand.space3) {
             if items.isEmpty {
-                Text("Nothing planned yet.").font(Brand.serif(19, relativeTo: .body, italic: true)).foregroundStyle(Brand.inkSoft)
+                // V1 (Fable re-check, Nov 26, 2026): no blank state; one button starts the plan in parts. The day's
+                // card above already says "Nothing planned yet", so it isn't said twice.
+                PrimaryButton(title: PersonPlanSection.startTitle(name: moment.person.map { DisplayName.plain($0.name) } ?? "",
+                                                                  isBirthday: moment.type == .birthday)) {
+                    model.startPlan(moment)
+                }
             } else {
                 countLine(items)
                 ForEach(PlanGroup.allCases, id: \.self) { g in

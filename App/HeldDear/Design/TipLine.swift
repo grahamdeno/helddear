@@ -40,7 +40,9 @@ struct TipLine: View {
                 .onDisappear { FirstUseTips.markSeen(tip) }
             }
         }
-        .onAppear { visible = tip.map { FirstUseTips.shouldShow($0) } == true && !DemoMode.on }
+        // V3: re-checked whenever the screen's tip changes, so a tip can appear while the screen is open (the third
+        // free plan starts on this page), not only when the screen opens.
+        .task(id: tip?.rawValue) { visible = tip.map { FirstUseTips.shouldShow($0) } == true && !DemoMode.on }
     }
 }
 

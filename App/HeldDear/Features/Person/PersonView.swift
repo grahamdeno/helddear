@@ -205,7 +205,8 @@ struct PersonView: View {
                         (.planLimit, !purchases.hasLifetime && model.plannedPeople().count == PlanLimit.freePeople
                             && model.plannedPeople().contains(person.id)),
                         (.plan, !(selected?.planParts.isEmpty ?? true)),
-                        (.rings, true),
+                        // V2: the reminders tip is about the people picked in setup.
+                        (.rings, person.ring == .inner),
                     ]))
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }

@@ -16,7 +16,7 @@ enum FirstUseTip: String, CaseIterable {
         case .shareIdeas: "Next time, share a link from Safari or a shop's app. If Held Dear isn't in the row, tap More."
         case .widgets: "Add a Held Dear widget to your Home Screen or Lock Screen to see who's coming up."
         case .rings: "The people you picked get a 3-week heads-up. Change it under Reminders on this page."
-        case .planLimit: "This is the third of three free plans. Lifetime adds plans for everyone."
+        case .planLimit: "All three free plans are now in use. Lifetime adds plans for everyone."
         }
     }
 
