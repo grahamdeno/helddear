@@ -223,7 +223,7 @@ struct NotificationsSetupView: View {
             Spacer(minLength: 40)
             Question(title: "We'll tell you early enough to act")
             VStack(spacing: 10) {
-                leadRow("3 weeks", "Your inner ring, with time to plan a gift or card")
+                leadRow("3 weeks", "The people you picked, with time to plan a gift or card")
                 leadRow("1 week", "Close friends and family")
                 leadRow("The day", "Everyone else, with a message ready to send")
             }
