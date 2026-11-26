@@ -113,7 +113,7 @@ final class WalkTests: XCTestCase {
             sleep(2)
             record("Setup, contacts denied")
         }
-        if tap("Add someone", screen: "Add by hand") {
+        if tap("Continue", screen: "Add by hand") {
             record("After denied, add someone")
             _ = tap("Not now", screen: "Alerts step")
             let ok = app.alerts.buttons["OK"]

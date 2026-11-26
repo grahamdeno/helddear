@@ -12,13 +12,14 @@ struct OnboardingView: View {
             switch step {
             case .find: FindBirthdaysView(onResult: handleImport, onSkip: { addFirstAfterSetup = true; go(.notify) })
             case .noneFound:
+                // U8 (first-use audit, Nov 25, 2026): the button says what comes next.
                 SetupMessage(title: "None of your contacts have birthdays yet",
-                             detail: "Add the people you care about one at a time. It takes a few seconds each.",
-                             button: "Add someone") { addFirstAfterSetup = true; go(.notify) }
+                             detail: "Add the people you care about one at a time. It takes a few seconds each. First, one quick question about alerts.",
+                             button: "Continue") { addFirstAfterSetup = true; go(.notify) }
             case .denied:
                 SetupMessage(title: "Add people one at a time instead",
-                             detail: "You can let Held Dear see your contacts later in Settings.",
-                             button: "Add someone") { addFirstAfterSetup = true; go(.notify) }
+                             detail: "You can let Held Dear see your contacts later in Settings. First, one quick question about alerts.",
+                             button: "Continue") { addFirstAfterSetup = true; go(.notify) }
             case .choose: ChooseInnerRingView { go(model.allPeople().contains { $0.ring == .inner } ? .getAhead : .notify) }
             case .getAhead: GetAheadView { go(.notify) }
             case .notify: NotificationsSetupView(onDone: finish)
