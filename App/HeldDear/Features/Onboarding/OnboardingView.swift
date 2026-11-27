@@ -12,13 +12,14 @@ struct OnboardingView: View {
             switch step {
             case .find: FindBirthdaysView(onResult: handleImport, onSkip: { addFirstAfterSetup = true; go(.notify) })
             case .noneFound:
+                // U8 (first-use audit, Nov 25, 2026): the button says what comes next.
                 SetupMessage(title: "None of your contacts have birthdays yet",
-                             detail: "Add the people you care about one at a time. It takes a few seconds each.",
-                             button: "Add someone") { addFirstAfterSetup = true; go(.notify) }
+                             detail: "Add the people you care about one at a time. It takes a few seconds each. First, one quick question about alerts.",
+                             button: "Continue") { addFirstAfterSetup = true; go(.notify) }
             case .denied:
                 SetupMessage(title: "Add people one at a time instead",
-                             detail: "You can let Held Dear see your contacts later in Settings.",
-                             button: "Add someone") { addFirstAfterSetup = true; go(.notify) }
+                             detail: "You can let Held Dear see your contacts later in Settings. First, one quick question about alerts.",
+                             button: "Continue") { addFirstAfterSetup = true; go(.notify) }
             case .choose: ChooseInnerRingView { go(model.allPeople().contains { $0.ring == .inner } ? .getAhead : .notify) }
             case .getAhead: GetAheadView { go(.notify) }
             case .notify: NotificationsSetupView(onDone: finish)
@@ -222,7 +223,7 @@ struct NotificationsSetupView: View {
             Spacer(minLength: 40)
             Question(title: "We'll tell you early enough to act")
             VStack(spacing: 10) {
-                leadRow("3 weeks", "Your inner ring, with time to plan a gift or card")
+                leadRow("3 weeks", "The people you picked, with time to plan a gift or card")
                 leadRow("1 week", "Close friends and family")
                 leadRow("The day", "Everyone else, with a message ready to send")
             }
@@ -235,8 +236,11 @@ struct NotificationsSetupView: View {
             }
             TextLink(title: "Not now") { showDeniedNote = true }
         }
-        .alert("Without alerts, check the widget or Home", isPresented: $showDeniedNote) {
+        // U1 (first-use audit, Nov 25, 2026): say what to do instead, and where to turn alerts on later.
+        .alert("Without alerts, open Held Dear to see who's coming up.", isPresented: $showDeniedNote) {
             Button("OK", action: onDone)
+        } message: {
+            Text("You can turn alerts on later in You, under Alerts.")
         }
     }
 

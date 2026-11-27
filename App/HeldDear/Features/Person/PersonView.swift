@@ -193,20 +193,30 @@ struct PersonView: View {
                     if let offer = model.combineOffer(for: person) {
                         CombineAnniversaryCard(keep: offer.keep, drop: offer.drop)
                     }
-                    if let next = model.nextMoment(for: person) {
-                        FamilyInSuggestion(person: person, moment: next) { followUp in
-                            familyAsk = FamilyAsk(moment: next, followUp: followUp)
-                        }
-                        .id(familyToggle)
-                    }
                     if !moments.isEmpty {
                         PersonDayCards(moments: moments, selectedID: Binding(get: { selected?.id }, set: { if let id = $0 { selectedID = id } }),
                                        addTitle: purchases.hasLifetime ? "Add a day" : "Add a day · Lifetime") {
                             if purchases.hasLifetime { addingOccasion = true } else { showLifetime = true }
                         }
                     }
+                    // First-use tips (story 4.1): one at most. The third free plan first, then what a plan is, then
+                    // reminders on a later visit.
+                    TipLine(FirstUseTips.pick([
+                        (.planLimit, !purchases.hasLifetime && model.plannedPeople().count == PlanLimit.freePeople
+                            && model.plannedPeople().contains(person.id)),
+                        (.plan, !(selected?.planParts.isEmpty ?? true)),
+                        // V2: the reminders tip is about the people picked in setup.
+                        (.rings, person.ring == .inner),
+                    ]))
                     if let selected {
                         PersonPlanSection(moment: selected) { addingTo = selected }
+                    }
+                    // U12 (first-use audit, Nov 25, 2026): the family ask comes after the plan, not before it.
+                    if let next = model.nextMoment(for: person) {
+                        FamilyInSuggestion(person: person, moment: next) { followUp in
+                            familyAsk = FamilyAsk(moment: next, followUp: followUp)
+                        }
+                        .id(familyToggle)
                     }
                     // Four doors, one tap each, instead of every section stacked (Graham, Nov 22, 2026).
                     partTiles

@@ -69,6 +69,12 @@ struct HomeView: View {
                 .padding(.top, -40)
                 .accessibilityAction(named: "Next day") { step(1, from: featured, in: moments, now: now) }
                 .accessibilityAction(named: "Previous day") { step(-1, from: featured, in: moments, now: now) }
+                // First-use tips (story 4.1): Home's line first; widgets once a Lifetime plan is done.
+                TipLine(FirstUseTips.pick([
+                    (.home, true),
+                    (.widgets, Purchases.shared.hasLifetime && model.allPeople().contains { !$0.ledger.isEmpty }),
+                ]))
+                .padding(.horizontal, Brand.space5)
                 Spacer(minLength: Brand.space4)
                 HorizonBand(moments: moments.filter { $0.dueDate >= Calendar.current.startOfDay(for: now) },
                             selectedID: featured.id, now: now, seasons: model.seasons(now: now),
@@ -191,7 +197,7 @@ struct HomeView: View {
             .sorted { $0.dueDate < $1.dueDate }
     }
 
-    /// "‹ Ana needs you · Dec 17", top left, only when someone else needs you. One tap goes back to them.
+    /// "Ana needs you · Dec 17", top left, only when someone else needs you. One tap goes back to them.
     @ViewBuilder private var needsYouChip: some View {
         let _ = model.revision
         let now = Date()
@@ -201,10 +207,13 @@ struct HomeView: View {
             let words = list.count == 1 ? "\(name) needs you · \(first.dueDate.formatted(.dateTime.month(.abbreviated).day()))"
                 : "\(name) and \(list.count - 1) \(list.count == 2 ? "other" : "others") need you"
             Button { withMotion(.snappy) { selectedID = first.id } } label: {
+                // U5 (first-use audit, Nov 25, 2026): the toolbar squeezed the words to nothing, leaving a bare arrow.
+                // The words now keep their own width, and the arrow is gone.
                 HStack(spacing: 6) {
-                    Image(systemName: "chevron.left").font(.caption.weight(.bold)).foregroundStyle(Brand.action)
                     PersonPortrait(person: person, size: 22)
                     Text(words).font(.footnote.weight(.medium)).foregroundStyle(Brand.ink).lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
                 }
                 .padding(.leading, 8).padding(.trailing, 12)
                 .frame(minHeight: 36)
@@ -254,7 +263,9 @@ struct FeaturedView: View {
         let missed = state.status == .missed
 
         FeaturedSlots(
-            eyebrow: missed ? "Yesterday" : moment.dueDate.formatted(.dateTime.weekday(.wide).month(.wide).day()),
+            // U10 (first-use audit, Nov 25, 2026): say what the date is for, so it never reads as today's date.
+            eyebrow: missed ? "Yesterday"
+                : "\(moment.label) · \(moment.dueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))",
             title: displayName, open: openPerson, openHint: "Opens \(name)'s page",
             subline: subline(days: days, missed: missed),
             progress: progress, status: statusLine(act: act, name: name)
@@ -311,7 +322,7 @@ struct FeaturedView: View {
         switch act {
         case .allSet:
             SecondaryButton(title: "Change the plan") {
-                model.route = state.isPlanMoment ? .plan(moment.id) : .moment(moment.id, .choose)
+                if state.isPlanMoment { model.route = .plan(moment.id) } else { model.startPlan(moment) }
             }
         case .openPlan:
             let nudge = moment.planNudge
@@ -321,6 +332,12 @@ struct FeaturedView: View {
                 PrimaryButton(title: nudge.buttonTitle) { model.push(.item(target)) }
             } else {
                 PrimaryButton(title: "See \(name)'s plan") { openPerson() }
+            }
+        case .pick where nothingToSuggest:
+            // U2 (first-use audit, Nov 25, 2026): no ideas saved and no suggestions on this iPhone, so the ideas page
+            // would be empty. Start the plan instead.
+            PrimaryButton(title: moment.type == .birthday ? "Plan \(name)'s birthday" : "Plan \(name)'s day") {
+                model.startPlan(moment)
             }
         case .pick where GiftTiming.isIdeaTime(due: moment.dueDate, now: now):
             PrimaryButton(title: "See ideas for \(name)") { model.route = .ideas(moment.id) }
@@ -365,6 +382,11 @@ struct FeaturedView: View {
         case .message: return "A message is ready for the day."
         case .other: return "\(plan.title ?? "The plan") is taken care of."
         }
+    }
+
+    /// Nothing saved for this person, and this iPhone can't suggest ideas (no Apple Intelligence).
+    private var nothingToSuggest: Bool {
+        !OnDeviceIdeas.isAvailable && (moment.person?.openWishes.isEmpty ?? true)
     }
 
     private func ideaLine(name: String) -> String {
@@ -412,7 +434,7 @@ struct FeaturedView: View {
         case .dayOfCall:
             if !model.startCall(moment) { model.route = .moment(moment.id, .photo) }
         case .dayOfMessage: model.route = .moment(moment.id, model.phone(for: moment.person) == nil ? .dayOf : .photo)
-        case .pick: model.route = .moment(moment.id, .choose)
+        case .pick: model.startPlan(moment)
         case .saveWish: model.route = .addWish(moment.person?.id)
         case .openPlan: model.route = .plan(moment.id)
         default: model.route = .moment(moment.id, .nextStep)

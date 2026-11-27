@@ -70,7 +70,7 @@ struct AddBirthdayView: View {
                             + (model.contactsToDate.isEmpty ? "" : " \(model.contactsToDate.count) more after this."),
                          style: .title)
             } else {
-                Question(title: "Add someone", subtitle: "Say or type their name and a date to remember.", style: .display)
+                Question(title: "Add someone", subtitle: "Type their name and a date to remember.", style: .display)
             }
             LineField(label: "Name and date", text: $text, placeholder: "Mike, March 3", onSubmit: save)
             if showHint {
@@ -285,7 +285,7 @@ struct AddWishView: View {
         } else {
             FlowScreen(onClose: { model.route = nil }) {
                 Question(title: preselected.map { "What would \($0.name) love?" } ?? "Save an idea",
-                         subtitle: preselected == nil ? "Say or type it, like \"Ada: blue skates\"." : "One line is plenty.")
+                         subtitle: preselected == nil ? "Type it, like \"Ada: blue skates\"." : "One line is plenty.")
                 LineField(label: "The idea", text: $text, placeholder: preselected == nil ? "Ada: blue skates" : "Blue gardening gloves",
                           onSubmit: submit)
                 if let person = matched {

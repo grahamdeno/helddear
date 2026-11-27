@@ -23,7 +23,10 @@ struct FamilyInSuggestion: View {
                 VStack(alignment: .leading, spacing: Brand.space2) {
                     Text(followUp ? "Remind the family?" : "Get the family in").textStyle(.headline)
                     Text(followUp ? "\(subject.capitalizedFirst) is in \(days) day\(days == 1 ? "" : "s"). One more nudge to the people you asked."
-                                  : "\(subject.capitalizedFirst) is in \(days) days. Ask the people you pick to add a note or send a card, one text each.")
+                                  : AppFeatures.familyPages
+                                      ? "\(subject.capitalizedFirst) is in \(days) days. Ask the people you pick to add a note or send a card, one text each."
+                                      // U12: without family pages there's no note to add, so only the card is offered.
+                                      : "\(subject.capitalizedFirst) is in \(days) days. Ask the people you pick to send a card, one text each.")
                         .textStyle(.callout, color: Brand.inkMuted)
                 }
                 // Side by side when they fit; stacked at large text so the button's words never break mid-word (walk run 5).

@@ -1005,6 +1005,16 @@ final class AppModel: ObservableObject {
 
     /// Adds a part to the end of a plan: not started, from You.
     @discardableResult
+    /// Opens the plan in parts for a day, starting it with three suggested parts when it has none (U7).
+    func startPlan(_ m: Moment) {
+        if m.planParts.isEmpty && m.plan == nil {
+            for s in PartSuggestions.starter(for: m.type, relationship: m.person?.relationship) {
+                _ = addPart(to: m, kind: s.kind, label: s.label)
+            }
+        }
+        route = .plan(m.id)
+    }
+
     func addPart(to m: Moment, kind: ActKind, label: String?) -> Act {
         let act = PlanStore.addPart(to: m, kind: kind, label: label, in: context)
         commit()
@@ -1206,7 +1216,8 @@ final class AppModel: ObservableObject {
         guard let kind else { return }
         switch kind {
         case .wishPrompt: if let id = momentID { route = .moment(id, .wishPrompt) }
-        case .headsUp, .nudge: if let id = momentID { route = .moment(id, .choose) }
+        // U7: an alert opens the plan in parts, not the single-choice screen.
+        case .headsUp, .nudge: if let id = momentID, let m = moment(id) { startPlan(m) }
         case .cutoff: if let id = momentID { route = .moment(id, .nextStep) }
         case .missed: if let id = momentID { route = .moment(id, .missed) }
         case .season: if let month = monthStart { route = .season(month) }

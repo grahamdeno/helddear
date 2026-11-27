@@ -122,6 +122,11 @@ struct IdeasList: View {
     /// The one place to start: suggest (asking what they love first, in place, when nothing's saved), or save one.
     @ViewBuilder private var startCard: some View {
         VStack(alignment: .leading, spacing: Brand.space3) {
+            // First-use tips (story 4.1): what ideas are for; then, once one is saved, sharing from other apps.
+            TipLine(FirstUseTips.pick([
+                (.shareIdeas, !FirstUseTips.shouldShow(.ideas) && model.allPeople().contains { !$0.wishes.isEmpty }),
+                (.ideas, true),
+            ]))
             if shelf.isEmpty && found.isEmpty {
                 Text("Nothing saved yet.").textStyle(.headline)
             }
