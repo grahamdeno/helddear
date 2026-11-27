@@ -165,6 +165,8 @@ Newest first. Refined decisions only. Decisions before Nov 13 not repeated here 
   one-time tips: the first time someone reaches a new part (Home, a plan, a holiday page, ideas, the card picker), one
   short line and "Got it", shown once, kept on this iPhone. Tip wording waits for the audit and Graham's read-back.
   Submit moves to about Dec 11 to 12.
+- **First-use audit (Nov 27, 2026):** Fable passed PR #158 at 91fb973 (U1 to U12, V1 to V5, story 4.1 tips); merged on
+  Graham's go.
 - **Purchases approved:** `com.grahamdeno.helddear.lifetime`, non-consumable, $9.99, Family Sharing on (Nov 20,
   2026). Grok creates it after the first 1.0 test build.
 - **Go-aheads under playbook 1.4.0:** merge PR #11 (Nov 20).
@@ -310,6 +312,13 @@ budgets, group gifts from several givers.
 8. Stage 6 prep and the Fable go-live assessment.
 
 ## Small follow-ups
+
+- **1.1, from Fable's pass of PR #158 (Nov 27, 2026):** hide "+ Add to Birthday" on a day with no parts, so "Plan
+  [name]'s birthday" is the only start (PersonPlanSection.swift). Make the walk's Person step wait for the screen to
+  settle before the picture (the current one shows the People bar mid-transition).
+- **Phone checks for the next test build (first-use audit):** the free-limit screen names the three planned people
+  (U4); Home's "Plan [name]'s birthday" button on a phone without Apple Intelligence (U2); each first-use tip appears
+  once and never again.
 
 - **For 1.1, from the first-use audit (Fable, Nov 25, 2026):** U13, rename the "Share day" label to say what it does.
   U14, sharing from other apps is hard to find (the share-ideas tip covers it for 1.0; revisit). U15, a clearer line in
