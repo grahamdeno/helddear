@@ -66,6 +66,7 @@ struct TipLine: View {
                 lastFrame = frame
                 if settled { decideSpotlight() }
             }
+            .onChange(of: hostFrame) { if settled { decideSpotlight() } }
             // Decide once the page has settled (after launch sizing and any push), from the latest frames; if one
             // isn't known yet, the next measurement decides.
             .task {
