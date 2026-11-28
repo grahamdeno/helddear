@@ -86,4 +86,23 @@ final class TipTests: XCTestCase {
         XCTAssertTrue(plan.waitForNonExistence(timeout: 3), "The plan tip should go after Got it")
         XCTAssertFalse(anyTip.waitForExistence(timeout: 3), "No other tip should appear in the same visit")
     }
+
+    /// The spotlight (Nov 28, 2026): tapping the blurred part of the screen clears the tip and marks it seen, and the
+    /// tap doesn't reach what's behind it.
+    func testTappingOutsideTheTipClearsIt() {
+        app.launch()
+        let home = tip("home")
+        XCTAssertTrue(home.waitForExistence(timeout: 8), "The Home tip should be on screen on first launch")
+        // Bottom of the screen: the timeline, which would open someone's day if the tap got through.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
+        XCTAssertTrue(home.waitForNonExistence(timeout: 3), "Tapping outside the tip should clear it")
+        XCTAssertFalse(app.navigationBars.buttons.element(boundBy: 0).waitForExistence(timeout: 2)
+                       && app.navigationBars.buttons.element(boundBy: 0).label.hasPrefix("Home"),
+                       "The tap outside should not open another page")
+        picture("Home, after tapping outside the tip")
+        app.terminate()
+        app.launchArguments = ["-HeldDearDemo", "-HeldDearDemoTips"]
+        app.launch()
+        XCTAssertFalse(home.waitForExistence(timeout: 4), "The Home tip should stay gone after a relaunch")
+    }
 }

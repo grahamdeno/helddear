@@ -1,13 +1,19 @@
 import SwiftUI
 
 /// A first-use tip: one line and "Got it", with a small drawn picture for the two tips about things outside Held
-/// Dear. Shows once; dismissing it, or leaving the screen after it was seen, means it never shows again. Never covers
-/// anything: it sits in the page, above what it explains. Pass nil to show nothing.
+/// Dear. Shows once; dismissing it, or leaving the screen after it was seen, means it never shows again. It sits in
+/// the page, above what it explains; when it's wholly on screen as the page opens, the rest of the screen blurs
+/// behind it (TipSpotlight.swift). Pass nil to show nothing.
 struct TipLine: View {
     let tip: FirstUseTip?
     /// Set by "Got it": nothing more shows in this spot for the rest of the visit, so the next tip in the screen's
     /// list waits for another visit (Fable, PR #161).
     @State private var dismissed = false
+    /// Whether this tip gets the spotlight, decided once from where it first lands: true only when it's wholly on
+    /// screen then. Nil until measured.
+    @State private var spotlight: Bool?
+    @Environment(\.tipHostFrame) private var hostFrame
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
 
     init(_ tip: FirstUseTip?) { self.tip = tip }
 
@@ -34,10 +40,7 @@ struct TipLine: View {
                     Text(tip.line).font(TypeStyle.callout.font).foregroundStyle(Brand.ink)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
-                    Button("Got it") {
-                        FirstUseTips.markSeen(tip)
-                        withAnimation(Motion.animation(.easeOut(duration: 0.2))) { dismissed = true }
-                    }
+                    Button("Got it") { dismiss(tip) }
                     .font(TypeStyle.callout.font.weight(.semibold))
                     .foregroundStyle(Brand.action)
                     .frame(minWidth: 44, minHeight: 44)
@@ -47,9 +50,28 @@ struct TipLine: View {
                 .accessibilityIdentifier("tip.\(tip.rawValue)")
             }
             .padding(.horizontal, Brand.space4).padding(.vertical, Brand.space3)
-            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            // Its own look (Graham, Nov 28, 2026): a lighter fill than the page and a thin oxblood edge, so a tip
+            // reads as a tip on any screen. The edge is a mark, not something to tap.
+            .background(Brand.raised, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(topLeadingRadius: Brand.radiusMd, bottomLeadingRadius: Brand.radiusMd,
+                                       style: .continuous)
+                    .fill(Brand.action).frame(width: 3).accessibilityHidden(true)
+            }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                guard spotlight == nil, let host = hostFrame, frame.height > 0 else { return }
+                spotlight = frame.minY >= host.minY && frame.maxY <= host.maxY
+            }
+            .anchorPreference(key: TipSpotlightKey.self, value: .bounds) { anchor in
+                spotlight == true && !voiceOver ? TipSpotlightRequest(anchor: anchor, dismiss: { dismiss(tip) }) : nil
+            }
             .onDisappear { FirstUseTips.markSeen(tip) }
         }
+    }
+
+    private func dismiss(_ tip: FirstUseTip) {
+        FirstUseTips.markSeen(tip)
+        withAnimation(Motion.animation(.easeOut(duration: 0.2))) { dismissed = true }
     }
 }
 

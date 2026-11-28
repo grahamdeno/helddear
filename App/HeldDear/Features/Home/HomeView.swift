@@ -34,6 +34,8 @@ struct HomeView: View {
                     NavPage(nav: nav)
                 }
         }
+        // First-use tips blur the rest of the screen, top bar included (Nov 28, 2026).
+        .tipSpotlightHost()
     }
 
     @ViewBuilder private var content: some View {
