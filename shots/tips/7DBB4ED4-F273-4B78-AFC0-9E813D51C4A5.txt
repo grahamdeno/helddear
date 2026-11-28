@@ -1,0 +1,81 @@
+Application, 0x104252650, pid: 14443, label: 'Held Dear' <App element pid: 14443>
+  Window (Main), 0x1042529b0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4384159440.4>
+    Other, 0x104242740, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4386260720.5>
+      Other, 0x10423ceb0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4386249552.6>
+        Other, 0x104253d30, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4383320416.7>
+          Other, 0x10420e550, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4383472064.8>
+            Other, 0x10424aa50, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4383697280.9>
+              NavigationBar, 0x10423d2d0, {{0.0, 62.0}, {402.0, 54.0}}, identifier: '_TtGC7SwiftUI32NavigationStackHosting' <AX element pid: 14443, elementOrHash.elementID: 4384281280.10>
+                Other, 0x10424ae70, {{338.0, 62.0}, {44.0, 44.0}}, identifier: 'person', label: 'Settings' <AX element pid: 14443, elementOrHash.elementID: 4388526080.13>
+                  Other, 0x104240860, {{338.0, 62.0}, {44.0, 44.0}} <AX element pid: 14443, elementOrHash.elementID: 4386796192.16>
+                    Button, 0x104240980, {{338.0, 62.0}, {44.0, 44.0}}, identifier: 'person', label: 'Settings' <AX element pid: 14443, elementOrHash.elementID: 4386794192.18>
+              Other, 0x104240aa0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4383699520.11>
+                Other, 0x10423dee0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4386620096.14>
+                  Other, 0x10423e000, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4383317600.17>
+                    Other, 0x10423e120, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4384627040.19>
+                      CollectionView, 0x10423e240, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4397280768.20>
+                        Other, 0x10423e360, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4383457312.29>
+                          Other, 0x10423e480, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386838944.38>
+                        Cell, 0x10423e5a0, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4384318464.30>
+                          Other, 0x10423e6c0, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4384333888.39>
+                            Other, 0x10423e7e0, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4384350400.64>
+                              Other, 0x10423e900, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4384673584.70>
+                                Other, 0x10423ea20, {{76.0, 116.0}, {249.9, 301.3}} <AX element pid: 14443, elementOrHash.elementID: 4384672096.75>
+                                  StaticText, 0x10423ed40, {{144.8, 116.0}, {112.3, 9.7}}, label: 'Birthday · Tue, Dec 1' <AX element pid: 14443, elementOrHash.elementID: 4384656720.76>
+                                  Button, 0x10423ee60, {{166.8, 139.4}, {68.4, 68.4}}, label: 'Ada's page' <AX element pid: 14443, elementOrHash.elementID: 4384659840.77>
+                                    StaticText, 0x10423ef80, {{166.8, 139.4}, {68.4, 68.4}}, label: 'A' <AX element pid: 14443, elementOrHash.elementID: 4384659408.82>
+                                  StaticText, 0x10423f0a0, {{147.7, 279.4}, {106.5, 18.4}}, label: 'turns 66, in 3 days' <AX element pid: 14443, elementOrHash.elementID: 4384663424.78>
+                                  StaticText, 0x10423f1c0, {{107.8, 313.4}, {186.3, 25.1}}, label: 'Time to find something. You saved 1 idea this year.' <AX element pid: 14443, elementOrHash.elementID: 4384666048.79>
+                                  Button, 0x10423f2e0, {{91.0, 350.2}, {220.1, 34.8}}, label: 'See ideas for Ada' <AX element pid: 14443, elementOrHash.elementID: 4384668672.80>
+                                  Button, 0x10423f400, {{138.6, 192.2}, {124.8, 97.0}}, label: 'Ada' <AX element pid: 14443, elementOrHash.elementID: 4384671664.81>
+                        Other, 0x10423f520, {{0.0, 76.0}, {402.0, 341.3}} <AX element pid: 14443, elementOrHash.elementID: 4383458240.31>
+                          Other, 0x10423f640, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386838384.40>
+                            Other, 0x10423f760, {{0.0, 62.0}, {402.0, 44.0}} <AX element pid: 14443, elementOrHash.elementID: 4386843776.65>
+                            Other, 0x10423f880, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386839392.66>
+                              Other, 0x10423f9a0, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386840048.71>
+                            Other, 0x104240e40, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386840464.67>
+                              Other, 0x104240f60, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4384434576.72>
+                            Other, 0x104241080, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386840944.68>
+                              Other, 0x1042411a0, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4386841584.73>
+                              Other, 0x1042412c0, {{0.0, 76.0}, {402.0, 94.8}} <AX element pid: 14443, elementOrHash.elementID: 4384444160.74>
+                        Other, 0x1042413e0, {{369.0, 116.0}, {30.0, 301.3}}, label: 'Vertical scroll bar, 9 pages', value: 0% <AX element pid: 14443, elementOrHash.elementID: 4386800064.32>
+                          Other, 0x104241500, {{396.0, 407.3}, {3.0, 7.0}} <AX element pid: 14443, elementOrHash.elementID: 4386741584.41>
+                        Other, 0x104241620, {{369.0, 116.0}, {30.0, 301.3}}, label: 'Vertical scroll bar, 9 pages', value: 0% <AX element pid: 14443, elementOrHash.elementID: 4386800064.32>
+                          Other, 0x104241740, {{396.0, 407.3}, {3.0, 7.0}} <AX element pid: 14443, elementOrHash.elementID: 4386741584.41>
+                      Button, 0x104241860, {{42.0, 441.0}, {318.7, 83.0}}, identifier: 'tip.home', label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.' <AX element pid: 14443, elementOrHash.elementID: 4384563728.21>
+                        Image, 0x104241980, {{42.0, 441.0}, {11.3, 19.3}}, identifier: 'lightbulb', label: 'lightbulb' <AX element pid: 14443, elementOrHash.elementID: 4384561296.33>
+                        StaticText, 0x104241aa0, {{67.3, 441.7}, {214.0, 82.3}}, label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.' <AX element pid: 14443, elementOrHash.elementID: 4384562400.34>
+                        Button, 0x104241bc0, {{319.3, 441.7}, {41.3, 19.3}}, label: 'Got it' <AX element pid: 14443, elementOrHash.elementID: 4384562832.35>
+                      Other, 0x104232e60, {{24.0, 417.3}, {3.0, 118.7}} <AX element pid: 14443, elementOrHash.elementID: 4384564624.22>
+                      StaticText, 0x104232f80, {{24.0, 574.2}, {90.7, 15.7}}, label: 'COMING UP' <AX element pid: 14443, elementOrHash.elementID: 4384566688.23>
+                      Button, 0x1042330a0, {{228.3, 560.0}, {44.7, 44.0}}, label: 'Add' <AX element pid: 14443, elementOrHash.elementID: 4384569424.24>
+                        Button, 0x1042331c0, {{228.3, 560.0}, {44.7, 44.0}} <AX element pid: 14443, elementOrHash.elementID: 4386811168.36>
+                          StaticText, 0x1042332e0, {{228.3, 572.3}, {44.7, 19.3}}, label: '+ Add' <AX element pid: 14443, elementOrHash.elementID: 4384567472.42>
+                      Button, 0x104233400, {{297.0, 560.0}, {81.0, 44.0}}, label: 'Everyone' <AX element pid: 14443, elementOrHash.elementID: 4384423136.25>
+                      Button, 0x104233520, {{24.0, 604.0}, {152.3, 44.0}}, label: 'DECEMBER IS BUSY' <AX element pid: 14443, elementOrHash.elementID: 4384467408.26>
+                      ScrollView, 0x104233640, {{0.0, 648.0}, {402.0, 184.0}} <AX element pid: 14443, elementOrHash.elementID: 4387750912.27>
+                        Other, 0x104233760, {{-142.0, 648.0}, {1866.0, 184.0}} <AX element pid: 14443, elementOrHash.elementID: 4386641200.37>
+                          Button, 0x104233880, {{345.7, 722.0}, {80.0, 84.0}}, label: 'Dev, January 8' <AX element pid: 14443, elementOrHash.elementID: 4384592144.43>
+                          Button, 0x1042339a0, {{235.3, 698.0}, {80.0, 108.0}}, label: 'Ben, December 10' <AX element pid: 14443, elementOrHash.elementID: 4384585424.44>
+                          Button, 0x104233c40, {{292.3, 698.0}, {80.0, 108.0}}, label: 'Christmas, December 25' <AX element pid: 14443, elementOrHash.elementID: 4384589904.45>
+                          Button, 0x104233d60, {{201.0, 676.0}, {80.0, 130.0}}, label: 'Ada, December 1', Selected <AX element pid: 14443, elementOrHash.elementID: 4384582576.46>
+                          Button, 0x104233e80, {{288.7, 676.0}, {80.0, 130.0}}, label: 'Cora, December 24' <AX element pid: 14443, elementOrHash.elementID: 4384587664.47>
+                          Button, 0x104233fa0, {{429.3, 676.0}, {80.0, 130.0}}, label: 'Elsie, January 30' <AX element pid: 14443, elementOrHash.elementID: 4384594384.48>
+                          Button, 0x1042340c0, {{562.7, 676.0}, {80.0, 130.0}}, label: 'Fitz, March 3' <AX element pid: 14443, elementOrHash.elementID: 4384596624.49>
+                          Button, 0x1042341e0, {{736.0, 676.0}, {80.0, 130.0}}, label: 'Gwen, April 17' <AX element pid: 14443, elementOrHash.elementID: 4384598864.50>
+                          Button, 0x104234300, {{1046.0, 676.0}, {80.0, 130.0}}, label: 'Hal, July 6' <AX element pid: 14443, elementOrHash.elementID: 4384601104.51>
+                          StaticText, 0x104234420, {{83.0, 808.0}, {23.0, 14.3}}, label: 'Nov' <AX element pid: 14443, elementOrHash.elementID: 4384547552.52>
+                          StaticText, 0x104234540, {{201.0, 808.0}, {23.0, 14.3}}, label: 'Dec' <AX element pid: 14443, elementOrHash.elementID: 4384409264.53>
+                          StaticText, 0x104234660, {{319.0, 808.0}, {21.3, 14.3}}, label: 'Jan' <AX element pid: 14443, elementOrHash.elementID: 4384523104.54>
+                          StaticText, 0x1042393a0, {{437.0, 808.0}, {22.0, 14.3}}, label: 'Feb' <AX element pid: 14443, elementOrHash.elementID: 4384443136.55>
+                          StaticText, 0x1042394c0, {{555.0, 808.0}, {22.7, 14.3}}, label: 'Mar' <AX element pid: 14443, elementOrHash.elementID: 4384398880.56>
+                          StaticText, 0x1042395e0, {{673.0, 808.0}, {21.3, 14.3}}, label: 'Apr' <AX element pid: 14443, elementOrHash.elementID: 4384376752.57>
+                          StaticText, 0x104239700, {{791.0, 808.0}, {24.7, 14.3}}, label: 'May' <AX element pid: 14443, elementOrHash.elementID: 4384550560.58>
+                          StaticText, 0x104239820, {{909.0, 808.0}, {21.7, 14.3}}, label: 'Jun' <AX element pid: 14443, elementOrHash.elementID: 4384571616.59>
+                          StaticText, 0x104239940, {{1027.0, 808.0}, {17.7, 14.3}}, label: 'Jul' <AX element pid: 14443, elementOrHash.elementID: 4384573312.60>
+                          StaticText, 0x104239a60, {{1145.0, 808.0}, {23.3, 14.3}}, label: 'Aug' <AX element pid: 14443, elementOrHash.elementID: 4384575328.61>
+                          StaticText, 0x104239b80, {{1263.0, 808.0}, {22.7, 14.3}}, label: 'Sep' <AX element pid: 14443, elementOrHash.elementID: 4384577344.62>
+                          StaticText, 0x104239ca0, {{1381.0, 808.0}, {21.3, 14.3}}, label: 'Oct' <AX element pid: 14443, elementOrHash.elementID: 4384579616.63>
+                      Other, 0x104239dc0, {{200.7, 648.0}, {1.0, 150.0}} <AX element pid: 14443, elementOrHash.elementID: 4384625920.28>
+              Other, 0x104239ee0, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4386621648.12>
+                Other, 0x10423a000, {{0.0, 0.0}, {402.0, 874.0}} <AX element pid: 14443, elementOrHash.elementID: 4386616272.15>
