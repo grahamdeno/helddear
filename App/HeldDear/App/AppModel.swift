@@ -811,6 +811,11 @@ final class AppModel: ObservableObject {
     }
 
     /// People with a plan: any part moved past Not started (roadmap 2.7).
+    /// U4: the line for Lifetime when the free plan limit stops something, naming the people with free plans.
+    var planLimitLine: String? {
+        PlanLimit.limitLine(names: plannedPeople().compactMap { person($0) }.map { DisplayName.plain($0.name) })
+    }
+
     func plannedPeople() -> Set<UUID> {
         var ids = Set<UUID>()
         for m in allMoments() {

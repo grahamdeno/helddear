@@ -122,7 +122,8 @@ final class WalkTests: XCTestCase {
                     record("Elsie's gift")
                     // "I have an idea" asks how it's coming first; the choice is what moves the gift on.
                     if tap("I have an idea", screen: "How are you getting it"),
-                       tap("Buy it in a store", screen: "Plan limit") {
+                       tap("Buy it in a store", screen: "Elsie's gift, in a store"),
+                       tap("Save the plan", screen: "Plan limit") {
                         sleep(2)
                         let line = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@",
                             "Plans for three people are free. Yours are Ben, Cora and Dev.")).firstMatch

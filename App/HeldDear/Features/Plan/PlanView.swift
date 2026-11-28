@@ -452,8 +452,7 @@ private struct PartScreen: View {
                 }
         }
         .sheet(isPresented: $showLifetime) {
-            LifetimeView(limitLine: PlanLimit.limitLine(names: model.plannedPeople().compactMap { model.person($0) }
-                .map { DisplayName.plain($0.name) }))
+            LifetimeView(limitLine: model.planLimitLine)
         }
         .sheet(item: $editingOrder) { field in orderEditor(field).presentationDetents([.medium]) }
         .confirmationDialog("Remove \(placeToForget?.name ?? "this place") from your places?",
