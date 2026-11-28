@@ -64,17 +64,17 @@ struct TipLine: View {
                                        style: .continuous)
                     .fill(Brand.action).frame(width: 3).accessibilityHidden(true)
             }
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
-                lastFrame = frame
-                if settled { decideSpotlight() }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { lastFrame = $0 }
+            // One place decides, whenever any input changes (and once at the start), so the order the tip's frame,
+            // the host's frame and "settled" arrive in can't matter. Home showed spotlight=nil with all three known.
+            .onChange(of: SpotlightInputs(frame: lastFrame, host: hostFrame, settled: settled), initial: true) {
+                decideSpotlight()
             }
-            .onChange(of: hostFrame) { if settled { decideSpotlight() } }
             // Decide once the page has settled (after launch sizing and any push), from the latest frames; if one
             // isn't known yet, the next measurement decides.
             .task {
                 try? await Task.sleep(for: .milliseconds(350))
                 settled = true
-                decideSpotlight()
             }
             .anchorPreference(key: TipSpotlightKey.self, value: .bounds) { anchor in
                 spotlight == true && !voiceOver ? TipSpotlightRequest(anchor: anchor, dismiss: { dismiss(tip) }) : nil
@@ -90,7 +90,7 @@ struct TipLine: View {
 
     /// Wholly on screen (top and bottom inside the host) the first time both frames are known.
     private func decideSpotlight() {
-        guard spotlight == nil, let frame = lastFrame, let host = hostFrame, frame.height > 0, host.height > frame.height
+        guard settled, spotlight == nil, let frame = lastFrame, let host = hostFrame, frame.height > 0, host.height > frame.height
         else { return }
         spotlight = frame.minY >= host.minY && frame.maxY <= host.maxY
     }
@@ -190,4 +190,11 @@ struct TipPicture: View {
             .scaleEffect(step == 3 ? 1.06 : 1)
         }
     }
+}
+
+/// What the spotlight decision depends on.
+private struct SpotlightInputs: Equatable {
+    let frame: CGRect?
+    let host: CGRect?
+    let settled: Bool
 }
