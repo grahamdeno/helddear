@@ -21,6 +21,16 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
   fix, PR #161, merged Nov 28 as a4686b4 on Graham's merge go after Fable's pass at e4fb2d3: unit tests 392 of 392,
   tip UI tests 2 of 2 (`TipTests`, the walk's "tips" setup). It reaches the phone only with the next test build
   (1063), which needs Graham's test build go.
+- **Build 1063 phone checks (Nov 28, 2026):** each first-use tip on Home, a person's page, a holiday page and the ideas
+  page showed once and stayed gone after "Got it" and after reopening the app: passed on Graham's phone. U2 and U4
+  can't appear on his phone (Lifetime, Apple Intelligence), so the walk checks them instead (Graham, Nov 28).
+- **PR #163 merged Nov 28, 2026 (00fd920)** on Graham's merge go after Fable's pass at d5b74a7: every free-limit
+  Lifetime screen names the three people (U4 was missing from the guided part flow and finds); the walk's
+  "free-no-ai" setup checks U2 and U4 (both pass, run 46164185903). Unit tests 392 of 392.
+- **Approved for 1.0 (Graham, Nov 28, 2026):** tips get their own look (lighter fill, oxblood edge) and a spotlight
+  that dims the rest of the screen (dim, not blur, on Fable's advice); "Show the tips again" in How Held Dear works
+  (PR #164). Bug fix: past the free limit, a mailed or shared card is still recorded as done, "I'll get one myself"
+  opens the limit sheet, and finds check the limit before adding a part.
 
 - **Store:** not released and never submitted. App Store Connect record "Held Dear: Your People" (Apple ID
   6833744147). Latest TestFlight build: **1053**, from `main` at 4e24a2f, uploaded Nov 24 (first build with working
@@ -327,6 +337,8 @@ budgets, group gifts from several givers.
   the app (added Nov 28, 2026, PR #161).
 - **1.1, from Fable's pass of PR #161 (Nov 28, 2026):** Home's name and main button shrink while the Home tip shows.
   Run the tips walk at large text too, so a tip is seen at the biggest sizes.
+- **1.1, from the free-no-ai walk (Nov 28, 2026):** Home without Apple Intelligence reads "Time to find something."
+  above "Plan [name]'s birthday"; make the line match the button.
 
 - **For 1.1, from the first-use audit (Fable, Nov 25, 2026):** U13, rename the "Share day" label to say what it does.
   U14, sharing from other apps is hard to find (the share-ideas tip covers it for 1.0; revisit). U15, a clearer line in

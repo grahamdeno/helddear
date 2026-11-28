@@ -193,6 +193,8 @@ struct FindDetail: View {
     }
 
     private func use(for m: Moment) {
+        // Check the free plan limit before adding anything, so a stopped find leaves no empty part behind.
+        guard model.canPlan(m.person) else { showLifetime = true; return }
         let kind: ActKind = find.kinds.contains(.gift) ? .gift : (find.kinds.first ?? .gift)
         let act = model.addPart(to: m, kind: kind, label: nil)
         if model.useFind(find, for: act) {

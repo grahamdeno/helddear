@@ -811,6 +811,19 @@ final class AppModel: ObservableObject {
     }
 
     /// People with a plan: any part moved past Not started (roadmap 2.7).
+    /// A card that was paid for or sent is done, whatever the free plan limit says: the limit stops planning, never
+    /// recording what already happened (Fable, PR #163 review, Nov 28, 2026).
+    func recordDone(_ act: Act, _ step: String) {
+        PlanStore.setStep(act, to: step)
+        commit()
+    }
+
+    /// Whether the free plan limit lets this person get a new part (Lifetime, already planned, or under three).
+    func canPlan(_ person: Person?) -> Bool {
+        guard let person else { return true }
+        return PlanLimit.allows(personID: person.id, plannedPeople: plannedPeople(), hasLifetime: Purchases.shared.hasLifetime)
+    }
+
     /// U4: the line for Lifetime when the free plan limit stops something, naming the people with free plans.
     var planLimitLine: String? {
         PlanLimit.limitLine(names: plannedPeople().compactMap { person($0) }.map { DisplayName.plain($0.name) })
