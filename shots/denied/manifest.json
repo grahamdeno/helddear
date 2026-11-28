@@ -1,0 +1,53 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "AD5697D9-6407-4B59-805E-0C101FE26711.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Add by hand, name typed_0_F51E6EF0-C9C8-4677-AD95-1ED4F699C5DC.png",
+        "timestamp" : 1795892255.037
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "3010DDB1-444E-4079-83A5-6EC34DE39D07.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Add by hand_0_6285AEA6-57D7-428D-9CDA-932B416E2A1B.png",
+        "timestamp" : 1795892236.112
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "606374AD-59FD-455B-B98C-4DE6BC33E16E.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · After denied, add someone_0_9563FB4F-E641-46D9-862C-B7B75E7FB44D.png",
+        "timestamp" : 1795892225.553
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "6481F80F-EA5E-4E7B-9010-5B45671ACF30.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Setup, contacts denied_0_9E81B6CB-835A-4729-B851-385AECBEC658.png",
+        "timestamp" : 1795892221.05
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "DC2B514E-3C1B-4B38-83F3-87CCB3941BA4.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "denied · Setup, start_0_7D5F86E2-AAB8-456A-95EE-9C1FB6890CF9.png",
+        "timestamp" : 1795892210.674
+      }
+    ],
+    "testIdentifier" : "WalkTests/testEverythingDenied()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/WalkTests/testEverythingDenied"
+  }
+]
