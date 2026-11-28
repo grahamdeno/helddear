@@ -1,0 +1,62 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "7D910DF5-1206-4E1A-B176-D6ECD4FF37E5.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips · Holiday, with tip_0_6C927BF6-0885-4B34-92F5-F0638440E222.png",
+        "timestamp" : 1795893918.112
+      }
+    ],
+    "testIdentifier" : "TipTests/testHolidayPageCutOutSitsOnTheTip()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testHolidayPageCutOutSitsOnTheTip"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "A9CBA622-6758-4166-9C22-AE8DCAF6BC9F.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips · Home, with tip_0_A4F03AAF-F948-4664-AC79-91DF7FF8FC5C.png",
+        "timestamp" : 1795893954.136
+      }
+    ],
+    "testIdentifier" : "TipTests/testHomeTipShowsOnceAndStaysGone()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testHomeTipShowsOnceAndStaysGone"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "1D919132-2CF1-4966-B5AF-DED0AD445EEA.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips · Person, with tip_0_8E949CDD-FE2E-42DB-86AE-6270FD4BB422.png",
+        "timestamp" : 1795894002.675
+      }
+    ],
+    "testIdentifier" : "TipTests/testPersonPageShowsOneTipPerVisit()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testPersonPageShowsOneTipPerVisit"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "C1002F0C-D6F0-4A27-B25F-19FAA717501B.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips · Home, after tapping outside the tip_0_45BACC0A-ED89-4EE0-A2CB-F5F34BF84581.png",
+        "timestamp" : 1795894025.937
+      }
+    ],
+    "testIdentifier" : "TipTests/testTappingOutsideTheTipClearsIt()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testTappingOutsideTheTipClearsIt"
+  }
+]
