@@ -1,0 +1,125 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "EBBE2B80-9399-42CD-A9BF-09514BB4F2CB.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips-dark · Holiday, with tip_0_7A924817-C7C9-49C0-AFF9-A08707E38DC8.png",
+        "timestamp" : 1795890046.686
+      }
+    ],
+    "testIdentifier" : "TipTests/testHolidayPageCutOutSitsOnTheTip()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testHolidayPageCutOutSitsOnTheTip"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "005A3BA4-5FEA-4EA7-98BA-1F31C4B2BB57.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips-dark · Home, with tip_0_B4A5E6EC-F6A5-418D-8A10-24B03EFECE0E.png",
+        "timestamp" : 1795890091.973
+      }
+    ],
+    "testIdentifier" : "TipTests/testHomeTipShowsOnceAndStaysGone()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testHomeTipShowsOnceAndStaysGone"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "1D0F6D1D-D25D-4891-B05C-B3AD0B2D8540.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips-dark · Person, with tip_0_E240B7B8-FA4A-453D-83F4-0CE066D0A520.png",
+        "timestamp" : 1795890135.052
+      }
+    ],
+    "testIdentifier" : "TipTests/testPersonPageShowsOneTipPerVisit()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testPersonPageShowsOneTipPerVisit"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "B403C735-D10E-4296-A35E-7BDEB4E07466.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "App UI hierarchy for com.grahamdeno_0_ACF77192-0B82-41CB-A3AE-A957AE6DFAE8.helddear",
+        "timestamp" : 1795890157.223
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "3FD51C95-A581-46AB-8C83-7612E69353BE",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-11-28 at 06.22.37 PM",
+        "timestamp" : 1795890157.223
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "C4F54749-9275-42D7-B2FD-4A732EA602C9.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"tip.home\" Any`_0_91FCB221-0ED9-458F-89BE-5D64F48BBD87.txt",
+        "timestamp" : 1795890157.072
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "ABAAA9AD-2165-4D7B-B2B5-16B5BCDB6FED.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"tip.home\" Any`_0_494334FD-28B6-43C3-8886-A1E12A616C0D.txt",
+        "timestamp" : 1795890156.071
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "C312B207-1724-492B-B8F0-3DE784C2AC95.txt",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Debug description for `\"tip.home\" Any`_0_167A89E6-E5C7-40A1-B8EF-8C47677164A8.txt",
+        "timestamp" : 1795890155.061
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "7BD32556-8CD0-4F08-8603-886832E030F9",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "UI Snapshot 2026-11-28 at 06.22.33 PM",
+        "timestamp" : 1795890153.497
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "DD368E1F-E240-4369-B482-66E2EB400335",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Synthesized Event 2026-11-28 at 06.22.33 PM",
+        "timestamp" : 1795890153.956
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "D18B2A2C-470A-4687-81E1-07D94D46C163.mp4",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "Screen Recording 2026-11-28 at 06.22.21 PM.mp4",
+        "timestamp" : 1795890141.608
+      }
+    ],
+    "testIdentifier" : "TipTests/testTappingOutsideTheTipClearsIt()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testTappingOutsideTheTipClearsIt"
+  }
+]
