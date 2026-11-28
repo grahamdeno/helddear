@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Tip spotlight (Graham, Nov 28, 2026, for 1.0): while a first-use tip shows, the rest of the screen blurs and dims
-/// so the tip stands out. Tapping "Got it" or anywhere on the blurred part clears the tip and marks it seen; nothing
-/// behind the blur can be tapped or scrolled meanwhile. The tip asks for the spotlight only when it's wholly on screen
-/// as the page opens, and never with VoiceOver on (then it's read in the page). Reduce Transparency dims without the
-/// blur; Reduce Motion drops the fade. Hosts: Home's navigation stack and every full-screen route.
+/// Tip spotlight (Graham, Nov 28, 2026, for 1.0): while a first-use tip shows, the rest of the screen dims so the
+/// tip stands out. Tapping "Got it" or anywhere on the dimmed part clears the tip and marks it seen; nothing
+/// behind the dim can be tapped or scrolled meanwhile. The tip asks for the spotlight only when it's wholly on screen
+/// as the page opens, and never with VoiceOver on (then it's read in the page). Reduce Transparency dims more strongly;
+/// Reduce Motion drops the fade. Hosts: Home's navigation stack and every full-screen route.
 struct TipSpotlightRequest {
     let anchor: Anchor<CGRect>
     let dismiss: () -> Void
@@ -27,7 +27,7 @@ extension EnvironmentValues {
     }
 }
 
-/// The blurred, dimmed layer with the tip's shape cut out. Taps in the cut-out reach the tip; taps elsewhere clear it.
+/// The dimmed layer with the tip's shape cut out. Taps in the cut-out reach the tip; taps elsewhere clear it.
 private struct SpotlightLayer: View {
     let hole: CGRect
     let dismiss: () -> Void
@@ -35,10 +35,9 @@ private struct SpotlightLayer: View {
 
     var body: some View {
         let shape = CutOut(hole: hole, radius: Brand.radiusMd)
-        ZStack {
-            if !reduceTransparency { Rectangle().fill(.ultraThinMaterial) }
-            Rectangle().fill(Color.black.opacity(reduceTransparency ? 0.55 : 0.3))
-        }
+        // A dim, not a blur (Fable's review, Graham agreed Nov 28, 2026): the screen stays readable, so the tip can point
+        // at what's behind it (Home's tip is about the big name).
+        Rectangle().fill(Color.black.opacity(reduceTransparency ? 0.55 : 0.35))
         .mask(shape.fill(style: FillStyle(eoFill: true)))
         .contentShape(shape, eoFill: true)
         .onTapGesture(perform: dismiss)

@@ -105,4 +105,35 @@ final class TipTests: XCTestCase {
         app.launch()
         XCTAssertFalse(home.waitForExistence(timeout: 4), "The Home tip should stay gone after a relaunch")
     }
+
+    /// Opens Christmas from Everyone, after clearing Home's tip.
+    private func openHoliday() -> XCUIElement {
+        let home = tip("home")
+        if home.waitForExistence(timeout: 8) { gotIt(home); _ = home.waitForNonExistence(timeout: 3) }
+        tapLabel("Everyone")
+        tapLabel("Christmas")
+        let holiday = tip("holiday")
+        XCTAssertTrue(holiday.waitForExistence(timeout: 6), "The holiday tip should show on the holiday page")
+        return holiday
+    }
+
+    /// A pushed page (Fable, PR #164): the cut-out sits on the tip, so a tap on the tip's words reaches the tip and
+    /// doesn't clear it (a misplaced dim would), and "Got it" works.
+    func testHolidayPageCutOutSitsOnTheTip() {
+        app.launch()
+        let holiday = openHoliday()
+        picture("Holiday, with tip")
+        holiday.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.5)).tap()
+        XCTAssertFalse(holiday.waitForNonExistence(timeout: 2), "A tap on the tip's words should not clear it")
+        gotIt(holiday)
+        XCTAssertTrue(holiday.waitForNonExistence(timeout: 3), "Got it should clear the holiday tip")
+    }
+
+    /// A pushed page has the dim too: a tap well away from the tip clears it.
+    func testHolidayPageTapOutsideClearsTheTip() {
+        app.launch()
+        let holiday = openHoliday()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
+        XCTAssertTrue(holiday.waitForNonExistence(timeout: 3), "A tap on the dim should clear the holiday tip")
+    }
 }

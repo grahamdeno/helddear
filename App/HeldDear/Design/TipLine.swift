@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A first-use tip: one line and "Got it", with a small drawn picture for the two tips about things outside Held
 /// Dear. Shows once; dismissing it, or leaving the screen after it was seen, means it never shows again. It sits in
-/// the page, above what it explains; when it's wholly on screen as the page opens, the rest of the screen blurs
+/// the page, above what it explains; when it's wholly on screen as the page opens, the rest of the screen dims
 /// behind it (TipSpotlight.swift). Pass nil to show nothing.
 struct TipLine: View {
     let tip: FirstUseTip?
@@ -12,6 +12,9 @@ struct TipLine: View {
     /// Whether this tip gets the spotlight, decided once from where it first lands: true only when it's wholly on
     /// screen then. Nil until measured.
     @State private var spotlight: Bool?
+    /// The tip's latest global frame; the spotlight is decided when both it and the host's frame are known, in
+    /// either order, still only once (Fable, PR #164).
+    @State private var lastFrame: CGRect?
     @Environment(\.tipHostFrame) private var hostFrame
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
 
@@ -59,14 +62,21 @@ struct TipLine: View {
                     .fill(Brand.action).frame(width: 3).accessibilityHidden(true)
             }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
-                guard spotlight == nil, let host = hostFrame, frame.height > 0 else { return }
-                spotlight = frame.minY >= host.minY && frame.maxY <= host.maxY
+                lastFrame = frame
+                decideSpotlight()
             }
+            .onChange(of: hostFrame) { decideSpotlight() }
             .anchorPreference(key: TipSpotlightKey.self, value: .bounds) { anchor in
                 spotlight == true && !voiceOver ? TipSpotlightRequest(anchor: anchor, dismiss: { dismiss(tip) }) : nil
             }
             .onDisappear { FirstUseTips.markSeen(tip) }
         }
+    }
+
+    /// Wholly on screen (top and bottom inside the host) the first time both frames are known.
+    private func decideSpotlight() {
+        guard spotlight == nil, let frame = lastFrame, let host = hostFrame, frame.height > 0 else { return }
+        spotlight = frame.minY >= host.minY && frame.maxY <= host.maxY
     }
 
     private func dismiss(_ tip: FirstUseTip) {
