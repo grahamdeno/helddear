@@ -27,9 +27,10 @@ final class TipTests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'tip.'")).firstMatch
     }
 
-    /// The tip's row is one VoiceOver element (line and "Got it" together), so tap where "Got it" sits, at its end.
+    /// The tip's row is one VoiceOver element (line and "Got it" together), so tap where "Got it" sits: beside the
+    /// first line, at the trailing end (a 44-point target). The middle of a long tip is its text, not the button.
     private func gotIt(_ el: XCUIElement) {
-        el.coordinate(withNormalizedOffset: CGVector(dx: 0.96, dy: 0.5)).tap()
+        el.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: el.frame.width - 22, dy: 22)).tap()
     }
 
     private func tapLabel(_ label: String) {
