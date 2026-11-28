@@ -1,0 +1,96 @@
+Attributes: Button, 0x1060455a0, {{42.0, 441.0}, {318.7, 83.0}}, identifier: 'tip.home', label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.'
+Element subtree:
+ →Button, 0x1060455a0, {{42.0, 441.0}, {318.7, 83.0}}, identifier: 'tip.home', label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.'
+Path to element:
+ →Button, 0x1060455a0, {{42.0, 441.0}, {318.7, 83.0}}, identifier: 'tip.home', label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.'
+Query chain:
+ →Find: Target Application 'com.grahamdeno.helddear'
+  Output: {
+    Application, 0x106330b60, pid: 12197, label: 'Held Dear'
+  }
+  ↪︎Find: Descendants matching type Any
+    Output: {
+      Window (Main), 0x10604ff00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1060513c0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106051060, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106050d00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106050990, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106051ab0, {{0.0, 0.0}, {402.0, 874.0}}
+      NavigationBar, 0x106051730, {{0.0, 62.0}, {402.0, 54.0}}, identifier: '_TtGC7SwiftUI32NavigationStackHosting'
+      Other, 0x106052c30, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106062470, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106051e40, {{338.0, 62.0}, {44.0, 44.0}}, identifier: 'person', label: 'Settings'
+      Other, 0x1060528b0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1060627d0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1060521c0, {{338.0, 62.0}, {44.0, 44.0}}
+      Other, 0x106052fa0, {{0.0, 0.0}, {402.0, 874.0}}
+      Button, 0x106052530, {{338.0, 62.0}, {44.0, 44.0}}, identifier: 'person', label: 'Settings'
+      Other, 0x106053320, {{0.0, 0.0}, {402.0, 874.0}}
+      CollectionView, 0x1060536c0, {{0.0, 76.0}, {402.0, 341.3}}
+      Button, 0x10605b3a0, {{42.0, 441.0}, {318.7, 83.0}}, identifier: 'tip.home', label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.'
+      StaticText, 0x10605c150, {{24.0, 574.2}, {90.7, 15.7}}, label: 'COMING UP'
+      Button, 0x10605c4b0, {{228.3, 560.0}, {44.7, 44.0}}, label: 'Add'
+      Button, 0x10605ceb0, {{297.0, 560.0}, {81.0, 44.0}}, label: 'Everyone'
+      Button, 0x10605d200, {{24.0, 604.0}, {152.3, 44.0}}, label: 'DECEMBER IS BUSY'
+      ScrollView, 0x10605d550, {{0.0, 648.0}, {402.0, 184.0}}
+      Other, 0x106062110, {{200.7, 648.0}, {1.0, 150.0}}
+      Other, 0x106053d70, {{0.0, 76.0}, {402.0, 341.3}}
+      Cell, 0x106054460, {{0.0, 76.0}, {402.0, 341.3}}
+      Other, 0x106057b70, {{0.0, 76.0}, {402.0, 341.3}}
+      Other, 0x10605a5e0, {{369.0, 116.0}, {30.0, 301.3}}, label: 'Vertical scroll bar, 8 pages', value: 0%
+      Image, 0x10605b6f0, {{42.0, 441.0}, {11.3, 19.3}}, identifier: 'lightbulb', label: 'lightbulb'
+      StaticText, 0x10605ba50, {{67.3, 441.7}, {214.0, 82.3}}, label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.'
+      Button, 0x10605bde0, {{319.3, 441.7}, {41.3, 19.3}}, label: 'Got it'
+      Button, 0x10605c7f0, {{228.3, 560.0}, {44.7, 44.0}}
+      Other, 0x10605d8b0, {{-142.0, 648.0}, {1866.0, 184.0}}
+      Other, 0x1060540f0, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x106053a10, {{0.0, 76.0}, {402.0, 341.3}}
+      Other, 0x106057ed0, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x10605a930, {{396.0, 407.3}, {3.0, 7.0}}
+      StaticText, 0x10605cb60, {{228.3, 572.3}, {44.7, 19.3}}, label: '+ Add'
+      Button, 0x10605dc10, {{235.3, 698.0}, {80.0, 108.0}}, label: 'Ben, December 10'
+      Button, 0x10605df90, {{201.0, 676.0}, {80.0, 130.0}}, label: 'Ada, December 1', Selected
+      Button, 0x10605e320, {{288.7, 676.0}, {80.0, 130.0}}, label: 'Cora, December 24'
+      Button, 0x10605e680, {{345.7, 676.0}, {80.0, 130.0}}, label: 'Dev, January 8'
+      Button, 0x10605ea20, {{429.3, 676.0}, {80.0, 130.0}}, label: 'Elsie, January 30'
+      Button, 0x10605ed70, {{562.7, 676.0}, {80.0, 130.0}}, label: 'Fitz, March 3'
+      Button, 0x10605f100, {{736.0, 676.0}, {80.0, 130.0}}, label: 'Gwen, April 17'
+      Button, 0x10605f480, {{1046.0, 676.0}, {80.0, 130.0}}, label: 'Hal, July 6'
+      StaticText, 0x10605f7d0, {{83.0, 808.0}, {23.0, 14.3}}, label: 'Nov'
+      StaticText, 0x10605fb70, {{201.0, 808.0}, {23.0, 14.3}}, label: 'Dec'
+      StaticText, 0x10605fef0, {{319.0, 808.0}, {21.3, 14.3}}, label: 'Jan'
+      StaticText, 0x106060240, {{437.0, 808.0}, {22.0, 14.3}}, label: 'Feb'
+      StaticText, 0x1060605a0, {{555.0, 808.0}, {22.7, 14.3}}, label: 'Mar'
+      StaticText, 0x106060920, {{673.0, 808.0}, {21.3, 14.3}}, label: 'Apr'
+      StaticText, 0x106060c80, {{791.0, 808.0}, {24.7, 14.3}}, label: 'May'
+      StaticText, 0x106060fd0, {{909.0, 808.0}, {21.7, 14.3}}, label: 'Jun'
+      StaticText, 0x106061330, {{1027.0, 808.0}, {17.7, 14.3}}, label: 'Jul'
+      StaticText, 0x1060616b0, {{1145.0, 808.0}, {23.3, 14.3}}, label: 'Aug'
+      StaticText, 0x106061a30, {{1263.0, 808.0}, {22.7, 14.3}}, label: 'Sep'
+      StaticText, 0x106061da0, {{1381.0, 808.0}, {21.3, 14.3}}, label: 'Oct'
+      Other, 0x1060547c0, {{0.0, 76.0}, {402.0, 341.3}}
+      Other, 0x106058230, {{0.0, 62.0}, {402.0, 44.0}}
+      Other, 0x106058d40, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x106059430, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x106059b20, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x106054e70, {{0.0, 76.0}, {402.0, 341.3}}
+      Other, 0x1060590c0, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x1060597a0, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x106059ec0, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x10605a260, {{0.0, 76.0}, {402.0, 94.8}}
+      Other, 0x106054b20, {{76.0, 116.0}, {249.9, 301.3}}
+      StaticText, 0x1060551f0, {{144.8, 116.0}, {112.3, 9.7}}, label: 'Birthday · Tue, Dec 1'
+      Button, 0x1060558b0, {{166.8, 139.4}, {68.4, 68.4}}, label: 'Ada's page'
+      StaticText, 0x106055550, {{147.7, 279.4}, {106.5, 18.4}}, label: 'turns 66, in 3 days'
+      StaticText, 0x106055f60, {{179.9, 299.2}, {42.3, 11.2}}, label: 'See Ada ›'
+      StaticText, 0x106056a60, {{107.8, 313.4}, {186.3, 25.1}}, label: 'Time to find something. You saved 1 idea this year.'
+      Button, 0x106056de0, {{91.0, 350.2}, {220.1, 34.8}}, label: 'See ideas for Ada'
+      Button, 0x106057130, {{138.6, 192.2}, {183.4, 97.0}}, label: 'Ada'
+      StaticText, 0x106055c10, {{166.8, 139.4}, {68.4, 68.4}}, label: 'A'
+      StaticText, 0x106057490, {{138.6, 192.2}, {124.8, 97.0}}, label: 'Ada'
+      Other, 0x106057800, {{263.4, 192.3}, {58.7, 97.0}}
+    }
+    ↪︎Find: Elements matching predicate '"tip.home" IN identifiers'
+      Output: {
+        Button, 0x1060485a0, {{42.0, 441.0}, {318.7, 83.0}}, identifier: 'tip.home', label: 'The big name is whose day comes next. Tap it for the full page, or swipe to see who's after.'
+      }

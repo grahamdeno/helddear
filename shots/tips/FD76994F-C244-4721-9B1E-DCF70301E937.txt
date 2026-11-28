@@ -1,0 +1,92 @@
+Attributes: Button, 0x10633ca60, {{42.0, 786.7}, {318.7, 83.0}}, identifier: 'tip.plan', label: 'A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands.'
+Element subtree:
+ →Button, 0x10633ca60, {{42.0, 786.7}, {318.7, 83.0}}, identifier: 'tip.plan', label: 'A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands.'
+Path to element:
+ →Button, 0x10633ca60, {{42.0, 786.7}, {318.7, 83.0}}, identifier: 'tip.plan', label: 'A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands.'
+Query chain:
+ →Find: Target Application 'com.grahamdeno.helddear'
+  Output: {
+    Application, 0x106397f80, pid: 12197, label: 'Held Dear'
+  }
+  ↪︎Find: Descendants matching type Any
+    Output: {
+      Window (Main), 0x106167730, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106168e50, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1061681b0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106169270, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106169690, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10614b120, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x106169ef0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10616ec90, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10616a010, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10616edb0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10616a130, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10616a250, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10616a370, {{201.0, 451.0}, {0.0, 0.0}}
+      ScrollView, 0x10616a490, {{0.0, 0.0}, {402.0, 874.0}}
+      Button, 0x10616e930, {{16.0, 64.0}, {88.0, 40.0}}, label: 'Back to Home'
+      Other, 0x10616a5b0, {{0.0, 0.0}, {402.0, 1927.0}}
+      Other, 0x10616e4b0, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 3 pages', value: 0%
+      Image, 0x10616ea50, {{27.0, 76.7}, {9.0, 15.0}}, identifier: 'chevron.left', label: 'Back'
+      StaticText, 0x10616eb70, {{43.3, 73.8}, {46.7, 20.3}}, label: 'Home'
+      StaticText, 0x10616a6d0, {{24.0, 253.3}, {201.0, 158.0}}, label: 'Ben'
+      StaticText, 0x10616a7f0, {{24.0, 419.3}, {147.7, 24.7}}, label: 'turns 59 on Dec 10'
+      Button, 0x10616a910, {{24.0, 472.0}, {118.0, 67.3}}, label: 'Card'
+      Button, 0x10616ac70, {{142.0, 472.0}, {118.0, 67.3}}, label: 'Share day'
+      Button, 0x10616afd0, {{260.0, 472.0}, {118.0, 67.3}}, label: 'Ideas'
+      ScrollView, 0x10616b330, {{0.0, 563.3}, {402.0, 175.7}}
+      Button, 0x10616bf90, {{42.0, 786.7}, {318.7, 83.0}}, identifier: 'tip.plan', label: 'A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands.'
+      Other, 0x10616c410, {{24.0, 905.7}, {318.3, 19.3}}, label: '3 to decide'
+      StaticText, 0x10616cbf0, {{40.0, 949.0}, {45.7, 24.7}}, label: 'Gifts'
+      StaticText, 0x10616cd10, {{279.7, 954.3}, {82.3, 18.0}}, label: '0 of 1 ready'
+      Button, 0x10616ce30, {{40.0, 977.7}, {322.0, 48.0}}, label: 'Gift, You, Not started'
+      StaticText, 0x10616d190, {{40.0, 1053.7}, {75.3, 24.7}}, label: 'The day'
+      StaticText, 0x10616d2b0, {{279.7, 1059.0}, {82.3, 18.0}}, label: '0 of 1 ready'
+      Button, 0x10616d3d0, {{40.0, 1082.3}, {322.0, 48.0}}, label: 'Cake, You, Not started'
+      StaticText, 0x10616d730, {{40.0, 1158.3}, {128.0, 24.7}}, label: 'Little touches'
+      StaticText, 0x10616d850, {{279.7, 1163.7}, {82.3, 18.0}}, label: '0 of 1 ready'
+      Button, 0x10616d970, {{40.0, 1187.0}, {322.0, 48.0}}, label: 'Card, You, Not started'
+      Button, 0x10616dcd0, {{24.0, 1263.3}, {126.7, 19.3}}, label: '+ Add to Birthday'
+      Button, 0x10616ddf0, {{24.0, 1307.0}, {354.0, 56.0}}, label: 'Plan the gift'
+      StaticText, 0x10616df10, {{40.0, 1403.0}, {155.3, 29.7}}, label: 'Get the family in'
+      StaticText, 0x10616e030, {{40.0, 1440.7}, {317.0, 40.3}}, label: 'Ben's birthday is in 12 days. Ask the people you pick to send a card, one text each.'
+      Button, 0x10616e150, {{40.0, 1495.0}, {182.3, 44.0}}, label: 'Choose who to ask'
+      Button, 0x10616e270, {{246.3, 1507.3}, {92.3, 19.3}}, label: 'Not this year'
+      Other, 0x10616e390, {{0.0, 0.0}, {0.0, 0.0}}
+      Other, 0x10616e5d0, {{396.0, 58.7}, {3.0, 337.0}}
+      Image, 0x10616aa30, {{72.3, 488.3}, {21.3, 15.3}}, identifier: 'envelope', label: 'Get Mail'
+      StaticText, 0x10616ab50, {{69.0, 525.0}, {28.0, 14.3}}, label: 'Card'
+      Image, 0x10616ad90, {{193.3, 485.3}, {15.7, 21.3}}, identifier: 'square.and.arrow.up', label: 'Share'
+      StaticText, 0x10616aeb0, {{172.2, 525.0}, {57.7, 14.3}}, label: 'Share day'
+      Image, 0x10616b0f0, {{313.0, 485.7}, {12.0, 20.7}}, identifier: 'lightbulb', label: 'lightbulb'
+      StaticText, 0x10616b210, {{303.3, 525.0}, {31.3, 14.3}}, label: 'Ideas'
+      Other, 0x10616b450, {{0.0, 563.3}, {530.0, 175.7}}
+      Image, 0x10616c0b0, {{42.0, 786.7}, {11.3, 19.3}}, identifier: 'lightbulb', label: 'lightbulb'
+      StaticText, 0x10616c1d0, {{67.3, 787.3}, {233.3, 82.3}}, label: 'A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands.'
+      Button, 0x10616c2f0, {{319.3, 787.3}, {41.3, 19.3}}, label: 'Got it'
+      Other, 0x10616c530, {{24.0, 909.0}, {13.0, 13.0}}
+      StaticText, 0x10616c650, {{43.0, 905.7}, {81.7, 19.3}}, label: '3 to decide'
+      Other, 0x10616c770, {{140.7, 909.0}, {13.0, 13.0}}
+      StaticText, 0x10616c890, {{159.7, 905.7}, {92.7, 19.3}}, label: '0 on the way'
+      Image, 0x10616c9b0, {{268.3, 909.0}, {13.0, 13.0}}, identifier: 'checkmark', label: 'Selected', Selected
+      StaticText, 0x10616cad0, {{287.3, 905.7}, {55.0, 19.3}}, label: '0 ready'
+      Other, 0x10616cf50, {{40.0, 991.7}, {20.0, 20.0}}
+      StaticText, 0x10616d070, {{40.0, 977.7}, {322.0, 48.0}}, label: 'Gift'
+      Other, 0x10616d4f0, {{40.0, 1096.3}, {20.0, 20.0}}
+      StaticText, 0x10616d610, {{40.0, 1082.3}, {322.0, 48.0}}, label: 'Cake'
+      Other, 0x10616da90, {{40.0, 1201.0}, {20.0, 20.0}}
+      StaticText, 0x10616dbb0, {{40.0, 1187.0}, {322.0, 48.0}}, label: 'Card'
+      Button, 0x10616b570, {{24.0, 563.3}, {236.0, 175.7}}, label: 'Birthday, 12 days, 0 of 3 ready', Selected
+      Button, 0x10616bc30, {{272.0, 563.3}, {128.0, 175.7}}, label: 'Add a day · Lifetime'
+      StaticText, 0x10616b690, {{40.0, 579.3}, {71.0, 14.3}}, label: 'BIRTHDAY'
+      StaticText, 0x10616b7b0, {{40.0, 595.7}, {48.3, 64.3}}, label: '12'
+      StaticText, 0x10616b8d0, {{94.3, 631.3}, {34.0, 19.3}}, label: 'days'
+      StaticText, 0x10616b9f0, {{40.0, 662.0}, {193.0, 18.0}}, label: 'Thursday, Dec 10 · turns 59'
+      StaticText, 0x10616bb10, {{40.0, 705.0}, {84.7, 18.0}}, label: '0 of 3 ready'
+      Image, 0x10616bd50, {{327.3, 618.3}, {17.7, 17.7}}, identifier: 'plus', label: 'Add'
+      StaticText, 0x10616be70, {{297.8, 645.8}, {76.3, 40.3}}, label: 'Add a day · Lifetime'
+    }
+    ↪︎Find: Elements matching predicate '"tip.plan" IN identifiers'
+      Output: {
+        Button, 0x1061647f0, {{42.0, 786.7}, {318.7, 83.0}}, identifier: 'tip.plan', label: 'A plan is the day in parts: a gift, a card, a cake. Tap a part to say who's doing it and where it stands.'
+      }
