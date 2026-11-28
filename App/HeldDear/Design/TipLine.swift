@@ -10,7 +10,12 @@ struct TipLine: View {
     init(_ tip: FirstUseTip?) { self.tip = tip }
 
     var body: some View {
-        Group {
+        // Build 1062: a Group with nothing in it has no view to attach .task to, so the tip never decided to show.
+        // The stack always holds something (an empty spacer when hidden), so the check runs.
+        VStack(spacing: 0) {
+            if !visible || tip == nil {
+                Color.clear.frame(width: 0, height: 0).accessibilityHidden(true)
+            }
             if visible, let tip {
                 VStack(alignment: .leading, spacing: Brand.space3) {
                     if tip.hasPicture {
