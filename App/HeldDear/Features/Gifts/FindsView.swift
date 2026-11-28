@@ -188,7 +188,8 @@ struct FindDetail: View {
                 PrimaryButton(title: "Done") { dismiss() }
             }
         }
-        .sheet(isPresented: $showLifetime) { LifetimeView() }
+        // U4: only the free plan limit opens Lifetime here, so name who has the free plans (Nov 28, 2026).
+        .sheet(isPresented: $showLifetime) { LifetimeView(limitLine: model.planLimitLine) }
     }
 
     private func use(for m: Moment) {
