@@ -104,6 +104,35 @@ final class WalkTests: XCTestCase {
         print("WALK DONE|\(config)|issues=\(issueCount)")
     }
 
+    /// An iPhone without Apple Intelligence and without Lifetime, at the free plan limit (Nov 28, 2026). Graham's phone
+    /// has both, so these two first-use fixes are checked here: U2, Home offers "Plan Ada's birthday" when there's
+    /// nothing to suggest; U4, starting a fourth plan opens Lifetime naming the three people with free plans.
+    func testFreeWithoutAppleIntelligence() throws {
+        try XCTSkipUnless(config == "free-no-ai", "Runs only in the free-no-ai setup")
+        app.launchArguments += ["-HeldDearDemoFreeNoAI"]
+        app.launch()
+        let plan = app.buttons["Plan Ada's birthday"]
+        print("CHECK|\(config)|U2 Home offers Plan Ada's birthday|\(plan.waitForExistence(timeout: 8) ? "pass" : "fail")")
+        record("Home, no Apple Intelligence")
+
+        if tap("Everyone", screen: "People") {
+            if tap("Elsie", screen: "Elsie's page") {
+                record("Elsie's page, plan not started")
+                if tap("Gift", screen: "Elsie's gift") {
+                    record("Elsie's gift")
+                    if tap("Have an idea", screen: "Plan limit") {
+                        sleep(2)
+                        let line = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@",
+                            "Plans for three people are free. Yours are Ben, Cora and Dev.")).firstMatch
+                        print("CHECK|\(config)|U4 limit names Ben, Cora and Dev|\(line.waitForExistence(timeout: 5) ? "pass" : "fail")")
+                        record("Plan limit")
+                    }
+                }
+            }
+        }
+        print("WALK DONE|\(config)|issues=\(issueCount)")
+    }
+
     /// Every permission denied (UX audit, Nov 24, 2026). The workflow revokes Contacts, Photos, the microphone and
     /// speech for the app before this runs. Apple expects the app to keep working: setup must offer a way on without
     /// contacts, and a person must be addable by hand.
