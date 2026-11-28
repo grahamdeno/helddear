@@ -14,6 +14,7 @@ final class TipTests: XCTestCase {
     }
 
     private func picture(_ screen: String) {
+        sleep(1)   // The dim comes in once the page settles (about half a second).
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "\(config) · \(screen)"
         shot.lifetime = .keepAlways
