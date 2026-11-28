@@ -1,0 +1,4 @@
+Query chain:
+ →Find: Target Application 'com.grahamdeno.helddear'
+  ↪︎Find: Descendants matching type Any
+    ↪︎Find: Elements matching predicate '"tip.home" IN identifiers'
