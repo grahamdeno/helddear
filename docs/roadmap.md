@@ -15,7 +15,12 @@ From Nov 20, 2026, status, decisions, scope and the backlog live here.
 - **Claude project:** "App | Held Dear".
 - **Standing chats:** Held Dear Product (Opus), Held Dear Build (Sonnet), Held Dear Review (Fable), Held Dear Grok.
 
-## Where things stand (Nov 24, 2026)
+## Where things stand (Nov 28, 2026)
+
+- **First-use tips fixed (Nov 28, 2026):** build 1062 (from `main` at 1b20b2c) showed no tips on Graham's phone. The
+  fix, PR #161, merged Nov 28 as a4686b4 on Graham's merge go after Fable's pass at e4fb2d3: unit tests 392 of 392,
+  tip UI tests 2 of 2 (`TipTests`, the walk's "tips" setup). It reaches the phone only with the next test build
+  (1063), which needs Graham's test build go.
 
 - **Store:** not released and never submitted. App Store Connect record "Held Dear: Your People" (Apple ID
   6833744147). Latest TestFlight build: **1053**, from `main` at 4e24a2f, uploaded Nov 24 (first build with working
@@ -318,7 +323,10 @@ budgets, group gifts from several givers.
   settle before the picture (the current one shows the People bar mid-transition).
 - **Phone checks for the next test build (first-use audit):** the free-limit screen names the three planned people
   (U4); Home's "Plan [name]'s birthday" button on a phone without Apple Intelligence (U2); each first-use tip appears
-  once and never again.
+  once on Home, a person's page, a holiday page and the ideas page, and stays gone after "Got it" and after reopening
+  the app (added Nov 28, 2026, PR #161).
+- **1.1, from Fable's pass of PR #161 (Nov 28, 2026):** Home's name and main button shrink while the Home tip shows.
+  Run the tips walk at large text too, so a tip is seen at the biggest sizes.
 
 - **For 1.1, from the first-use audit (Fable, Nov 25, 2026):** U13, rename the "Share day" label to say what it does.
   U14, sharing from other apps is hard to find (the share-ideas tip covers it for 1.0; revisit). U15, a clearer line in
