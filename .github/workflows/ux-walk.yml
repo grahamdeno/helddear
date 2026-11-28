@@ -41,6 +41,11 @@ jobs:
             device: "iPhone 17 Pro"
             appearance: light
             size: large
+          # First-use tips showing (PR #161): Home and a person's page, and that each shows once.
+          - config: tips
+            device: "iPhone 17 Pro"
+            appearance: light
+            size: large
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
@@ -77,8 +82,8 @@ jobs:
           xcodebuild test -project HeldDear.xcodeproj -scheme HeldDearWalk \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath "walk-${{ matrix.config }}.xcresult" \
-            -only-testing:"HeldDearUITests/WalkTests/${{ matrix.config == 'denied' && 'testEverythingDenied' || 'testWalkMainScreens' }}" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE|error:|Executed" || true
+            -only-testing:"HeldDearUITests/${{ matrix.config == 'tips' && 'TipTests' || (matrix.config == 'denied' && 'WalkTests/testEverythingDenied' || 'WalkTests/testWalkMainScreens') }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
       - name: Summary
         if: always()
         run: |

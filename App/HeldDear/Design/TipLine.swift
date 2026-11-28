@@ -5,44 +5,51 @@ import SwiftUI
 /// anything: it sits in the page, above what it explains. Pass nil to show nothing.
 struct TipLine: View {
     let tip: FirstUseTip?
-    @State private var visible = false
+    /// Set by "Got it": nothing more shows in this spot for the rest of the visit, so the next tip in the screen's
+    /// list waits for another visit (Fable, PR #161).
+    @State private var dismissed = false
 
     init(_ tip: FirstUseTip?) { self.tip = tip }
 
+    /// The tip to show now, read on every update, so a tip that becomes due while the screen is open (the third free
+    /// plan starts on the person's page) still appears. Hidden in the walk's demo mode unless it asks for tips.
+    private var shown: FirstUseTip? {
+        guard !dismissed, let tip, FirstUseTips.shouldShow(tip), !DemoMode.hidesTips else { return nil }
+        return tip
+    }
+
+    // Build 1062 showed no tips: the old view waited on a .task that never ran while it was empty. A bare `if let`
+    // needs no task, and a hidden tip adds no child to the parent stack, so it leaves no gap or extra spacing.
     var body: some View {
-        Group {
-            if visible, let tip {
-                VStack(alignment: .leading, spacing: Brand.space3) {
-                    if tip.hasPicture {
-                        TipPicture(tip: tip)
-                            .frame(maxWidth: .infinity)
-                            .accessibilityElement()
-                            .accessibilityLabel(tip.pictureSteps ?? "")
-                    }
-                    HStack(alignment: .firstTextBaseline, spacing: Brand.space3) {
-                        Image(systemName: "lightbulb").foregroundStyle(Brand.inkSoft).accessibilityHidden(true)
-                        Text(tip.line).font(TypeStyle.callout.font).foregroundStyle(Brand.ink)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button("Got it") {
-                            FirstUseTips.markSeen(tip)
-                            withAnimation(Motion.animation(.easeOut(duration: 0.2))) { visible = false }
-                        }
-                        .font(TypeStyle.callout.font.weight(.semibold))
-                        .foregroundStyle(Brand.action)
-                        .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityHint("Tip. Shows once.")
+        if let tip = shown {
+            VStack(alignment: .leading, spacing: Brand.space3) {
+                if tip.hasPicture {
+                    TipPicture(tip: tip)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityElement()
+                        .accessibilityLabel(tip.pictureSteps ?? "")
                 }
-                .padding(.horizontal, Brand.space4).padding(.vertical, Brand.space3)
-                .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
-                .onDisappear { FirstUseTips.markSeen(tip) }
+                HStack(alignment: .firstTextBaseline, spacing: Brand.space3) {
+                    Image(systemName: "lightbulb").foregroundStyle(Brand.inkSoft).accessibilityHidden(true)
+                    Text(tip.line).font(TypeStyle.callout.font).foregroundStyle(Brand.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Got it") {
+                        FirstUseTips.markSeen(tip)
+                        withAnimation(Motion.animation(.easeOut(duration: 0.2))) { dismissed = true }
+                    }
+                    .font(TypeStyle.callout.font.weight(.semibold))
+                    .foregroundStyle(Brand.action)
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Tip. Shows once.")
+                .accessibilityIdentifier("tip.\(tip.rawValue)")
             }
+            .padding(.horizontal, Brand.space4).padding(.vertical, Brand.space3)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: Brand.radiusMd, style: .continuous))
+            .onDisappear { FirstUseTips.markSeen(tip) }
         }
-        // V3: re-checked whenever the screen's tip changes, so a tip can appear while the screen is open (the third
-        // free plan starts on this page), not only when the screen opens.
-        .task(id: tip?.rawValue) { visible = tip.map { FirstUseTips.shouldShow($0) } == true && !DemoMode.on }
     }
 }
 
