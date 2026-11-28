@@ -93,7 +93,7 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath "walk-${{ matrix.config }}.xcresult" \
             -only-testing:"HeldDearUITests/${{ startsWith(matrix.config, 'tips') && 'TipTests' || (matrix.config == 'denied' && 'WalkTests/testEverythingDenied' || (matrix.config == 'free-no-ai' && 'WalkTests/testFreeWithoutAppleIntelligence' || 'WalkTests/testWalkMainScreens')) }}" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|CHECK|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|CHECK|TRACE|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
       - name: Summary
         if: always()
         run: |

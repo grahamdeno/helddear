@@ -52,6 +52,8 @@ struct TipLine: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityHint("Tip. Shows once.")
                 .accessibilityIdentifier("tip.\(tip.rawValue)")
+                // Walk only (demo tips): how the spotlight was decided, so a test can print it.
+                .accessibilityValue(DemoMode.tips ? spotlightTrace : "")
             }
             .padding(.horizontal, Brand.space4).padding(.vertical, Brand.space3)
             // Its own look (Graham, Nov 28, 2026): a lighter fill than the page and a thin oxblood edge, so a tip
@@ -79,6 +81,11 @@ struct TipLine: View {
             }
             .onDisappear { FirstUseTips.markSeen(tip) }
         }
+    }
+
+    private var spotlightTrace: String {
+        func r(_ f: CGRect?) -> String { f.map { "\(Int($0.minY))-\(Int($0.maxY))" } ?? "nil" }
+        return "spotlight=\(spotlight.map(String.init) ?? "nil") settled=\(settled) tip=\(r(lastFrame)) host=\(r(hostFrame))"
     }
 
     /// Wholly on screen (top and bottom inside the host) the first time both frames are known.

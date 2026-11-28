@@ -95,6 +95,7 @@ final class TipTests: XCTestCase {
         let home = tip("home")
         XCTAssertTrue(home.waitForExistence(timeout: 8), "The Home tip should be on screen on first launch")
         sleep(1)   // The dim comes in once the page settles.
+        print("TRACE|\(config)|home|\(home.value as? String ?? "-")")
         // Bottom of the screen: the timeline, which would open someone's day if the tap got through.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
         XCTAssertTrue(home.waitForNonExistence(timeout: 3), "Tapping outside the tip should clear it")
@@ -136,6 +137,7 @@ final class TipTests: XCTestCase {
         app.launch()
         let holiday = openHoliday()
         sleep(1)   // The dim comes in once the page settles.
+        print("TRACE|\(config)|holiday|\(holiday.value as? String ?? "-")")
         // Just under the tip, on the summary text: nothing there to tap, so only the dim can clear the tip (a tap that
         // reached a button would leave the page and hide the tip for the wrong reason).
         let below = holiday.frame.maxY + 40
