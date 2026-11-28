@@ -41,6 +41,11 @@ jobs:
             device: "iPhone 17 Pro"
             appearance: light
             size: large
+          # No Apple Intelligence, no Lifetime, at the free plan limit (Nov 28, 2026): U2 and U4.
+          - config: free-no-ai
+            device: "iPhone 17 Pro"
+            appearance: light
+            size: large
           # First-use tips showing (PR #161): Home and a person's page, and that each shows once.
           - config: tips
             device: "iPhone 17 Pro"
@@ -87,13 +92,13 @@ jobs:
           xcodebuild test -project HeldDear.xcodeproj -scheme HeldDearWalk \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath "walk-${{ matrix.config }}.xcresult" \
-            -only-testing:"HeldDearUITests/${{ startsWith(matrix.config, 'tips') && 'TipTests' || (matrix.config == 'denied' && 'WalkTests/testEverythingDenied' || 'WalkTests/testWalkMainScreens') }}" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
+            -only-testing:"HeldDearUITests/${{ startsWith(matrix.config, 'tips') && 'TipTests' || (matrix.config == 'denied' && 'WalkTests/testEverythingDenied' || (matrix.config == 'free-no-ai' && 'WalkTests/testFreeWithoutAppleIntelligence' || 'WalkTests/testWalkMainScreens')) }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|CHECK|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
       - name: Summary
         if: always()
         run: |
           echo "### ${{ matrix.config }}" >> "$GITHUB_STEP_SUMMARY"
-          grep -E "^(AUDIT|NOT REACHED|DENIED OK|SCREEN|WALK DONE)" walk.log | sort -u | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
+          grep -E "^(AUDIT|NOT REACHED|DENIED OK|CHECK|SCREEN|WALK DONE)" walk.log | sort -u | sed 's/^/    /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Push screenshots to a branch for review
         if: always()
         run: |

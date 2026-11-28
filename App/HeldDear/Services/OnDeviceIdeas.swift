@@ -25,12 +25,14 @@ enum OnDeviceIdeas {
     }
 
     static var isAvailable: Bool {
+        if DemoMode.freeNoAI { return false }   // The walk's "free-no-ai" setup acts as an iPhone without it.
         if case .available = SystemLanguageModel.default.availability { return true }
         return false
     }
 
     /// Why ideas can't run here, in plain words, or nil when they can.
     static var unavailableReason: String? {
+        if DemoMode.freeNoAI { return "Ideas need an iPhone with Apple Intelligence." }
         switch SystemLanguageModel.default.availability {
         case .available: return nil
         case .unavailable(.appleIntelligenceNotEnabled): return "Turn on Apple Intelligence in Settings to get ideas."

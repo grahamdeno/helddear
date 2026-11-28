@@ -23,6 +23,12 @@ enum DemoMode {
     static var tips: Bool { on && ProcessInfo.processInfo.arguments.contains("-HeldDearDemoTips") }
     static var hidesTips: Bool { on && !tips }
 
+    /// `-HeldDearDemoFreeNoAI` (walk setup "free-no-ai", Nov 28, 2026): an iPhone without Apple Intelligence and
+    /// without Lifetime, at the free plan limit. Ben, Cora and Dev have started plans (the three free ones), Elsie has a
+    /// plan not yet started, and Ada has nothing saved, so Home offers "Plan Ada's birthday" (U2) and starting Elsie's
+    /// plan opens Lifetime naming the three (U4).
+    static var freeNoAI: Bool { on && ProcessInfo.processInfo.arguments.contains("-HeldDearDemoFreeNoAI") }
+
     /// Made-up people only (the privacy guard checks names): name, days from today to the birthday, ring.
     static let people: [(name: String, inDays: Int, ring: Ring)] = [
         ("Ada", 3, .inner), ("Ben", 12, .inner), ("Cora", 26, .middle), ("Dev", 41, .middle),
@@ -66,7 +72,18 @@ enum DemoMode {
                 }
             }
         }
-        if let ada = model.allPeople().first(where: { $0.name == "Ada" }) {
+        if freeNoAI {
+            func startPlan(_ name: String, started: Bool) {
+                guard let p = model.allPeople().first(where: { $0.name == name }), let m = model.nextMoment(for: p) else { return }
+                for s in PartSuggestions.starter(for: m.type, relationship: p.relationship) {
+                    _ = model.addPart(to: m, kind: s.kind, label: s.label)
+                }
+                if started, let first = m.planParts.first { model.setStep(first, "idea") }
+            }
+            for name in ["Ben", "Cora", "Dev"] { startPlan(name, started: true) }
+            startPlan("Elsie", started: false)
+        }
+        if !freeNoAI, let ada = model.allPeople().first(where: { $0.name == "Ada" }) {
             model.addWish(to: ada, text: "A watercolor class for two")
         }
         model.onboarded = true
