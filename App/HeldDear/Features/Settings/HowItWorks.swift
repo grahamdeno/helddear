@@ -3,6 +3,8 @@ import SwiftUI
 /// "How Held Dear works" (UX-12, Nov 24, 2026): one plain page, opened from You, for anyone who wants the whole idea
 /// in a minute. Each section is a heading and a few short lines, read top to bottom; nothing on it can be tapped.
 struct HowItWorksView: View {
+    /// Set after "Show the tips again", so the link becomes a short confirmation.
+    @State private var tipsReset = false
     struct Section: Identifiable {
         let id: String
         let icon: String
@@ -58,6 +60,16 @@ struct HowItWorksView: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
+            }
+            // Graham, Nov 28, 2026: every first-use tip shows again, once per screen, as the first time.
+            if tipsReset {
+                Text("Tips will show again on each screen.").textStyle(.callout, color: Brand.inkMuted)
+            } else {
+                TextLink(title: "Show the tips again") {
+                    FirstUseTips.resetAll()
+                    withMotion(.easeOut(duration: 0.2)) { tipsReset = true }
+                }
+                .padding(.leading, -8)
             }
         }
     }

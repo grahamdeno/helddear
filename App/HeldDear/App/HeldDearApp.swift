@@ -114,6 +114,11 @@ struct RouteView: View {
     let route: Route
 
     var body: some View {
+        // First-use tips in a flow blur the rest of its screen too (Nov 28, 2026).
+        routeContent.tipSpotlightHost()
+    }
+
+    @ViewBuilder private var routeContent: some View {
         switch route {
         case .moment(let id, let step):
             if let m = model.moment(id) {

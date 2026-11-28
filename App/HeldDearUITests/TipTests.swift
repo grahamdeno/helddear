@@ -14,6 +14,7 @@ final class TipTests: XCTestCase {
     }
 
     private func picture(_ screen: String) {
+        sleep(1)   // The dim comes in once the page settles (about half a second).
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "\(config) · \(screen)"
         shot.lifetime = .keepAlways
@@ -85,5 +86,63 @@ final class TipTests: XCTestCase {
         gotIt(plan)
         XCTAssertTrue(plan.waitForNonExistence(timeout: 3), "The plan tip should go after Got it")
         XCTAssertFalse(anyTip.waitForExistence(timeout: 3), "No other tip should appear in the same visit")
+    }
+
+    /// The spotlight (Nov 28, 2026): tapping the blurred part of the screen clears the tip and marks it seen, and the
+    /// tap doesn't reach what's behind it.
+    func testTappingOutsideTheTipClearsIt() {
+        app.launch()
+        let home = tip("home")
+        XCTAssertTrue(home.waitForExistence(timeout: 8), "The Home tip should be on screen on first launch")
+        sleep(1)   // The dim comes in once the page settles.
+        print("TRACE|\(config)|home|\(home.value as? String ?? "-")")
+        // Bottom of the screen: the timeline, which would open someone's day if the tap got through.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
+        XCTAssertTrue(home.waitForNonExistence(timeout: 3), "Tapping outside the tip should clear it")
+        XCTAssertFalse(app.navigationBars.buttons.element(boundBy: 0).waitForExistence(timeout: 2)
+                       && app.navigationBars.buttons.element(boundBy: 0).label.hasPrefix("Home"),
+                       "The tap outside should not open another page")
+        picture("Home, after tapping outside the tip")
+        app.terminate()
+        app.launchArguments = ["-HeldDearDemo", "-HeldDearDemoTips"]
+        app.launch()
+        XCTAssertFalse(home.waitForExistence(timeout: 4), "The Home tip should stay gone after a relaunch")
+    }
+
+    /// Opens Christmas from Everyone, after clearing Home's tip.
+    private func openHoliday() -> XCUIElement {
+        let home = tip("home")
+        if home.waitForExistence(timeout: 8) { gotIt(home); _ = home.waitForNonExistence(timeout: 3) }
+        tapLabel("Everyone")
+        tapLabel("Christmas")
+        let holiday = tip("holiday")
+        XCTAssertTrue(holiday.waitForExistence(timeout: 6), "The holiday tip should show on the holiday page")
+        return holiday
+    }
+
+    /// A pushed page (Fable, PR #164): the cut-out sits on the tip, so a tap on the tip's words reaches the tip and
+    /// doesn't clear it (a misplaced dim would), and "Got it" works.
+    func testHolidayPageCutOutSitsOnTheTip() {
+        app.launch()
+        let holiday = openHoliday()
+        picture("Holiday, with tip")
+        holiday.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.5)).tap()
+        XCTAssertFalse(holiday.waitForNonExistence(timeout: 2), "A tap on the tip's words should not clear it")
+        gotIt(holiday)
+        XCTAssertTrue(holiday.waitForNonExistence(timeout: 3), "Got it should clear the holiday tip")
+    }
+
+    /// A pushed page has the dim too: a tap well away from the tip clears it.
+    func testHolidayPageTapOutsideClearsTheTip() {
+        app.launch()
+        let holiday = openHoliday()
+        sleep(1)   // The dim comes in once the page settles.
+        print("TRACE|\(config)|holiday|\(holiday.value as? String ?? "-")")
+        // Just under the tip, on the summary text: nothing there to tap, so only the dim can clear the tip (a tap that
+        // reached a button would leave the page and hide the tip for the wrong reason).
+        let below = holiday.frame.maxY + 40
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: holiday.frame.midX, dy: below)).tap()
+        XCTAssertTrue(holiday.waitForNonExistence(timeout: 3), "A tap on the dim should clear the holiday tip")
+        XCTAssertTrue(app.staticTexts["Christmas"].exists, "The tap on the dim should leave the holiday page open")
     }
 }

@@ -18,8 +18,8 @@ enum DemoMode {
     /// `-HeldDearDemoEmpty`: no people and onboarding not done, for the walk with every permission denied.
     static var empty: Bool { on && ProcessInfo.processInfo.arguments.contains("-HeldDearDemoEmpty") }
 
-    /// `-HeldDearDemoTips`: first-use tips show (the walk hides them otherwise), and Ben gets a started plan so his
-    /// page has the plan tip. `-HeldDearDemoTipsReset` also marks every tip unseen at launch.
+    /// `-HeldDearDemoTips`: first-use tips show (the walk hides them otherwise), Ben gets a started plan so his
+    /// page has the plan tip, and Ada and Ben get Christmas so the holiday page has its tip. `-HeldDearDemoTipsReset` also marks every tip unseen at launch.
     static var tips: Bool { on && ProcessInfo.processInfo.arguments.contains("-HeldDearDemoTips") }
     static var hidesTips: Bool { on && !tips }
 
@@ -60,6 +60,12 @@ enum DemoMode {
         }
         if tips {
             if ProcessInfo.processInfo.arguments.contains("-HeldDearDemoTipsReset") { FirstUseTips.resetAll() }
+            // Christmas for two people, so the holiday page (and its tip) exists.
+            for name in ["Ada", "Ben"] {
+                if let p = model.allPeople().first(where: { $0.name == name }) {
+                    model.addOccasion(p, type: .christmas, month: 12, day: 25, year: nil)
+                }
+            }
             if let ben = model.allPeople().first(where: { $0.name == "Ben" }), let m = model.nextMoment(for: ben) {
                 for s in PartSuggestions.starter(for: m.type, relationship: ben.relationship) {
                     _ = model.addPart(to: m, kind: s.kind, label: s.label)

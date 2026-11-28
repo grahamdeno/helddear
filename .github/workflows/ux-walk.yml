@@ -51,6 +51,11 @@ jobs:
             device: "iPhone 17 Pro"
             appearance: light
             size: large
+          # The same tips in dark mode (PR #164): pictures with the tip and its dim showing.
+          - config: tips-dark
+            device: "iPhone 17 Pro"
+            appearance: dark
+            size: large
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
@@ -87,8 +92,8 @@ jobs:
           xcodebuild test -project HeldDear.xcodeproj -scheme HeldDearWalk \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -resultBundlePath "walk-${{ matrix.config }}.xcresult" \
-            -only-testing:"HeldDearUITests/${{ matrix.config == 'tips' && 'TipTests' || (matrix.config == 'denied' && 'WalkTests/testEverythingDenied' || (matrix.config == 'free-no-ai' && 'WalkTests/testFreeWithoutAppleIntelligence' || 'WalkTests/testWalkMainScreens')) }}" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|CHECK|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
+            -only-testing:"HeldDearUITests/${{ startsWith(matrix.config, 'tips') && 'TipTests' || (matrix.config == 'denied' && 'WalkTests/testEverythingDenied' || (matrix.config == 'free-no-ai' && 'WalkTests/testFreeWithoutAppleIntelligence' || 'WalkTests/testWalkMainScreens')) }}" \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee walk.log | grep -E "AUDIT|NOT REACHED|DENIED OK|CHECK|TRACE|SCREEN|WALK DONE|error:|Executed|Test Case|XCTAssert" || true
       - name: Summary
         if: always()
         run: |
