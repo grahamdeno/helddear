@@ -1,0 +1,32 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "0EA38DCA-57AE-467C-A13D-31D00CBD83FD.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips · Home, with tip_0_E98B4F05-9CB1-4DA3-9914-F2D947CFE1E8.png",
+        "timestamp" : 1795831822.397
+      }
+    ],
+    "testIdentifier" : "TipTests/testHomeTipShowsOnceAndStaysGone()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testHomeTipShowsOnceAndStaysGone"
+  },
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "3C77BD39-D906-4EE7-A765-141CEFD8EFDF",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "A9F1BC4B-9C5F-4C47-B1D3-1503B0AF9067.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "tips · Person, with tip_0_8B46C1D1-7479-4930-BDB7-CB6F51FF03D1.png",
+        "timestamp" : 1795831863.214
+      }
+    ],
+    "testIdentifier" : "TipTests/testPersonPageShowsOneTipPerVisit()",
+    "testIdentifierURL" : "test://com.apple.xcode/HeldDear/HeldDearUITests/TipTests/testPersonPageShowsOneTipPerVisit"
+  }
+]
