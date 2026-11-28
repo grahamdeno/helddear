@@ -120,7 +120,7 @@ final class WalkTests: XCTestCase {
                 record("Elsie's page, plan not started")
                 if tap("Gift", screen: "Elsie's gift") {
                     record("Elsie's gift")
-                    if tap("Have an idea", screen: "Plan limit") {
+                    if tap("I have an idea", screen: "Plan limit") {
                         sleep(2)
                         let line = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@",
                             "Plans for three people are free. Yours are Ben, Cora and Dev.")).firstMatch
