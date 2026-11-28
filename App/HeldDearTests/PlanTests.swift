@@ -195,6 +195,24 @@ final class PlanTests: XCTestCase {
         XCTAssertEqual(act.step, "scheduled", "An unknown status is ignored")
     }
 
+    // MARK: Free plan limit on every path (Fable, PR #163 review, Nov 28, 2026)
+
+    func testLimit_aFourthPersonIsStoppedButAPlannedOneIsNot() {
+        let planned: Set<UUID> = [UUID(), UUID(), UUID()]
+        XCTAssertFalse(PlanLimit.allows(personID: UUID(), plannedPeople: planned, hasLifetime: false),
+                       "A fourth person is stopped: \"I'll get one myself\" and finds must open the limit sheet")
+        XCTAssertTrue(PlanLimit.allows(personID: planned.first!, plannedPeople: planned, hasLifetime: false))
+        XCTAssertTrue(PlanLimit.allows(personID: UUID(), plannedPeople: planned, hasLifetime: true))
+    }
+
+    func testLimit_aPaidOrSentCardIsRecordedPastTheLimit() throws {
+        // recordDone writes through PlanStore.setStep, which never consults the limit.
+        let w = makeWorld()
+        let act = PlanStore.addPart(to: w.moment, kind: .card, label: nil, in: w.context)
+        PlanStore.setStep(act, to: "written")
+        XCTAssertEqual(act.step, "written", "A mailed or shared card is done even for a person past the limit")
+    }
+
     // MARK: Nudge (2.4)
 
     private func part(_ name: String, _ family: PartSteps.Family, _ step: String = "open", typed: Bool = false) -> PlanNudge.Part {

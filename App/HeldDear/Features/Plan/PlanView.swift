@@ -1176,6 +1176,7 @@ private struct CardChoice: View {
 
     @State private var mailing = false
     @State private var making = false
+    @State private var showLifetime = false
 
     private var name: String { DisplayName.plain(personName) }
     private var daysLeft: Int { OccasionDates.daysBetween(Date(), moment.dueDate) }
@@ -1201,7 +1202,8 @@ private struct CardChoice: View {
                           caption: daysLeft >= 6
                               ? "Mail it by \(mailBy.formatted(.dateTime.month(.abbreviated).day())) to arrive on time."
                               : "Held Dear keeps it on the plan until it's written.") {
-                    _ = model.setStep(act, "idea")
+                    // Past the free plan limit this would change nothing: say so with the limit sheet.
+                    guard model.setStep(act, "idea") else { showLifetime = true; return }
                     if daysLeft >= 6 && act.note == nil {
                         act.note = "Mail by \(mailBy.formatted(.dateTime.month(.abbreviated).day()))"
                         model.save()
@@ -1216,8 +1218,9 @@ private struct CardChoice: View {
                                               opening: moment.type.cardOpening,
                                               greeting: moment.type.greeting(name: name),
                                               onMailed: { record in
-                                                  // This card item is done; the rest of the plan stays as it is.
-                                                  _ = model.setStep(act, "written")
+                                                  // This card item is done (paid for, so past any limit); the
+                                                  // rest of the plan stays as it is.
+                                                  model.recordDone(act, "written")
                                                   act.title = MailedCardWords.title(record.cardName)
                                                   if act.cardFile == nil { act.cardFile = record.cover.flatMap { PhotoStore.save($0, maxSide: 1200) } }
                                                   model.save()
@@ -1225,13 +1228,14 @@ private struct CardChoice: View {
                          close: { mailing = false })
                 .environmentObject(model)
         }
+        .sheet(isPresented: $showLifetime) { LifetimeView(limitLine: model.planLimitLine) }
         .fullScreenCover(isPresented: $making) {
             MakeCardFlow(close: { making = false },
                          preset: moment.type.kind == .holiday ? .holiday(moment.type) : .holiday(.birthday),
                          presetHeading: moment.type == .birthday ? "Happy birthday, \(name)" : nil,
                          presetPhotos: person.map { p in p.photoFiles.reversed().prefix(3).compactMap { PhotoStore.load($0) } } ?? [],
                          onShared: {
-                             _ = model.setStep(act, "written")
+                             model.recordDone(act, "written")   // Sent is done, past any limit.
                              if act.title == nil { act.title = "Digital card" }
                              model.save()
                          },
