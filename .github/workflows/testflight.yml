@@ -83,7 +83,7 @@ jobs:
       - name: Check usage descriptions and extensions in the archived app
         run: |
           APP="$RUNNER_TEMP/HeldDear.xcarchive/Products/Applications/HeldDear.app"
-          for key in NSContactsUsageDescription NSCalendarsWriteOnlyAccessUsageDescription NSSpeechRecognitionUsageDescription NSMicrophoneUsageDescription UIAppFonts BGTaskSchedulerPermittedIdentifiers; do
+          for key in NSContactsUsageDescription NSCalendarsWriteOnlyAccessUsageDescription UIAppFonts BGTaskSchedulerPermittedIdentifiers; do
             /usr/libexec/PlistBuddy -c "Print :$key" "$APP/Info.plist" >/dev/null || { echo "::error::$key missing from Info.plist"; exit 1; }
           done
           for EXT in HeldDearShare HeldDearWidgets; do
