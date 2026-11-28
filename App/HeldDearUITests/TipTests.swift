@@ -133,7 +133,11 @@ final class TipTests: XCTestCase {
     func testHolidayPageTapOutsideClearsTheTip() {
         app.launch()
         let holiday = openHoliday()
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
+        // Just under the tip, on the summary text: nothing there to tap, so only the dim can clear the tip (a tap that
+        // reached a button would leave the page and hide the tip for the wrong reason).
+        let below = holiday.frame.maxY + 40
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: holiday.frame.midX, dy: below)).tap()
         XCTAssertTrue(holiday.waitForNonExistence(timeout: 3), "A tap on the dim should clear the holiday tip")
+        XCTAssertTrue(app.staticTexts["Christmas"].exists, "The tap on the dim should leave the holiday page open")
     }
 }

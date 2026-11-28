@@ -12,9 +12,10 @@ struct TipLine: View {
     /// Whether this tip gets the spotlight, decided once from where it first lands: true only when it's wholly on
     /// screen then. Nil until measured.
     @State private var spotlight: Bool?
-    /// The tip's latest global frame; the spotlight is decided when both it and the host's frame are known, in
-    /// either order, still only once (Fable, PR #164).
+    /// The tip's latest global frame. The spotlight is decided once, after the page settles, from the latest tip and
+    /// host frames, whichever arrived last (Fable, PR #164; build on 4157d7a decided too early and never dimmed).
     @State private var lastFrame: CGRect?
+    @State private var settled = false
     @Environment(\.tipHostFrame) private var hostFrame
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
 
@@ -63,9 +64,15 @@ struct TipLine: View {
             }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
                 lastFrame = frame
+                if settled { decideSpotlight() }
+            }
+            // Decide once the page has settled (after launch sizing and any push), from the latest frames; if one
+            // isn't known yet, the next measurement decides.
+            .task {
+                try? await Task.sleep(for: .milliseconds(350))
+                settled = true
                 decideSpotlight()
             }
-            .onChange(of: hostFrame) { decideSpotlight() }
             .anchorPreference(key: TipSpotlightKey.self, value: .bounds) { anchor in
                 spotlight == true && !voiceOver ? TipSpotlightRequest(anchor: anchor, dismiss: { dismiss(tip) }) : nil
             }
@@ -75,7 +82,8 @@ struct TipLine: View {
 
     /// Wholly on screen (top and bottom inside the host) the first time both frames are known.
     private func decideSpotlight() {
-        guard spotlight == nil, let frame = lastFrame, let host = hostFrame, frame.height > 0 else { return }
+        guard spotlight == nil, let frame = lastFrame, let host = hostFrame, frame.height > 0, host.height > frame.height
+        else { return }
         spotlight = frame.minY >= host.minY && frame.maxY <= host.maxY
     }
 
